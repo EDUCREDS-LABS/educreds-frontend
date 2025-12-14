@@ -1,0 +1,65 @@
+@import "./theme.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: var(--neutral-50);
+  --foreground: var(--neutral-900);
+  --muted: var(--neutral-100);
+  --muted-foreground: var(--neutral-500);
+  --popover: var(--neutral-50);
+  --popover-foreground: var(--neutral-900);
+  --card: var(--neutral-50);
+  --card-foreground: var(--neutral-900);
+  --border: var(--neutral-200);
+  --input: var(--neutral-200);
+  --primary-foreground: var(--neutral-50);
+  --secondary-foreground: var(--neutral-50);
+  --accent-foreground: var(--neutral-50);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(60, 9.1%, 97.8%);
+  --ring: var(--primary);
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: var(--neutral-900);
+  --foreground: var(--neutral-50);
+  --muted: var(--neutral-800);
+  --muted-foreground: var(--neutral-400);
+  --popover: var(--neutral-900);
+  --popover-foreground: var(--neutral-50);
+  --card: var(--neutral-900);
+  --card-foreground: var(--neutral-50);
+  --border: var(--neutral-800);
+  --input: var(--neutral-800);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: var(--primary);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .stat-card {
+    @apply bg-white rounded-xl shadow-sm border border-neutral-200 p-6;
+  }
+  
+  .gradient-bg {
+    background: linear-gradient(135deg, hsl(207, 90%, 54%) 0%, hsl(160, 84%, 39%) 100%);
+  }
+  
+  .certificate-preview {
+    @apply bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-4 text-center border-2 border-dashed border-blue-200;
+  }
+}

@@ -1,0 +1,15 @@
+:root {
+  --primary: hsl(210, 90%, 55%);
+  --secondary: hsl(180, 80%, 45%);
+  --accent: hsl(30, 90%, 55%);
+  --neutral-50: hsl(210, 20%, 95%);
+  --neutral-100: hsl(210, 20%, 90%);
+  --neutral-200: hsl(210, 15%, 80%);
+  --neutral-300: hsl(210, 15%, 70%);
+  --neutral-400: hsl(210, 10%, 60%);
+  --neutral-500: hsl(210, 10%, 50%);
+  --neutral-600: hsl(210, 10%, 40%);
+  --neutral-700: hsl(210, 10%, 30%);
+  --neutral-800: hsl(210, 10%, 20%);
+  --neutral-900: hsl(210, 10%, 10%);
+}
