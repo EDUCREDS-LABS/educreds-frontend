@@ -29,7 +29,9 @@ import {
   AlignRight,
   Bold,
   Italic,
-  Underline
+  Underline,
+  CalendarDays,
+  Pen,
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
@@ -95,8 +97,8 @@ const subcategories = {
 
 const fieldTypes = [
   { value: 'text', label: 'Text Field', icon: Type },
-  { value: 'date', label: 'Date Field', icon: Type },
-  { value: 'signature', label: 'Signature', icon: Type },
+  { value: 'date', label: 'Date Field', icon: CalendarDays },
+  { value: 'signature', label: 'Signature', icon: Pen },
   { value: 'logo', label: 'Logo/Image', icon: ImageIcon },
   { value: 'seal', label: 'Official Seal', icon: Award }
 ];

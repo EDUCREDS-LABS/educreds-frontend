@@ -556,6 +556,7 @@ export const CertificateMarketplace: React.FC = () => {
                   setSearchQuery('');
                   setSelectedCategory('all');
                   setPriceRange([0, 100]);
+                  setEducredsOnly(true);
                 }}>
                   Clear Filters
                 </Button>

@@ -146,6 +146,35 @@ export const api = {
     return data;
   },
 
+  // Oracle endpoints
+  getInstitutionOracleStatus: async (walletAddress?: string) => {
+    const user = auth.getUser();
+    const address = walletAddress || user?.walletAddress;
+    if (!address) throw new Error('Wallet address required');
+    
+    const response = await fetch(`${CERT_API_BASE}/api/oracle/institution/${address}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" }
+    });
+    return handleResponse(response);
+  },
+
+  submitOracleDocuments: async (walletAddress: string, formData: FormData) => {
+    const response = await fetch(`${CERT_API_BASE}/api/oracle/institution/${walletAddress}/documents`, {
+      method: "POST",
+      body: formData,
+    });
+    return handleResponse(response);
+  },
+
+  getOracleSnapshot: async () => {
+    const response = await fetch(`${CERT_API_BASE}/api/oracle/snapshot/latest`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" }
+    });
+    return handleResponse(response);
+  },
+
   // Certificate endpoints
   issueCertificate: async (formData: FormData) => {
     const authHeaders = getAuthHeaders();

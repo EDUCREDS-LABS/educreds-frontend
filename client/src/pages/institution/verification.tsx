@@ -29,6 +29,11 @@ export default function Verification() {
     enabled: !!user,
   });
 
+  const { data: oracleStatus, isLoading: oracleLoading } = useQuery({
+    queryKey: ["/api/oracle/institution", user?.walletAddress],
+    enabled: !!user?.walletAddress,
+  });
+
   const uploadMutation = useMutation({
     mutationFn: (formData: FormData) => api.uploadVerificationDocuments(formData),
     onSuccess: (data) => {
@@ -49,6 +54,25 @@ export default function Verification() {
     },
   });
 
+  const uploadOracleDocumentsMutation = useMutation({
+    mutationFn: ({ walletAddress, formData }: { walletAddress: string, formData: FormData }) => 
+      api.submitOracleDocuments(walletAddress, formData),
+    onSuccess: (data) => {
+      toast({
+        title: "Oracle documents uploaded successfully",
+        description: "Your documents have been submitted for Oracle verification.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/oracle/institution", user?.walletAddress] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Oracle document upload failed",
+        description: error.message || "Failed to upload documents. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleFileUpload = (files: File[], types: string[], descriptions: string[]) => {
     const formData = new FormData();
     
@@ -59,6 +83,30 @@ export default function Verification() {
     });
 
     uploadMutation.mutate(formData);
+  };
+
+  const handleOracleDocumentUpload = (files: File[], types: string[], descriptions: string[]) => {
+    if (!user?.walletAddress) {
+      toast({
+        title: "Wallet address required",
+        description: "Please connect your wallet to submit Oracle documents.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const formData = new FormData();
+    
+    files.forEach((file, index) => {
+      formData.append('documents', file);
+      formData.append(`documentTypes`, types[index] || 'OTHER');
+      formData.append('description', descriptions[index] || 'Document submitted for Oracle verification');
+    });
+
+    uploadOracleDocumentsMutation.mutate({
+      walletAddress: user.walletAddress,
+      formData
+    });
   };
 
   const getVerificationStep = (step: string, isCompleted: boolean, isPending: boolean) => {
@@ -105,6 +153,19 @@ export default function Verification() {
         return <Badge variant="destructive">Rejected</Badge>;
       default:
         return <Badge variant="secondary">Not Submitted</Badge>;
+    }
+  };
+
+  const getOracleStatusBadge = (status: string) => {
+    switch (status) {
+      case 'ACCREDITED':
+        return <Badge className="bg-green-100 text-green-800">Accredited</Badge>;
+      case 'PROVISIONAL':
+        return <Badge className="bg-blue-100 text-blue-800">Provisional</Badge>;
+      case 'UNVERIFIED':
+        return <Badge variant="secondary">Unverified</Badge>;
+      default:
+        return <Badge variant="secondary">Unknown</Badge>;
     }
   };
 
@@ -176,6 +237,51 @@ export default function Verification() {
           </AlertDescription>
         </Alert>
       )}
+
+      {/* Oracle Accreditation Status */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="w-5 h-5" />
+            Oracle Accreditation Status
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {oracleLoading ? (
+            <Skeleton className="h-24 w-full" />
+          ) : oracleStatus ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Accreditation Status:</span>
+                {getOracleStatusBadge((oracleStatus as any).accreditationStatus)}
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Trust Score:</span>
+                <span className="text-sm text-neutral-600">
+                  {(oracleStatus as any).trustScore}/100
+                </span>
+              </div>
+
+              {(oracleStatus as any).oracleMatch && (
+                <div className="text-sm text-neutral-600">
+                  <p>✓ Matched against official NCHE records</p>
+                  <p>Name similarity: {((oracleStatus as any).oracleMatch.nameMatchScore * 100).toFixed(1)}%</p>
+                </div>
+              )}
+
+              <div className="text-xs text-neutral-500">
+                Last updated: {new Date((oracleStatus as any).lastUpdated).toLocaleDateString()}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <p className="text-neutral-500">No Oracle verification data available</p>
+              <p className="text-sm text-neutral-400">Submit documents below to get verified</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Document Upload Section */}
       <Card>
@@ -289,6 +395,58 @@ export default function Verification() {
           </CardContent>
         </Card>
       )}
+
+      {/* Oracle Document Upload Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="w-5 h-5" />
+            Oracle Evidence Submission
+          </CardTitle>
+          <p className="text-sm text-neutral-600">
+            Submit additional documents to improve your Oracle accreditation score
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <FileUpload
+            onUpload={handleOracleDocumentUpload}
+            isUploading={uploadOracleDocumentsMutation.isPending}
+            acceptedFileTypes=".pdf,.jpg,.jpeg,.png"
+            maxFiles={5}
+            maxFileSize={10 * 1024 * 1024} // 10MB
+          />
+
+          {/* Oracle Document Types Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="border border-neutral-200 rounded-lg p-4">
+              <h4 className="font-medium text-neutral-900 mb-2">Accreditation Certificate</h4>
+              <p className="text-sm text-neutral-500 mb-3">Official NCHE accreditation documents</p>
+              <div className="flex items-center text-sm">
+                <AlertCircle className="w-4 h-4 text-blue-600 mr-2" />
+                <span className="text-blue-600">Improves trust score</span>
+              </div>
+            </div>
+
+            <div className="border border-neutral-200 rounded-lg p-4">
+              <h4 className="font-medium text-neutral-900 mb-2">Registration Certificate</h4>
+              <p className="text-sm text-neutral-500 mb-3">Official business registration</p>
+              <div className="flex items-center text-sm">
+                <AlertCircle className="w-4 h-4 text-blue-600 mr-2" />
+                <span className="text-blue-600">Required for verification</span>
+              </div>
+            </div>
+
+            <div className="border border-neutral-200 rounded-lg p-4">
+              <h4 className="font-medium text-neutral-900 mb-2">Audit Reports</h4>
+              <p className="text-sm text-neutral-500 mb-3">Financial and compliance audits</p>
+              <div className="flex items-center text-sm">
+                <AlertCircle className="w-4 h-4 text-blue-600 mr-2" />
+                <span className="text-blue-600">Bonus points</span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
