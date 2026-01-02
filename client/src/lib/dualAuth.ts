@@ -19,20 +19,40 @@ export class DualAuth {
   // Institution Authentication (Original System)
   static async institutionLogin(email: string, password: string) {
     try {
-      const response = await api.login({ email, password });
-      const token = response.token;
+      const response = await fetch(`${process.env.VITE_CERT_API_BASE || 'http://localhost:3001'}/auth/institution/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Institution login failed');
+      }
+
+      const data = await response.json();
+      const token = data.token;
       
+      // Store institution tokens separately
       localStorage.setItem('institution_token', token);
+      localStorage.setItem('institution_user', JSON.stringify({
+        id: data.institution.id,
+        email: data.institution.email,
+        name: data.institution.name,
+        type: AuthType.INSTITUTION,
+        walletAddress: data.institution.walletAddress,
+        isVerified: data.institution.isVerified
+      }));
       localStorage.setItem('auth_type', AuthType.INSTITUTION);
       
       return {
         user: {
-          id: response.institution.id,
-          email: response.institution.email,
-          name: response.institution.name,
+          id: data.institution.id,
+          email: data.institution.email,
+          name: data.institution.name,
           type: AuthType.INSTITUTION,
-          walletAddress: response.institution.walletAddress,
-          isVerified: response.institution.isVerified
+          walletAddress: data.institution.walletAddress,
+          isVerified: data.institution.isVerified
         },
         token
       };
@@ -49,20 +69,40 @@ export class DualAuth {
     registrationNumber: string;
   }) {
     try {
-      const response = await api.register(data);
-      const token = response.token;
+      const response = await fetch(`${process.env.VITE_CERT_API_BASE || 'http://localhost:3001'}/auth/institution/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Institution registration failed');
+      }
+
+      const responseData = await response.json();
+      const token = responseData.token;
       
+      // Store institution tokens separately
       localStorage.setItem('institution_token', token);
+      localStorage.setItem('institution_user', JSON.stringify({
+        id: responseData.institution.id,
+        email: responseData.institution.email,
+        name: responseData.institution.name,
+        type: AuthType.INSTITUTION,
+        walletAddress: responseData.institution.walletAddress,
+        isVerified: responseData.institution.isVerified
+      }));
       localStorage.setItem('auth_type', AuthType.INSTITUTION);
       
       return {
         user: {
-          id: response.institution.id,
-          email: response.institution.email,
-          name: response.institution.name,
+          id: responseData.institution.id,
+          email: responseData.institution.email,
+          name: responseData.institution.name,
           type: AuthType.INSTITUTION,
-          walletAddress: response.institution.walletAddress,
-          isVerified: response.institution.isVerified
+          walletAddress: responseData.institution.walletAddress,
+          isVerified: responseData.institution.isVerified
         },
         token
       };
@@ -84,17 +124,25 @@ export class DualAuth {
       });
       
       if (!backendResponse.ok) {
-        throw new Error('Backend authentication failed');
+        throw new Error('Marketplace backend authentication failed');
       }
       
       const backendData = await backendResponse.json();
       
       if (!backendData.success) {
-        throw new Error(backendData.message || 'Backend authentication failed');
+        throw new Error(backendData.message || 'Marketplace backend authentication failed');
       }
       
-      // Store backend JWT token for marketplace API calls
+      // Store backend JWT token for marketplace API calls - SEPARATELY
       localStorage.setItem('marketplace_token', backendData.token);
+      localStorage.setItem('marketplace_user', JSON.stringify({
+        id: backendData.user.id,
+        email: backendData.user.email,
+        name: backendData.user.name || backendData.user.displayName,
+        type: AuthType.MARKETPLACE,
+        isDesigner: backendData.user.isDesigner,
+        avatar: backendData.user.avatar
+      }));
       localStorage.setItem('auth_type', AuthType.MARKETPLACE);
       
       return {
@@ -123,17 +171,25 @@ export class DualAuth {
       });
       
       if (!backendResponse.ok) {
-        throw new Error('Backend authentication failed');
+        throw new Error('Marketplace backend authentication failed');
       }
       
       const backendData = await backendResponse.json();
       
       if (!backendData.success) {
-        throw new Error(backendData.message || 'Backend authentication failed');
+        throw new Error(backendData.message || 'Marketplace backend authentication failed');
       }
       
-      // Store backend JWT token for marketplace API calls
+      // Store backend JWT token for marketplace API calls - SEPARATELY
       localStorage.setItem('marketplace_token', backendData.token);
+      localStorage.setItem('marketplace_user', JSON.stringify({
+        id: backendData.user.id,
+        email: backendData.user.email,
+        name: backendData.user.name || backendData.user.displayName,
+        type: AuthType.MARKETPLACE,
+        isDesigner: backendData.user.isDesigner,
+        avatar: backendData.user.avatar
+      }));
       localStorage.setItem('auth_type', AuthType.MARKETPLACE);
       
       return {
@@ -172,7 +228,6 @@ export class DualAuth {
     if (!authType || !token) return null;
 
     if (authType === AuthType.INSTITUTION) {
-      // Decode institution token or get from storage
       try {
         const userData = localStorage.getItem('institution_user');
         return userData ? JSON.parse(userData) : null;
@@ -180,15 +235,12 @@ export class DualAuth {
         return null;
       }
     } else if (authType === AuthType.MARKETPLACE) {
-      const firebaseUser = FirebaseAuth.getCurrentUser();
-      if (!firebaseUser) return null;
-      
-      return {
-        id: firebaseUser.uid,
-        email: firebaseUser.email || '',
-        name: firebaseUser.displayName || firebaseUser.email || '',
-        type: AuthType.MARKETPLACE
-      };
+      try {
+        const userData = localStorage.getItem('marketplace_user');
+        return userData ? JSON.parse(userData) : null;
+      } catch {
+        return null;
+      }
     }
     
     return null;
@@ -213,13 +265,17 @@ export class DualAuth {
     const authType = this.getCurrentAuthType();
     
     if (authType === AuthType.INSTITUTION) {
+      // Clear institution auth data
       localStorage.removeItem('institution_token');
       localStorage.removeItem('institution_user');
     } else if (authType === AuthType.MARKETPLACE) {
+      // Clear marketplace auth data
       await FirebaseAuth.logout();
       localStorage.removeItem('marketplace_token');
+      localStorage.removeItem('marketplace_user');
     }
     
+    // Clear common auth type
     localStorage.removeItem('auth_type');
     sessionStorage.clear();
   }

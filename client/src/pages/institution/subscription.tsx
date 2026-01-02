@@ -319,11 +319,11 @@ export default function SubscriptionPage() {
       <div>
         <h2 className="text-lg font-semibold text-neutral-900 mb-6">Available Plans</h2>
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {plans.map((plan) => (
             <Card 
               key={plan.id} 
-              className={`relative ${plan.highlighted ? 'border-2 border-primary' : ''} ${
+              className={`relative border ${plan.highlighted ? 'border-2 border-primary' : ''} ${
                 isCurrentPlan(plan.id) ? 'ring-2 ring-green-500 ring-offset-2' : ''
               }`}
             >
