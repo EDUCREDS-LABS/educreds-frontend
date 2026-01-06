@@ -497,6 +497,40 @@ export const api = {
     return handleResponse(response);
   },
 
+  // W3C Verifiable Credentials
+  getSharePackage: async (certificateId: string) => {
+    const response = await fetch(API_CONFIG.CERTIFICATES.SHARE_PACKAGE(certificateId));
+    return handleResponse(response);
+  },
+
+  getShareMethods: async (certificateId: string) => {
+    const response = await fetch(API_CONFIG.CERTIFICATES.SHARE_METHODS(certificateId));
+    return handleResponse(response);
+  },
+
+  verifyW3CCredential: async (credential: any) => {
+    const response = await fetch(API_CONFIG.W3C.VERIFY, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(credential),
+    });
+    return handleResponse(response);
+  },
+
+  verifyHybridCredential: async (data: { w3cCredential: any; tokenId?: number }) => {
+    const response = await fetch(API_CONFIG.W3C.HYBRID_VERIFY, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  getCredentialProof: async (tokenId: number) => {
+    const response = await fetch(API_CONFIG.W3C.HYBRID_PROOF(tokenId));
+    return handleResponse(response);
+  },
+
   // Note: Marketplace-specific endpoints are now in marketplace-auth.ts
 
   // Bulk operations

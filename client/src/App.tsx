@@ -40,6 +40,9 @@ import PressKitPage from "@/pages/press";
 import DocumentationPage from "@/pages/documentation";
 import ApiReferencePage from "@/pages/api-reference";
 import PricingPage from "@/pages/pricing";
+import W3CTestPage from "@/pages/w3c-test";
+import StudentPortalPage from "@/pages/student-portal";
+import VerificationPortalPage from "@/pages/verification-portal";
 // import MarketplaceProtectedRoute from "@/components/MarketplaceProtectedRoute";
 
 function Router() {
@@ -50,7 +53,10 @@ function Router() {
       <Route path="/register" component={Register} />
       <Route path="/register/verify-otp" component={RegisterVerifyOtp} />
       <Route path="/student" component={StudentPage} />
+      <Route path="/student-portal" component={StudentPortalPage} />
       <Route path="/verify" component= {verify} />
+      <Route path="/verification-portal" component={VerificationPortalPage} />
+      <Route path="/w3c-test" component={W3CTestPage} />
       
       {/* Public Routes */}
       <Route path="/marketplace" component={MarketplacePage} />

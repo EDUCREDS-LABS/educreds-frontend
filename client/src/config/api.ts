@@ -59,7 +59,19 @@ export const API_CONFIG = {
     VERIFY: (id: string) => `${CERT_API_BASE}/api/certificates/verify/${id}`,
     WALLET: (walletAddress: string) => `${CERT_API_BASE}/api/certificates/wallet/${walletAddress}`,
     MINT: (certificateId: string) => `${CERT_API_BASE}/api/certificates/${certificateId}/mint`,
-    ONCHAIN_MINT: (certificateId: string) => `${CERT_API_BASE}/api/certificates/${certificateId}/onchain-mint`
+    ONCHAIN_MINT: (certificateId: string) => `${CERT_API_BASE}/api/certificates/${certificateId}/onchain-mint`,
+    SHARE_PACKAGE: (certificateId: string) => `${CERT_API_BASE}/api/student/share/${certificateId}/package`,
+    SHARE_METHODS: (certificateId: string) => `${CERT_API_BASE}/api/student/share/${certificateId}/methods`
+  },
+  
+  // W3C Verifiable Credentials endpoints
+  W3C: {
+    BASE: `${CERT_API_BASE}/api/w3c-credentials`,
+    ISSUE: `${CERT_API_BASE}/api/w3c-credentials/issue`,
+    VERIFY: `${CERT_API_BASE}/api/w3c-credentials/verify`,
+    HYBRID_VERIFY: `${CERT_API_BASE}/api/hybrid-verification/verify`,
+    HYBRID_PROOF: (tokenId: number) => `${CERT_API_BASE}/api/hybrid-verification/proof/${tokenId}`,
+    HYBRID_MINT: `${CERT_API_BASE}/api/hybrid-verification/mint`
   },
   
   // Institution endpoints (use CERT backend)

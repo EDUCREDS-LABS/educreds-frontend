@@ -1,0 +1,43 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "@protected": true,
+    
+    "courseName": {
+      "@id": "https://educreds.xyz/vocab#courseName",
+      "@type": "@id"
+    },
+    "grade": {
+      "@id": "https://educreds.xyz/vocab#grade",
+      "@type": "@id"
+    },
+    "institutionName": {
+      "@id": "https://educreds.xyz/vocab#institutionName",
+      "@type": "@id"
+    },
+    "certificateType": {
+      "@id": "https://educreds.xyz/vocab#certificateType",
+      "@type": "@id"
+    },
+    "completionDate": {
+      "@id": "https://educreds.xyz/vocab#completionDate",
+      "@type": "http://www.w3.org/2001/XMLSchema#date"
+    },
+    "studentName": {
+      "@id": "https://educreds.xyz/vocab#studentName",
+      "@type": "@id"
+    },
+    "registrationNumber": {
+      "@id": "https://educreds.xyz/vocab#registrationNumber",
+      "@type": "@id"
+    },
+    "accreditationStatus": {
+      "@id": "https://educreds.xyz/vocab#accreditationStatus",
+      "@type": "@id"
+    },
+    "trustScore": {
+      "@id": "https://educreds.xyz/vocab#trustScore",
+      "@type": "http://www.w3.org/2001/XMLSchema#integer"
+    }
+  }
+}
