@@ -24,9 +24,9 @@ echo "PORT=3001" >> .env
 npm run start:dev
 ```
 
-### 3. Frontend Setup (educhain-frontend)
+### 3. Frontend Setup (Educreds-frontend)
 ```bash
-cd educhain-frontend
+cd Educreds-frontend
 npm install
 
 # Add to .env
@@ -55,7 +55,7 @@ DB_PASSWORD=your_password
 DB_NAME=educreds_marketplace
 PORT=3001
 
-# educhain-frontend/.env
+# Educreds-frontend/.env
 VITE_CERT_API_BASE=http://localhost:3001
 ```
 

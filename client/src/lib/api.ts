@@ -1,13 +1,13 @@
-const API_BASE = (import.meta.env.VITE_API_BASE ?? "http://localhost:3001").replace(/\/$/, "");
-const CERT_API_BASE = (import.meta.env.VITE_CERT_API_BASE ?? "http://localhost:3001").replace(/\/$/, "");
-const MARKETPLACE_API_BASE = (import.meta.env.VITE_MARKETPLACE_API_BASE ?? "http://localhost:3001").replace(/\/$/, "");
-console.log("Using API base:", API_BASE);
-console.log("Using Certificate API base:", CERT_API_BASE);
-console.log("Using Marketplace API base:", MARKETPLACE_API_BASE);
-
+import { API_CONFIG } from "@/config/api";
 import { auth, getAuthHeaders } from "./auth";
 import { AdminAuth } from "./admin-auth";
 import { transformDocumentsForBackend } from "@/utils/documentTransform";
+
+console.log("Using API configuration:", {
+  MAIN: API_CONFIG.MAIN,
+  CERT: API_CONFIG.CERT,
+  MARKETPLACE: API_CONFIG.MARKETPLACE
+});
 
 // Helper function to get admin headers
 const getAdminHeaders = (): Record<string, string> => {
@@ -56,21 +56,21 @@ async function handleResponse(response: Response) {
 export const api = {
   // Health check
   healthCheck: async () => {
-    const response = await fetch(`${CERT_API_BASE}/api/health`);
+    const response = await fetch(API_CONFIG.HEALTH.CERT);
     return handleResponse(response);
   },
 
   // Test admin endpoint
   testAdmin: async () => {
-    const response = await fetch(`${CERT_API_BASE}/api/admin/test`, {
+    const response = await fetch(API_CONFIG.ADMIN.TEST, {
       headers: getAdminHeaders(),
     });
     return handleResponse(response);
   },
 
   // Auth endpoints - Platform authentication (uses unified API)
-  login: async (credentials: { email: string; password: string }) => {
-    const response = await fetch(`${CERT_API_BASE}/api/institutions/login`, {
+  login: async (credentials: { email: string; password: string; otp?: string; otpToken?: string }) => {
+    const response = await fetch(API_CONFIG.INSTITUTIONS.LOGIN, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include", // Include cookies for session
@@ -87,7 +87,7 @@ export const api = {
         transformDocumentsForBackend(data.verificationDocuments) : []
     };
     
-    const response = await fetch(`${CERT_API_BASE}/api/institutions/register`, {
+    const response = await fetch(API_CONFIG.INSTITUTIONS.REGISTER, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include", // Include cookies for session
@@ -97,7 +97,7 @@ export const api = {
   },
 
   logout: async () => {
-    const response = await fetch(`${CERT_API_BASE}/auth/logout`, {
+    const response = await fetch(`${API_CONFIG.CERT}/auth/logout`, {
       method: "POST",
       credentials: "include", // Include cookies for session
     });
@@ -105,7 +105,7 @@ export const api = {
   },
 
   verifySession: async () => {
-    const response = await fetch(`${CERT_API_BASE}/auth/verify-session`, {
+    const response = await fetch(`${API_CONFIG.CERT}/auth/verify-session`, {
       credentials: "include", // Include cookies for session
     });
     return handleResponse(response);
@@ -114,7 +114,7 @@ export const api = {
   // Institution endpoints
   getProfile: async () => {
     const user = auth.getUser();
-    const response = await fetch(`${CERT_API_BASE}/api/institutions/profile`, {
+    const response = await fetch(API_CONFIG.INSTITUTIONS.PROFILE, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ institutionId: user?.sub })
@@ -124,7 +124,7 @@ export const api = {
 
   getVerificationStatus: async () => {
     const user = auth.getUser();
-    const response = await fetch(`${CERT_API_BASE}/api/institutions/verification-status`, {
+    const response = await fetch(API_CONFIG.INSTITUTIONS.VERIFICATION_STATUS, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ institutionId: user?.sub })
@@ -133,17 +133,20 @@ export const api = {
   },
 
   uploadVerificationDocuments: async (formData: FormData) => {
-    const user = auth.getUser();
-    formData.append('institutionId', user?.sub || '');
-    const response = await fetch(`${CERT_API_BASE}/api/institutions/verification-documents`, {
+    const token = localStorage.getItem('institution_token');
+    
+    if (!token) {
+      throw new Error('User not authenticated');
+    }
+    
+    const response = await fetch(API_CONFIG.INSTITUTIONS.VERIFICATION_DOCUMENTS, {
       method: "POST",
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
       body: formData,
     });
-    const data = await handleResponse(response);
-    
-    // Backend expects verificationDocuments as array of URLs
-    // Frontend can still display full document objects for UI
-    return data;
+    return handleResponse(response);
   },
 
   // Oracle endpoints
@@ -152,7 +155,7 @@ export const api = {
     const address = walletAddress || user?.walletAddress;
     if (!address) throw new Error('Wallet address required');
     
-    const response = await fetch(`${CERT_API_BASE}/api/oracle/institution/${address}`, {
+    const response = await fetch(API_CONFIG.ORACLE.INSTITUTION(address), {
       method: "GET",
       headers: { "Content-Type": "application/json" }
     });
@@ -160,15 +163,24 @@ export const api = {
   },
 
   submitOracleDocuments: async (walletAddress: string, formData: FormData) => {
-    const response = await fetch(`${CERT_API_BASE}/api/oracle/institution/${walletAddress}/documents`, {
+    const token = localStorage.getItem('institution_token');
+    
+    if (!token) {
+      throw new Error('User not authenticated');
+    }
+    
+    const response = await fetch(API_CONFIG.ORACLE.SUBMIT_DOCUMENTS(walletAddress), {
       method: "POST",
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
       body: formData,
     });
     return handleResponse(response);
   },
 
   getOracleSnapshot: async () => {
-    const response = await fetch(`${CERT_API_BASE}/api/oracle/snapshot/latest`, {
+    const response = await fetch(API_CONFIG.ORACLE.SNAPSHOT_LATEST, {
       method: "GET",
       headers: { "Content-Type": "application/json" }
     });
@@ -178,7 +190,7 @@ export const api = {
   // Certificate endpoints
   issueCertificate: async (formData: FormData) => {
     const authHeaders = getAuthHeaders();
-    const response = await fetch(`${CERT_API_BASE}/api/certificates/issue`, {
+    const response = await fetch(API_CONFIG.CERTIFICATES.ISSUE, {
       method: "POST",
       headers: authHeaders,
       body: formData,
@@ -187,7 +199,7 @@ export const api = {
   },
 
   updateCertificateAfterMint: async (certificateId: string, data: { tokenId: number; walletAddress: string }) => {
-    const response = await fetch(`${CERT_API_BASE}/api/certificates/${certificateId}/onchain-mint`, {
+    const response = await fetch(API_CONFIG.CERTIFICATES.ONCHAIN_MINT(certificateId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -197,7 +209,7 @@ export const api = {
 
   getCertificates: async () => {
     const authHeaders = getAuthHeaders();
-    const response = await fetch(`${CERT_API_BASE}/api/certificates/institution`, {
+    const response = await fetch(API_CONFIG.CERTIFICATES.INSTITUTION, {
       headers: authHeaders,
     });
     const data = await handleResponse(response);
@@ -234,13 +246,13 @@ export const api = {
 
   // Subscription endpoints
   getSubscriptionPlans: async () => {
-    const response = await fetch(`${CERT_API_BASE}/api/subscription/plans`);
+    const response = await fetch(`${API_CONFIG.CERT}/api/subscription/plans`);
     return handleResponse(response);
   },
 
   getCurrentSubscription: async () => {
     const authHeaders = getAuthHeaders();
-    const response = await fetch(`${CERT_API_BASE}/api/subscription/current`, {
+    const response = await fetch(`${API_CONFIG.CERT}/api/subscription/current`, {
       headers: authHeaders,
     });
     return handleResponse(response);
@@ -248,7 +260,7 @@ export const api = {
 
   getUsage: async () => {
     const authHeaders = getAuthHeaders();
-    const response = await fetch(`${CERT_API_BASE}/api/subscription/usage`, {
+    const response = await fetch(`${API_CONFIG.CERT}/api/subscription/usage`, {
       headers: authHeaders,
     });
     return handleResponse(response);
@@ -256,7 +268,7 @@ export const api = {
 
   subscribe: async (data: { planId: string; paymentMethod: string }) => {
     const authHeaders = getAuthHeaders();
-    const response = await fetch(`${CERT_API_BASE}/api/subscription/subscribe`, {
+    const response = await fetch(`${API_CONFIG.CERT}/api/subscription/subscribe`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -269,7 +281,7 @@ export const api = {
 
   cancelSubscription: async () => {
     const authHeaders = getAuthHeaders();
-    const response = await fetch(`${CERT_API_BASE}/api/subscription/cancel`, {
+    const response = await fetch(`${API_CONFIG.CERT}/api/subscription/cancel`, {
       method: "POST",
       headers: authHeaders,
     });
@@ -278,7 +290,7 @@ export const api = {
 
   getPayments: async () => {
     const authHeaders = getAuthHeaders();
-    const response = await fetch(`${CERT_API_BASE}/api/subscription/payments`, {
+    const response = await fetch(`${API_CONFIG.CERT}/api/subscription/payments`, {
       headers: authHeaders,
     });
     return handleResponse(response);
@@ -287,13 +299,13 @@ export const api = {
   // Dashboard stats
   getStats: async () => {
     const user = auth.getUser();
-    const response = await fetch(`${CERT_API_BASE}/api/stats?institutionId=${user?.sub || ''}`);
+    const response = await fetch(`${API_CONFIG.CERT}/api/stats?institutionId=${user?.sub || ''}`);
     return handleResponse(response);
   },
 
   // Mint certificate to blockchain (student action)
   mintCertificateToBlockchain: async (certificateId: string, data: { walletAddress: string }) => {
-    const response = await fetch(`${CERT_API_BASE}/api/certificates/${certificateId}/mint`, {
+    const response = await fetch(API_CONFIG.CERTIFICATES.MINT(certificateId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -303,18 +315,18 @@ export const api = {
 
   // Verification endpoints
   verifyCertificateByIPFS: async (ipfsHash: string) => {
-    const response = await fetch(`${CERT_API_BASE}/api/certificates/verify/ipfs/${ipfsHash}`);
+    const response = await fetch(API_CONFIG.CERTIFICATES.VERIFY_IPFS(ipfsHash));
     return handleResponse(response);
   },
 
   verifyCertificateByToken: async (tokenId: number) => {
-    const response = await fetch(`${CERT_API_BASE}/api/certificates/verify/token/${tokenId}`);
+    const response = await fetch(API_CONFIG.CERTIFICATES.VERIFY_TOKEN(tokenId));
     return handleResponse(response);
   },
 
   // Student endpoints
   connectWallet: async (walletAddress: string) => {
-    const response = await fetch(`${CERT_API_BASE}/api/students/connect-wallet`, {
+    const response = await fetch(`${API_CONFIG.CERT}/api/students/connect-wallet`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ walletAddress }),
@@ -323,7 +335,7 @@ export const api = {
   },
 
   getCertificatesByWallet: async (walletAddress: string) => {
-    const response = await fetch(`${CERT_API_BASE}/api/certificates/wallet/${walletAddress}`);
+    const response = await fetch(API_CONFIG.CERTIFICATES.WALLET(walletAddress));
     const data = await handleResponse(response);
 
     // Normalize response shape for student certificates
@@ -358,14 +370,14 @@ export const api = {
   },
 
   verifyCertificate: async (id: string) => {
-    const response = await fetch(`${CERT_API_BASE}/api/certificates/verify/${id}`);
+    const response = await fetch(API_CONFIG.CERTIFICATES.VERIFY(id));
     return handleResponse(response);
   },
 
   // Blockchain integration endpoints
   getBlockchainStatus: async (institutionId: string) => {
     const authHeaders = getAuthHeaders();
-    const response = await fetch(`${CERT_API_BASE}/api/institutions/${institutionId}/blockchain-status`, {
+    const response = await fetch(API_CONFIG.INSTITUTIONS.BLOCKCHAIN_STATUS(institutionId), {
       headers: authHeaders,
     });
     return handleResponse(response);
@@ -373,21 +385,21 @@ export const api = {
 
   // Admin blockchain endpoints
   getBlockchainSummary: async () => {
-    const response = await fetch(`${API_BASE}/api/admin/blockchain-summary`, {
+    const response = await fetch(API_CONFIG.ADMIN.BLOCKCHAIN_SUMMARY, {
       headers: getAdminHeaders(),
     });
     return handleResponse(response);
   },
 
   getBlockchainStatusAll: async () => {
-    const response = await fetch(`${API_BASE}/api/admin/blockchain-status`, {
+    const response = await fetch(API_CONFIG.ADMIN.BLOCKCHAIN_STATUS, {
       headers: getAdminHeaders(),
     });
     return handleResponse(response);
   },
 
   registerInstitutionOnBlockchain: async (institutionId: string) => {
-    const response = await fetch(`${API_BASE}/api/admin/institutions/${institutionId}/blockchain-register`, {
+    const response = await fetch(`${API_CONFIG.ADMIN.BASE}/institutions/${institutionId}/blockchain-register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -398,7 +410,7 @@ export const api = {
   },
 
   authorizeInstitutionOnBlockchain: async (institutionId: string) => {
-    const response = await fetch(`${API_BASE}/api/admin/institutions/${institutionId}/blockchain-authorize`, {
+    const response = await fetch(`${API_CONFIG.ADMIN.BASE}/institutions/${institutionId}/blockchain-authorize`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -409,7 +421,7 @@ export const api = {
   },
 
   bulkRegisterInstitutionsOnBlockchain: async () => {
-    const response = await fetch(`${API_BASE}/api/admin/blockchain-register-all`, {
+    const response = await fetch(`${API_CONFIG.ADMIN.BASE}/blockchain-register-all`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -421,7 +433,7 @@ export const api = {
 
   // Admin security
   changeAdminPassword: async (data: { currentPassword: string; newPassword: string }) => {
-    const response = await fetch(`${API_BASE}/api/admin/change-password`, {
+    const response = await fetch(API_CONFIG.ADMIN.CHANGE_PASSWORD, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -434,14 +446,14 @@ export const api = {
 
   // Admin user management
   getAdminUsers: async () => {
-    const response = await fetch(`${CERT_API_BASE}/api/admin/users`, {
+    const response = await fetch(API_CONFIG.ADMIN.USERS, {
       headers: getAdminHeaders(),
     });
     return handleResponse(response);
   },
 
   createAdminUser: async (data: { email: string; name: string; role: string; password: string }) => {
-    const response = await fetch(`${CERT_API_BASE}/api/admin/users`, {
+    const response = await fetch(API_CONFIG.ADMIN.USERS, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -453,7 +465,7 @@ export const api = {
   },
 
   updateAdminUser: async (userId: string, data: { name?: string; role?: string; isActive?: boolean }) => {
-    const response = await fetch(`${CERT_API_BASE}/api/admin/users/${userId}`, {
+    const response = await fetch(`${API_CONFIG.ADMIN.USERS}/${userId}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -465,7 +477,7 @@ export const api = {
   },
 
   deleteAdminUser: async (userId: string) => {
-    const response = await fetch(`${CERT_API_BASE}/api/admin/users/${userId}`, {
+    const response = await fetch(`${API_CONFIG.ADMIN.USERS}/${userId}`, {
       method: "DELETE",
       headers: getAdminHeaders(),
     });
@@ -479,7 +491,7 @@ export const api = {
     if (filters?.userId) params.append('userId', filters.userId);
     if (filters?.action) params.append('action', filters.action);
     
-    const response = await fetch(`${CERT_API_BASE}/api/admin/audit-logs?${params}`, {
+    const response = await fetch(`${API_CONFIG.ADMIN.AUDIT_LOGS}?${params}`, {
       headers: getAdminHeaders(),
     });
     return handleResponse(response);
@@ -490,7 +502,7 @@ export const api = {
   // Bulk operations
   getInstitutionVariants: async (institutionId: string) => {
     const authHeaders = getAuthHeaders();
-    const response = await fetch(`${API_BASE}/api/institutions/${institutionId}/variants`, {
+    const response = await fetch(API_CONFIG.INSTITUTIONS.VARIANTS(institutionId), {
       headers: authHeaders,
     });
     return handleResponse(response);
@@ -498,7 +510,7 @@ export const api = {
 
   bulkIssueCertificates: async (data: any) => {
     const authHeaders = getAuthHeaders();
-    const response = await fetch(`${CERT_API_BASE}/api/bulk/certificates/bulk-issue`, {
+    const response = await fetch(`${API_CONFIG.CERT}/api/bulk/certificates/bulk-issue`, {
       method: "POST",
       headers: { ...authHeaders, "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -508,7 +520,7 @@ export const api = {
 
   getBulkStatus: async (jobId: string) => {
     const authHeaders = getAuthHeaders();
-    const response = await fetch(`${CERT_API_BASE}/api/bulk/certificates/bulk-status/${jobId}`, {
+    const response = await fetch(`${API_CONFIG.CERT}/api/bulk/certificates/bulk-status/${jobId}`, {
       headers: authHeaders,
     });
     return handleResponse(response);
@@ -516,7 +528,7 @@ export const api = {
 
   downloadBulkZip: async (jobId: string) => {
     const authHeaders = getAuthHeaders();
-    const response = await fetch(`${CERT_API_BASE}/api/bulk/certificates/bulk-download/${jobId}`, {
+    const response = await fetch(`${API_CONFIG.CERT}/api/bulk/certificates/bulk-download/${jobId}`, {
       headers: authHeaders,
     });
     if (!response.ok) {

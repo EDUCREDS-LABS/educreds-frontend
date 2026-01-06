@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
+import OtpInput from "@/components/ui/otp-input";
 import { 
   Loader2, 
   AlertCircle, 
@@ -25,6 +26,8 @@ import { api } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 
+const CERT_API_BASE = (import.meta.env.VITE_CERT_API_BASE ?? "http://localhost:3001").replace(/\/$/, "");
+
 interface ModernAuthProps {
   mode: 'login' | 'register';
 }
@@ -34,6 +37,9 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showOtp, setShowOtp] = useState(false);
+  const [otpToken, setOtpToken] = useState("");
+  const [userEmail, setUserEmail] = useState("");
   const { toast } = useToast();
 
   const form = useForm<LoginCredentials>({
@@ -49,20 +55,89 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
     setError("");
 
     try {
-      const response = await api.login(data);
-      auth.setToken(response.token);
+      // First, send OTP
+      const otpResponse = await fetch(`${CERT_API_BASE}/auth/institution/send-login-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: data.email })
+      });
+      
+      if (!otpResponse.ok) throw new Error('Failed to send OTP');
+      
+      const { otpToken } = await otpResponse.json();
+      setOtpToken(otpToken);
+      setUserEmail(data.email);
+      setShowOtp(true);
+      
+      toast({
+        title: "OTP Sent",
+        description: "Check your email for the verification code",
+      });
+    } catch (err: any) {
+      setError(err.message || "Failed to send OTP. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleOtpVerify = async (otp: string, token: string) => {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const formData = form.getValues();
+      const response = await api.login({
+        ...formData,
+        otp,
+        otpToken: token
+      });
+      
+      // Store authentication data properly
+      localStorage.setItem('institution_token', response.token);
+      localStorage.setItem('auth_type', 'institution');
+      if (response.institution) {
+        // Use the MongoDB _id if available, otherwise use id
+        const institutionId = response.institution._id || response.institution.id;
+        localStorage.setItem('institution_user', JSON.stringify({
+          id: institutionId,
+          email: response.institution.email,
+          name: response.institution.name,
+          type: 'institution',
+          walletAddress: response.institution.walletAddress,
+          isVerified: response.institution.isVerified
+        }));
+      }
+      
+      // Dispatch auth state change event
+      window.dispatchEvent(new CustomEvent('authStateChange'));
       
       toast({
         title: "Login successful",
         description: "Welcome back to EduCreds!",
       });
       
-      setLocation("/dashboard");
+      // Force redirect to dashboard
+      console.log('Redirecting to dashboard...');
+      window.location.href = '/dashboard';
+      
     } catch (err: any) {
-      setError(err.message || "Login failed. Please try again.");
+      setError(err.message || "Invalid OTP. Please try again.");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleResendOtp = async () => {
+    const response = await fetch(`${CERT_API_BASE}/auth/institution/send-login-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: userEmail })
+    });
+    
+    if (!response.ok) throw new Error('Failed to resend OTP');
+    
+    const { otpToken } = await response.json();
+    return { otpToken };
   };
 
   const features = [
@@ -192,14 +267,24 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
             </CardHeader>
             
             <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  {error && (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
+              {showOtp ? (
+                <OtpInput
+                  email={userEmail}
+                  type="login"
+                  onVerify={handleOtpVerify}
+                  onResend={handleResendOtp}
+                  isLoading={isLoading}
+                  otpToken={otpToken}
+                />
+              ) : (
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    {error && (
+                      <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>{error}</AlertDescription>
+                      </Alert>
+                    )}
 
                   <FormField
                     control={form.control}
@@ -271,9 +356,11 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
                     {mode === 'login' ? 'Sign In' : 'Create Account'}
                   </Button>
                 </form>
-              </Form>
+                </Form>
+              )}
 
-              <div className="mt-6 text-center">
+              {!showOtp && (
+                <>
                 <p className="text-sm text-neutral-600">
                   {mode === 'login' ? "Don't have an account? " : "Already have an account? "}
                   <Link href={mode === 'login' ? '/register' : '/login'}>
@@ -282,7 +369,6 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
                     </button>
                   </Link>
                 </p>
-              </div>
 
               <div className="mt-4 text-center">
                 <p className="text-sm text-neutral-600">
@@ -313,6 +399,8 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
                     </div>
                   </div>
                 </div>
+              )}
+                </>
               )}
             </CardContent>
           </Card>

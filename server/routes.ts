@@ -40,7 +40,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ 
       status: 'ok', 
       timestamp: new Date().toISOString(),
-      message: 'EduChain Frontend Server'
+      message: 'Educreds Frontend Server'
     });
   });
 

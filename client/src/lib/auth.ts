@@ -126,6 +126,7 @@ export const auth = {
 };
 
 export const getAuthHeaders = (): Record<string, string> => {
-  const token = auth.getToken();
+  const token = localStorage.getItem('institution_token') || localStorage.getItem('marketplace_token');
+  console.log('Getting auth headers, token:', token ? 'present' : 'missing');
   return token ? { Authorization: `Bearer ${token}` } : {};
 };

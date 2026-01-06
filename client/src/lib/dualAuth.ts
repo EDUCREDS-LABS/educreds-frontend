@@ -255,7 +255,9 @@ export class DualAuth {
     if (authType === AuthType.INSTITUTION) {
       return !!token; // Institution tokens are JWT, could add expiry check
     } else if (authType === AuthType.MARKETPLACE) {
-      return !!FirebaseAuth.getCurrentUser();
+      // For marketplace, check if we have both Firebase user and backend token
+      const firebaseUser = FirebaseAuth.getCurrentUser();
+      return !!token && !!firebaseUser;
     }
     
     return false;

@@ -64,6 +64,7 @@ export const insertInstitutionSchema = z.object({
   name: z.string().min(1, "Institution name is required"),
   email: z.string().email("Valid email is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(6, "Password confirmation is required"),
   walletAddress: z.string().min(1, "Wallet address is required"),
   registrationNumber: z.string().min(1, "Registration number is required"),
   plan: z.string(),
@@ -72,6 +73,9 @@ export const insertInstitutionSchema = z.object({
     address: z.string().optional(),
     website: z.string().optional(),
   }).optional(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 });
 
 export const insertCertificateSchema = z.object({

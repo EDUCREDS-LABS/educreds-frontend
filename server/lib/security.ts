@@ -48,7 +48,7 @@ export const securityHeaders = helmet({
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://va.vercel-scripts.com"],
-      connectSrc: ["'self'", "https:", "wss:", "ws:", "http://localhost:*", "https://educhain-backend-avmj.onrender.com"],
+      connectSrc: ["'self'", "https:", "wss:", "ws:", "http://localhost:*", "https://Educreds-backend-avmj.onrender.com"],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],

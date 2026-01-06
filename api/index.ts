@@ -61,14 +61,14 @@ app.use((req, res, next) => {
     res.json({
       status: "ok",
       timestamp: new Date().toISOString(),
-      message: "EduChain API Server"
+      message: "Educreds API Server"
     });
   });
 
   // Catch-all for non-API routes - serve a simple message
   app.get('*', (req, res) => {
     res.json({
-      message: "EduChain API Server",
+      message: "Educreds API Server",
       status: "running",
       timestamp: new Date().toISOString()
     });

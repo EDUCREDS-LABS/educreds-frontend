@@ -1,4 +1,4 @@
-# EduChain Frontend Setup Guide
+# Educreds Frontend Setup Guide
 
 This guide will help you set up the frontend to communicate with your backend and smart contract.
 
@@ -12,7 +12,7 @@ This guide will help you set up the frontend to communicate with your backend an
 2. **Update the environment variables in `.env`:**
    ```env
    # Backend Configuration
-   VITE_API_BASE=https://educhain-backend-avmj.onrender.com
+   VITE_API_BASE=https://Educreds-backend-avmj.onrender.com
    
    # Smart Contract Configuration (Base Mainnet)
    VITE_CONTRACT_ADDRESS=0xBD4228241dc6BC14C027bF8B6A24f97bc9872068
@@ -98,7 +98,7 @@ This guide will help you set up the frontend to communicate with your backend an
 
 ### Admin Access
 1. **Login Credentials:**
-   - Email: `admin@educhain.com`
+   - Email: `admin@Educreds.com`
    - Password: `admin123`
 
 2. **Access Admin Dashboard:**
@@ -113,21 +113,21 @@ This guide will help you set up the frontend to communicate with your backend an
 // Admin can also manually register institutions:
 
 POST /api/admin/institutions/:institutionId/blockchain-register
-Headers: { 'admin-email': 'admin@educhain.com' }
+Headers: { 'admin-email': 'admin@Educreds.com' }
 ```
 
 #### 2. Bulk Registration
 ```typescript
 // Register all verified institutions at once
 POST /api/admin/blockchain-register-all
-Headers: { 'admin-email': 'admin@educhain.com' }
+Headers: { 'admin-email': 'admin@Educreds.com' }
 ```
 
 #### 3. Institution Authorization
 ```typescript
 // Authorize institutions to issue certificates
 POST /api/admin/institutions/:institutionId/blockchain-authorize
-Headers: { 'admin-email': 'admin@educhain.com' }
+Headers: { 'admin-email': 'admin@Educreds.com' }
 ```
 
 ### Blockchain Status Monitoring
@@ -139,7 +139,7 @@ Headers: { 'admin-email': 'admin@educhain.com' }
 ### Network Configuration
 - **Testnet**: Sepolia (Ethereum testnet)
 - **Explorer**: Etherscan integration for transaction verification
-- **Smart Contract**: EduChain certificate management contract
+- **Smart Contract**: Educreds certificate management contract
 
 ## Usage Examples
 
@@ -238,7 +238,7 @@ function CertificateVerifier() {
 
 ## Backend Integration
 
-The frontend is configured to work with your backend at `https://educhain-backend-avmj.onrender.com`. The following endpoints are expected:
+The frontend is configured to work with your backend at `https://Educreds-backend-avmj.onrender.com`. The following endpoints are expected:
 
 ### Required Backend Endpoints
 

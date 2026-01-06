@@ -1,8 +1,8 @@
-# EduChain - Blockchain Certificate Management Platform
+# Educreds - Blockchain Certificate Management Platform
 
 ## Overview
 
-EduChain is a blockchain-based certificate management platform that enables educational institutions to issue, manage, and verify academic certificates on-chain. The platform provides secure certificate issuance with IPFS storage, institutional verification workflows, subscription management, and student verification portals. Built with a React frontend and Express.js backend, it uses Drizzle ORM with PostgreSQL for data persistence and integrates with Neon Database for cloud hosting.
+Educreds is a blockchain-based certificate management platform that enables educational institutions to issue, manage, and verify academic certificates on-chain. The platform provides secure certificate issuance with IPFS storage, institutional verification workflows, subscription management, and student verification portals. Built with a React frontend and Express.js backend, it uses Drizzle ORM with PostgreSQL for data persistence and integrates with Neon Database for cloud hosting.
 
 ## User Preferences
 
@@ -72,13 +72,13 @@ The admin dashboard includes comprehensive blockchain management capabilities fo
 - **Detailed Reports**: Individual institution blockchain status with transaction details
 
 ### Admin Access
-- **Login**: admin@educhain.com / admin123
+- **Login**: admin@Educreds.com / admin123
 - **Security**: Admin-only endpoints with email verification
 - **Dashboard**: Comprehensive blockchain management interface
 
 ### Blockchain Network
 - **Network**: Sepolia Testnet (Ethereum testnet)
-- **Smart Contract**: EduChain certificate management contract
+- **Smart Contract**: Educreds certificate management contract
 - **Explorer**: Etherscan integration for transaction verification
 
 ### API Endpoints

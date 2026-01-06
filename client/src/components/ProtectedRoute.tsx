@@ -1,24 +1,25 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
+import { AuthType } from "@/lib/dualAuth";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, authType } = useAuth();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
     // Add some debugging
-    console.log('ProtectedRoute - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading);
+    console.log('ProtectedRoute - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading, 'authType:', authType);
     
     if (!isLoading && !isAuthenticated) {
-      console.log('ProtectedRoute - Redirecting to login');
+      console.log('ProtectedRoute - Redirecting to institution login');
       setLocation("/login");
     }
-  }, [isAuthenticated, isLoading, setLocation]);
+  }, [isAuthenticated, isLoading, authType, setLocation]);
 
   // Show loading state while checking authentication
   if (isLoading) {

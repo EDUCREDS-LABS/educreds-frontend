@@ -44,7 +44,7 @@ This document outlines the complete implementation of the Canva-like marketplace
 
 ### Frontend Structure
 ```
-educhain-frontend/client/src/
+Educreds-frontend/client/src/
 ├── components/
 │   ├── marketplace/
 │   │   ├── TemplateGrid.tsx          # Main marketplace grid
@@ -160,7 +160,7 @@ VITE_CERT_API_BASE=http://localhost:3001
 
 ### 1. Install Dependencies
 ```bash
-cd educhain-frontend
+cd Educreds-frontend
 npm install
 ```
 

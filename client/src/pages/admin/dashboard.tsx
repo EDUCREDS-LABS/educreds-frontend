@@ -31,6 +31,7 @@ import BlockchainManagement from "@/components/BlockchainManagement";
 import UserManagement from "@/components/admin/UserManagement";
 import { transformDocumentsForBackend } from "@/utils/documentTransform";
 import { testBackendConnection, testAdminConnection, type ConnectionStatus } from "@/utils/connectionTest";
+import { API_CONFIG } from "@/config/api";
 
 interface VerificationRequest {
   id: string;
@@ -105,7 +106,10 @@ function AdminDashboardContent() {
       setLocation('/admin/login');
       return;
     }
-    fetchAdminData(token);
+    // Set loading to false immediately to show UI
+    setLoading(false);
+    // Fetch data in background
+    fetchAdminData(token, false);
   }, [setLocation]);
 
   // Auto-refresh data every 30 seconds
@@ -171,10 +175,22 @@ function AdminDashboardContent() {
     
     setPasswordLoading(true);
     try {
-      await api.changeAdminPassword({
-        currentPassword: passwordForm.currentPassword,
-        newPassword: passwordForm.newPassword
+      const adminEmail = localStorage.getItem('adminEmail');
+      if (!adminEmail) throw new Error('Admin email missing');
+      
+      const response = await fetch(API_CONFIG.ADMIN.CHANGE_PASSWORD, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'admin-email': adminEmail
+        },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword
+        })
       });
+      
+      if (!response.ok) throw new Error('Password change failed');
       
       toast({
         title: "Success",
@@ -197,128 +213,121 @@ function AdminDashboardContent() {
   const fetchAdminData = async (token: string, showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
-      const API_BASE = "https://educhain-backend-avmj.onrender.com";
+      const API_BASE = API_CONFIG.MAIN;
       console.log('Admin Dashboard API_BASE:', API_BASE);
       
-      // Test backend connection with detailed diagnostics
-      const connectionTest = await testBackendConnection();
-      setConnectionStatus(connectionTest);
-      
-      if (!connectionTest.isConnected) {
-        console.error('Backend connection failed:', connectionTest.error);
-        if (showLoading) {
-          toast({
-            title: "Connection Error",
-            description: `Backend unreachable: ${connectionTest.error}. Retrying in 30 seconds...`,
-            variant: "destructive",
-          });
-        }
-        return;
-      }
-      
-      console.log(`Backend connected successfully (${connectionTest.latency}ms)`);
+      // Skip connection test and go directly to data fetching
+      console.log('Skipping connection test, fetching admin data directly');
       
       // Admin endpoints require 'admin-email' header (no Bearer token)
       const adminEmail = localStorage.getItem('adminEmail');
       if (!adminEmail) {
+        console.error('Admin email missing from localStorage');
         throw new Error('Admin email missing. Please login again.');
       }
+      
+      console.log('Admin email found:', adminEmail);
+      console.log('Making API calls to:', API_CONFIG.ADMIN.VERIFICATION_REQUESTS, API_CONFIG.ADMIN.REVENUE);
+      console.log('Full URLs:', {
+        verification: API_CONFIG.ADMIN.VERIFICATION_REQUESTS,
+        revenue: API_CONFIG.ADMIN.REVENUE
+      });
+
+      // Add timeout to fetch calls using AbortController
+      const fetchWithTimeout = (url: string, options: RequestInit = {}, timeout = 10000): Promise<Response> => {
+        return new Promise((resolve, reject) => {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => {
+            controller.abort();
+            reject(new Error('Request timeout'));
+          }, timeout);
+
+          fetch(url, { ...options, signal: controller.signal })
+            .then(response => {
+              clearTimeout(timeoutId);
+              resolve(response);
+            })
+            .catch(error => {
+              clearTimeout(timeoutId);
+              if (error.name === 'AbortError') {
+                reject(new Error('Request timeout'));
+              } else {
+                reject(error);
+              }
+            });
+        });
+      };
 
       const [verificationResponse, revenueResponse] = await Promise.all([
-        fetch(`${API_BASE}/api/admin/verification-requests`, {
+        fetchWithTimeout(API_CONFIG.ADMIN.VERIFICATION_REQUESTS, {
           headers: { 
             'admin-email': adminEmail,
             'Content-Type': 'application/json'
           }
-        }).catch(() => new Response('{"error": "Request failed"}', { status: 500 })),
-        fetch(`${API_BASE}/api/admin/revenue`, {
+        }, 10000).catch(err => {
+          console.error('Verification request failed:', err);
+          throw err;
+        }),
+        fetchWithTimeout(API_CONFIG.ADMIN.REVENUE, {
           headers: { 
             'admin-email': adminEmail,
             'Content-Type': 'application/json'
           }
-        }).catch(() => new Response('{"error": "Request failed"}', { status: 500 }))
+        }, 10000).catch(err => {
+          console.error('Revenue request failed:', err);
+          throw err;
+        })
       ]);
 
+      console.log('API calls completed');
       console.log('Verification response status:', verificationResponse.status);
-      console.log('Verification response URL:', verificationResponse.url);
-      
-             // Clone the response to avoid "body stream already read" error
-       const verificationResponseClone = verificationResponse.clone();
-       
-       if (verificationResponse.ok) {
-         try {
-           const verificationData = await verificationResponse.json();
-           const newRequests = verificationData.verificationRequests || [];
-           
-           // Check for new verification requests
-           if (!showLoading && newRequests.length > previousRequestCount) {
-             const newCount = newRequests.length - previousRequestCount;
-             toast({
-               title: "New Verification Request!",
-               description: `${newCount} new institution${newCount > 1 ? 's' : ''} submitted verification documents.`,
-             });
-           }
-           
-           setVerificationRequests(newRequests);
-           setPreviousRequestCount(newRequests.length);
-         } catch (error) {
-           console.error('Failed to parse verification response:', error);
-           // Log the actual response text to see what we're getting
-           const responseText = await verificationResponseClone.text();
-           console.error('Response text:', responseText.substring(0, 200) + '...');
-           setVerificationRequests([]);
-         }
-       } else {
-         console.error('Verification request failed:', verificationResponse.status, verificationResponse.statusText);
-         // Log the actual response text to see what we're getting
-         const responseText = await verificationResponseClone.text();
-         console.error('Response text:', responseText.substring(0, 200) + '...');
-         setVerificationRequests([]);
-       }
-
       console.log('Revenue response status:', revenueResponse.status);
-      console.log('Revenue response URL:', revenueResponse.url);
       
-             // Clone the response to avoid "body stream already read" error
-       const revenueResponseClone = revenueResponse.clone();
+      // Process verification response
+      if (verificationResponse.ok) {
+        const text = await verificationResponse.text();
+        console.log('Verification response text:', text.substring(0, 200));
+        try {
+          const verificationData = JSON.parse(text);
+          console.log('Verification data:', verificationData);
+          setVerificationRequests(verificationData.verificationRequests || []);
+        } catch (e) {
+          console.error('Failed to parse verification JSON:', e);
+          setVerificationRequests([]);
+        }
+      } else {
+        console.error('Verification request failed:', verificationResponse.status);
+        setVerificationRequests([]);
+      }
+      
+      // Process revenue response
+      if (revenueResponse.ok) {
+        const revenueData = await revenueResponse.json();
+        console.log('Revenue data:', revenueData);
+        setRevenueData(revenueData);
+      } else {
+        console.error('Revenue request failed:', revenueResponse.status);
+        setRevenueData(null);
+      }
        
-       if (revenueResponse.ok) {
-         try {
-           const revenueData = await revenueResponse.json();
-           setRevenueData(revenueData);
-         } catch (error) {
-           console.error('Failed to parse revenue response:', error);
-           // Log the actual response text to see what we're getting
-           const responseText = await revenueResponseClone.text();
-           console.error('Response text:', responseText.substring(0, 200) + '...');
-           setRevenueData(null);
-         }
-       } else {
-         console.error('Revenue request failed:', revenueResponse.status, revenueResponse.statusText);
-         // Log the actual response text to see what we're getting
-         const responseText = await revenueResponseClone.text();
-         console.error('Response text:', responseText.substring(0, 200) + '...');
-         setRevenueData(null);
-       }
-       
-       // Update last refreshed timestamp and connection status
-       setLastUpdated(new Date());
-       if (connectionStatus && !connectionStatus.isConnected) {
-         // Re-test connection if it was previously failed
-         const newConnectionTest = await testBackendConnection();
-         setConnectionStatus(newConnectionTest);
-       }
+      // Update last refreshed timestamp
+      setLastUpdated(new Date());
+      console.log('Admin data fetch completed successfully');
+      
     } catch (error) {
       console.error('Failed to fetch admin data:', error);
-      if (showLoading) { // Only show error toast for manual refreshes
+      if (showLoading) {
         toast({
           title: "Error",
-          description: "Failed to load admin data. Please check your backend connection.",
+          description: "Failed to load admin data: " + (error instanceof Error ? error.message : 'Unknown error'),
           variant: "destructive",
         });
       }
     } finally {
-      if (showLoading) setLoading(false);
+      if (showLoading) {
+        console.log('Setting loading to false');
+        setLoading(false);
+      }
     }
   };
 
@@ -327,7 +336,7 @@ function AdminDashboardContent() {
     
     setIsSubmitting(true);
     try {
-      const API_BASE = "https://educhain-backend-avmj.onrender.com";
+      const API_BASE = API_CONFIG.MAIN;
       const adminEmail = localStorage.getItem('adminEmail');
       if (!adminEmail) throw new Error('Admin email missing');
 
@@ -338,7 +347,7 @@ function AdminDashboardContent() {
           transformDocumentsForBackend(selectedRequest.documents) : []
       };
 
-      const response = await fetch(`${API_BASE}/api/admin/verification-requests/${selectedRequest.verificationRequestId}/review`, {
+      const response = await fetch(`${API_CONFIG.ADMIN.VERIFICATION_REQUESTS}/${selectedRequest.verificationRequestId}/review`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -642,7 +651,7 @@ function AdminDashboardContent() {
                     <div className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
                     <span>Auto-refresh: {autoRefresh ? 'On (30s)' : 'Off'}</span>
                   </div>
-                  <p>API Base: https://educhain-backend-avmj.onrender.com</p>
+                  <p>API Base: {API_CONFIG.MAIN}</p>
                   <p>Last verification: {verificationRequests.length > 0 ? new Date(Math.max(...verificationRequests.map(r => new Date(r.submittedAt).getTime()))).toLocaleDateString() : 'None'}</p>
                 </div>
               </div>

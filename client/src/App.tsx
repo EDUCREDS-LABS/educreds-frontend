@@ -7,6 +7,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import RegisterVerifyOtp from "@/pages/auth/register-verify-otp";
 import Landing from "@/pages/landing";
 import Login from "@/pages/auth/login";
 import Register from "@/pages/auth/register";
@@ -39,7 +40,7 @@ import PressKitPage from "@/pages/press";
 import DocumentationPage from "@/pages/documentation";
 import ApiReferencePage from "@/pages/api-reference";
 import PricingPage from "@/pages/pricing";
-import MarketplaceProtectedRoute from "@/components/MarketplaceProtectedRoute";
+// import MarketplaceProtectedRoute from "@/components/MarketplaceProtectedRoute";
 
 function Router() {
   return (
@@ -47,6 +48,7 @@ function Router() {
       <Route path="/" component={Landing} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/register/verify-otp" component={RegisterVerifyOtp} />
       <Route path="/student" component={StudentPage} />
       <Route path="/verify" component= {verify} />
       
@@ -56,10 +58,13 @@ function Router() {
       <Route path="/marketplace/register" component={MarketplaceRegister} />
       <Route path="/marketplace/verify" component={MarketplaceVerify} />
       <Route path="/marketplace/:id" component={TemplateDetailsPage} />
-      <MarketplaceProtectedRoute>
+      {/* Temporarily disabled marketplace protected routes */}
+      {/* <MarketplaceProtectedRoute>
         <Route path="/designer" component={DesignerPage} />
         <Route path="/designer/editor" component={DesignerEditor} />
-      </MarketplaceProtectedRoute>
+      </MarketplaceProtectedRoute> */}
+      <Route path="/designer" component={DesignerPage} />
+      <Route path="/designer/editor" component={DesignerEditor} />
       
       {/* Certificate Marketplace Routes */}
       <Route path="/cert-marketplace" component={CertMarketplacePage} />
