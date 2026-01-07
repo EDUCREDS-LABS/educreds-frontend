@@ -19,15 +19,19 @@ import {
   User,
   Wallet,
   Store,
-  Palette
+  Palette,
+  Settings,
+  Upload,
+  BarChart3
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Certificates", href: "/certificates", icon: FileText },
-  { name: "Marketplace", href: "/marketplace", icon: Store },
-  { name: "Designer", href: "/designer", icon: Palette },
+  { name: "Issue Certificates", href: "/certificate-issuance", icon: FileText },
+  { name: "Certificate Management", href: "/certificate-management", icon: Settings },
+  { name: "Template Designer", href: "/template-designer", icon: Palette },
+  { name: "Usage & Billing", href: "/usage", icon: BarChart3 },
   { name: "Verification", href: "/verification", icon: Shield },
   { name: "Subscription", href: "/subscription", icon: CreditCard },
 ];
