@@ -1,24 +1,32 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Search, Filter, Eye, Edit, AlertTriangle } from "lucide-react";
+import { Plus, Search, Filter, Eye, Edit, AlertTriangle, Download } from "lucide-react";
+import { saveAs } from "file-saver";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import CreateCertificateModal from "@/components/CreateCertificateModal";
 import { format } from "date-fns";
 import type { Certificate } from "@shared/schema";
+import { Checkbox } from "@/components/ui/checkbox";
+import axios from "axios";
+import { getAuthHeaders } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Certificates() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [isCertificateModalOpen, setIsCertificateModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [programFilter, setProgramFilter] = useState("all");
+  const [selectedCertificateIds, setSelectedCertificateIds] = useState<string[]>([]);
 
   const { data: certificatesData, isLoading } = useQuery({
     queryKey: ["/api/certificates/institution"],
@@ -55,6 +63,90 @@ export default function Certificates() {
     return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Pending</Badge>;
   };
 
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allVisibleCertificateIds = filteredCertificates.map(cert => cert.id);
+      setSelectedCertificateIds(allVisibleCertificateIds);
+    } else {
+      setSelectedCertificateIds([]);
+    }
+  };
+
+  const handleSelectCertificate = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedCertificateIds(prev => [...prev, id]);
+    } else {
+      setSelectedCertificateIds(prev => prev.filter(certId => certId !== id));
+    }
+  };
+
+  const handleBulkRevoke = async () => {
+    if (selectedCertificateIds.length === 0) return;
+
+    if (!window.confirm(`Are you sure you want to revoke ${selectedCertificateIds.length} certificates? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await axios.post(
+        '/api/certificates/bulk-revoke',
+        { certificateIds: selectedCertificateIds },
+        { headers: getAuthHeaders() }
+      );
+      toast({
+        title: 'Certificates Revoked',
+        description: `${selectedCertificateIds.length} certificates have been revoked successfully.`,
+      });
+      setSelectedCertificateIds([]); // Clear selections
+      queryClient.invalidateQueries({ queryKey: ["/api/certificates/institution"] }); // Refresh list
+    } catch (error: any) {
+      toast({
+        title: 'Revocation Failed',
+        description: error.response?.data?.message || 'Failed to revoke certificates.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+
+  const handleExportCsv = () => {
+    if (filteredCertificates.length === 0) {
+      toast({
+        title: 'No data to export',
+        description: 'There are no certificates matching your current filters to export.',
+        variant: 'info',
+      });
+      return;
+    }
+
+    const headers = [
+      "ID", "Student Name", "Student Address", "Course Name", "Grade",
+      "Certificate Type", "Issued At", "IPFS Hash", "Token ID", "Status"
+    ];
+
+    const csvRows = filteredCertificates.map(cert => [
+      `"${cert.id}"`,
+      `"${cert.studentName}"`,
+      `"${cert.studentAddress}"`,
+      `"${cert.courseName}"`,
+      `"${cert.grade}"`,
+      `"${cert.certificateType}"`,
+      `"${format(new Date(cert.issuedAt), "yyyy-MM-dd HH:mm:ss")}"`,
+      `"${cert.ipfsHash || ''}"`,
+      `"${cert.tokenId || ''}"`,
+      `"${cert.isValid ? 'Active' : 'Revoked'}"`,
+    ].join(','));
+
+    const csvContent = [headers.join(','), ...csvRows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, 'certificates.csv');
+
+    toast({
+      title: 'Export Successful',
+      description: `${filteredCertificates.length} certificates exported to certificates.csv.`,
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -65,10 +157,37 @@ export default function Certificates() {
           </h1>
           <p className="text-neutral-600">Manage and track your institution's certificates</p>
         </div>
-        <Button onClick={() => setIsCertificateModalOpen(true)} data-testid="button-create-certificate">
-          <Plus className="w-4 h-4 mr-2" />
-          Create New Certificate
-        </Button>
+        <div className="flex gap-2">
+          {selectedCertificateIds.length > 0 && (
+            <Button
+              variant="destructive"
+              onClick={handleBulkRevoke}
+              data-testid="bulk-revoke-button"
+            >
+              Revoke ({selectedCertificateIds.length})
+            </Button>
+          )}
+          <Button onClick={() => setIsCertificateModalOpen(true)} data-testid="button-create-certificate">
+            <Plus className="w-4 h-4 mr-2" />
+            Create New Certificate
+          </Button>
+          <Button variant="outline" onClick={handleExportCsv} data-testid="button-export-csv">
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+        </div>
+      </div>
+
+      {/* Select All Checkbox */}
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="selectAll"
+          checked={selectedCertificateIds.length === filteredCertificates.length && filteredCertificates.length > 0}
+          onCheckedChange={handleSelectAll}
+        />
+        <label htmlFor="selectAll" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+          Select All ({selectedCertificateIds.length} selected)
+        </label>
       </div>
 
       {/* Search and Filter */}
@@ -170,7 +289,13 @@ export default function Certificates() {
                       {certificate.studentName}
                     </p>
                   </div>
-                  {getStatusBadge(certificate)}
+                  <div className="flex items-center space-x-2">
+                    {getStatusBadge(certificate)}
+                    <Checkbox
+                      checked={selectedCertificateIds.includes(certificate.id!)}
+                      onCheckedChange={(checked: boolean) => handleSelectCertificate(certificate.id!, checked)}
+                    />
+                  </div>
                 </div>
                 
                 <div className="space-y-2 mb-4">
@@ -225,3 +350,4 @@ export default function Certificates() {
     </div>
   );
 }
+

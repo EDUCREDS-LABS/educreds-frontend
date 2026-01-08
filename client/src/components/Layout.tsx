@@ -27,13 +27,13 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Issue Certificates", href: "/certificate-issuance", icon: FileText },
-  { name: "Certificate Management", href: "/certificate-management", icon: Settings },
-  { name: "Template Designer", href: "/template-designer", icon: Palette },
-  { name: "Usage & Billing", href: "/usage", icon: BarChart3 },
-  { name: "Verification", href: "/verification", icon: Shield },
-  { name: "Subscription", href: "/subscription", icon: CreditCard },
+  { name: "Dashboard", href: "/institution/dashboard", icon: LayoutDashboard },
+  { name: "Certificates", href: "/institution/certificates", icon: FileText },
+  { name: "Verification", href: "/institution/verification", icon: Shield },
+  { name: "Subscription", href: "/institution/subscription", icon: CreditCard },
+  { name: "Profile", href: "/institution/profile", icon: User },
+  { name: "Templates", href: "/institution/templates", icon: Palette },
+  { name: "Analytics", href: "/institution/analytics", icon: BarChart3 },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {

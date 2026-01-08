@@ -64,11 +64,46 @@ export function DesignCanvas({
 
   // Initialize GrapesJS editor
   useEffect(() => {
-    if (!editorRef.current) return;
-
     const initEditor = async () => {
       try {
         setLoading(true);
+        
+        // Wait for container to be available
+        if (!editorRef.current) {
+          console.error('Container element not available.');
+          setLoading(false);
+          return;
+        }
+
+        // Wait for panel containers to be available
+        const waitForElement = (id: string, timeout = 5000) => {
+          return new Promise<HTMLElement>((resolve, reject) => {
+            const startTime = Date.now();
+            const checkElement = () => {
+              const element = document.getElementById(id);
+              if (element) {
+                resolve(element);
+              } else if (Date.now() - startTime > timeout) {
+                reject(new Error(`Element with id '${id}' not found within ${timeout}ms`));
+              } else {
+                setTimeout(checkElement, 100);
+              }
+            };
+            checkElement();
+          });
+        };
+
+        // Wait for all required elements
+        try {
+          await Promise.all([
+            waitForElement('blocks'),
+            waitForElement('layers'),
+            waitForElement('traits-container'),
+            waitForElement('styles-container')
+          ]);
+        } catch (error) {
+          console.warn('Some panel containers not found, using fallback:', error);
+        }
         
         // Dynamic import of GrapesJS
         const grapesjs = await import('grapesjs');
@@ -81,10 +116,80 @@ export function DesignCanvas({
         
         setCanvasSize(size);
         
-        // Create editor instance
-        const editorInstance = (grapesjs as any).init({
+        // Create editor instance with fallback configuration
+        const editorInstance = grapesjs.default ? grapesjs.default.init({
           ...config,
           container: editorRef.current,
+          blockManager: {
+            ...config.blockManager,
+            appendTo: document.getElementById('blocks') || undefined,
+          },
+          layerManager: {
+            ...config.layerManager,
+            appendTo: document.getElementById('layers') || undefined,
+          },
+          traitManager: {
+            ...config.traitManager,
+            appendTo: document.getElementById('traits-container') || undefined,
+          },
+          selectorManager: {
+            ...config.selectorManager,
+            appendTo: document.getElementById('styles-container') || undefined,
+          },
+          styleManager: {
+            ...config.styleManager,
+            appendTo: document.getElementById('styles-container') || undefined,
+          },
+          panels: {}, // Panels are handled by custom UI
+          canvas: {
+            ...config.canvas,
+            styles: [
+              ...(config.canvas?.styles || []),
+              `
+                body {
+                  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                  margin: 0;
+                  padding: 0;
+                }
+                .certificate-frame {
+                  border: 3px solid #667eea;
+                  border-radius: 20px;
+                  padding: 40px;
+                  background: white;
+                  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                  text-align: center;
+                  min-height: 400px;
+                  display: flex;
+                  flex-direction: column;
+                  justify-content: center;
+                }
+              `
+            ]
+          }
+        }) : grapesjs.init({
+          ...config,
+          container: editorRef.current,
+          blockManager: {
+            ...config.blockManager,
+            appendTo: document.getElementById('blocks') || undefined,
+          },
+          layerManager: {
+            ...config.layerManager,
+            appendTo: document.getElementById('layers') || undefined,
+          },
+          traitManager: {
+            ...config.traitManager,
+            appendTo: document.getElementById('traits-container') || undefined,
+          },
+          selectorManager: {
+            ...config.selectorManager,
+            appendTo: document.getElementById('styles-container') || undefined,
+          },
+          styleManager: {
+            ...config.styleManager,
+            appendTo: document.getElementById('styles-container') || undefined,
+          },
+          panels: {}, // Panels are handled by custom UI
           canvas: {
             ...config.canvas,
             styles: [

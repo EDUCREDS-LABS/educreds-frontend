@@ -1,12 +1,10 @@
 import { Editor } from 'grapesjs';
 
 export const createGrapesJSConfig = (): any => ({
-  container: '#gjs',
   height: '100vh',
   width: 'auto',
   storageManager: false,
   blockManager: {
-    appendTo: '#blocks',
     blocks: [
       {
         id: 'text',
@@ -154,71 +152,7 @@ export const createGrapesJSConfig = (): any => ({
       }
     ]
   },
-  layerManager: {
-    appendTo: '#layers',
-  },
-  panels: {
-    defaults: [
-      {
-        id: 'basic-actions',
-        el: '.panel__basic-actions',
-        buttons: [
-          {
-            id: 'visibility',
-            active: true,
-            className: 'btn-toggle-borders',
-            label: '<i class="fa fa-clone"></i>',
-            command: 'sw-visibility',
-          },
-          {
-            id: 'export',
-            className: 'btn-open-export',
-            label: '<i class="fa fa-code"></i>',
-            command: 'export-template',
-            context: 'export-template',
-          },
-          {
-            id: 'show-json',
-            className: 'btn-show-json',
-            label: '<i class="fa fa-file-code-o"></i>',
-            context: 'show-json',
-            command(editor: Editor) {
-              editor.Modal.setTitle('Components JSON')
-                .setContent(`<textarea style="width:100%; height: 250px;">
-                  ${JSON.stringify(editor.getComponents(), null, 2)}
-                </textarea>`)
-                .open();
-            },
-          }
-        ],
-      },
-      {
-        id: 'panel-devices',
-        el: '.panel__devices',
-        buttons: [
-          {
-            id: 'device-desktop',
-            label: '<i class="fa fa-television"></i>',
-            command: 'set-device-desktop',
-            active: true,
-            togglable: false,
-          },
-          {
-            id: 'device-tablet',
-            label: '<i class="fa fa-tablet"></i>',
-            command: 'set-device-tablet',
-            togglable: false,
-          },
-          {
-            id: 'device-mobile',
-            label: '<i class="fa fa-mobile"></i>',
-            command: 'set-device-mobile',
-            togglable: false,
-          }
-        ],
-      }
-    ],
-  },
+  layerManager: {},
   deviceManager: {
     devices: [
       {
@@ -286,14 +220,9 @@ export const createGrapesJSConfig = (): any => ({
       'https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js'
     ]
   },
-  traitManager: {
-    appendTo: '.traits-container',
-  },
-  selectorManager: {
-    appendTo: '.styles-container',
-  },
+  traitManager: {},
+  selectorManager: {},
   styleManager: {
-    appendTo: '.styles-container',
     sectors: [
       {
         name: 'Dimension',

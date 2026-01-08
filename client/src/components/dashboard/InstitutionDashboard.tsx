@@ -18,11 +18,15 @@ import {
   Clock,
   AlertCircle,
   BarChart3,
-  Settings
+  Settings,
+  User,
+  Edit,
+  Upload
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { EnhancedTemplate } from '@/store/editorStore';
 import { BulkIssuanceForm } from '../issuance/BulkIssuanceForm';
+import { Link } from 'react-router-dom';
 
 interface InstitutionDashboardProps {
   institutionId: string;
@@ -148,10 +152,24 @@ export function InstitutionDashboard({ institutionId }: InstitutionDashboardProp
           <h1 className="text-3xl font-bold text-gray-900">Institution Dashboard</h1>
           <p className="text-gray-600">Manage your certificate templates and issuance</p>
         </div>
-        <Button onClick={() => setShowBulkIssuance(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Bulk Issuance
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link to="/institution/profile">
+            <Button variant="outline">
+              <User className="h-4 w-4 mr-2" />
+              Profile
+            </Button>
+          </Link>
+          <Link to="/institution/settings">
+            <Button variant="outline">
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </Button>
+          </Link>
+          <Button onClick={() => setShowBulkIssuance(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Bulk Issuance
+          </Button>
+        </div>
       </div>
 
       {/* Stats Overview */}
@@ -226,7 +244,7 @@ export function InstitutionDashboard({ institutionId }: InstitutionDashboardProp
 
         <TabsContent value="overview" className="space-y-6">
           {/* Quick Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setShowBulkIssuance(true)}>
               <CardContent className="p-6 text-center">
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
@@ -237,25 +255,41 @@ export function InstitutionDashboard({ institutionId }: InstitutionDashboardProp
               </CardContent>
             </Card>
 
-            <Card className="hover:shadow-md transition-shadow cursor-pointer">
-              <CardContent className="p-6 text-center">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <FileText className="h-6 w-6 text-green-600" />
-                </div>
-                <h3 className="font-medium mb-2">Single Issuance</h3>
-                <p className="text-sm text-gray-600">Issue a certificate to one recipient</p>
-              </CardContent>
-            </Card>
+            <Link to="/certificate-issuance">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="p-6 text-center">
+                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                    <FileText className="h-6 w-6 text-green-600" />
+                  </div>
+                  <h3 className="font-medium mb-2">Single Issuance</h3>
+                  <p className="text-sm text-gray-600">Issue a certificate to one recipient</p>
+                </CardContent>
+              </Card>
+            </Link>
 
-            <Card className="hover:shadow-md transition-shadow cursor-pointer">
-              <CardContent className="p-6 text-center">
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <BarChart3 className="h-6 w-6 text-purple-600" />
-                </div>
-                <h3 className="font-medium mb-2">View Analytics</h3>
-                <p className="text-sm text-gray-600">Track your issuance performance</p>
-              </CardContent>
-            </Card>
+            <Link to="/template-designer">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="p-6 text-center">
+                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                    <Edit className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <h3 className="font-medium mb-2">Template Designer</h3>
+                  <p className="text-sm text-gray-600">Create and design certificate templates</p>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link to="/certificate-management">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="p-6 text-center">
+                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                    <BarChart3 className="h-6 w-6 text-orange-600" />
+                  </div>
+                  <h3 className="font-medium mb-2">Manage Certificates</h3>
+                  <p className="text-sm text-gray-600">View and manage issued certificates</p>
+                </CardContent>
+              </Card>
+            </Link>
           </div>
 
           {/* Recent Activity */}
@@ -385,21 +419,37 @@ export function InstitutionDashboard({ institutionId }: InstitutionDashboardProp
         </TabsContent>
 
         <TabsContent value="issuance" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Certificate Issuance</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Ready to Issue Certificates?</h3>
-                <p className="text-gray-600 mb-4">Choose from your purchased templates to start issuing certificates</p>
-                <Button onClick={() => setShowBulkIssuance(true)}>
-                  Start Bulk Issuance
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Link to="/certificate-issuance">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Unified Certificate Issuance
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600 mb-4">Complete certificate issuance workflow with templates</p>
+                  <Button className="w-full">Start Issuance</Button>
+                </CardContent>
+              </Card>
+            </Link>
+            
+            <Link to="/pdf-certificates">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Upload className="h-5 w-5" />
+                    PDF Certificate Upload
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600 mb-4">Upload and manage PDF certificate templates</p>
+                  <Button className="w-full" variant="outline">Upload PDFs</Button>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">

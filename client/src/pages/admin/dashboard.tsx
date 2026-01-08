@@ -29,6 +29,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import BlockchainManagement from "@/components/BlockchainManagement";
 import UserManagement from "@/components/admin/UserManagement";
+import OracleManagement from "@/components/admin/OracleManagement";
+import OracleStats from "@/components/admin/OracleStats";
 import { transformDocumentsForBackend } from "@/utils/documentTransform";
 import { testBackendConnection, testAdminConnection, type ConnectionStatus } from "@/utils/connectionTest";
 import { API_CONFIG } from "@/config/api";
@@ -82,7 +84,7 @@ function AdminDashboardContent() {
   const [selectedRequest, setSelectedRequest] = useState<VerificationRequest | null>(null);
   const [reviewModal, setReviewModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'blockchain' | 'users' | 'audit'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'oracle' | 'blockchain' | 'users' | 'audit'>('overview');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [previousRequestCount, setPreviousRequestCount] = useState(0);
@@ -216,8 +218,27 @@ function AdminDashboardContent() {
       const API_BASE = API_CONFIG.MAIN;
       console.log('Admin Dashboard API_BASE:', API_BASE);
       
-      // Skip connection test and go directly to data fetching
-      console.log('Skipping connection test, fetching admin data directly');
+      // Test backend connection with detailed diagnostics
+      const connectionTest = await testBackendConnection();
+      setConnectionStatus(connectionTest);
+      
+      console.log('Connection test result:', connectionTest);
+      
+      if (!connectionTest.isConnected) {
+        console.error('Backend connection failed:', connectionTest.error);
+        if (showLoading) {
+          toast({
+            title: "Connection Error",
+            description: `Backend unreachable: ${connectionTest.error}. Using fallback data.`,
+            variant: "destructive",
+          });
+        }
+        // Set fallback data instead of returning early
+        setVerificationRequests([]);
+        setRevenueData({ totalRevenue: 0, activeSubscriptions: 0, planBreakdown: {} });
+        setLastUpdated(new Date());
+        return;
+      }
       
       // Admin endpoints require 'admin-email' header (no Bearer token)
       const adminEmail = localStorage.getItem('adminEmail');
@@ -526,6 +547,14 @@ function AdminDashboardContent() {
             Overview
           </Button>
           <Button
+            variant={activeTab === 'oracle' ? 'default' : 'ghost'}
+            onClick={() => setActiveTab('oracle')}
+            size="sm"
+            className={activeTab === 'oracle' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:text-white hover:bg-gray-700'}
+          >
+            Oracle
+          </Button>
+          <Button
             variant={activeTab === 'blockchain' ? 'default' : 'ghost'}
             onClick={() => setActiveTab('blockchain')}
             size="sm"
@@ -553,6 +582,12 @@ function AdminDashboardContent() {
 
         {activeTab === 'overview' && (
           <>
+            {/* Oracle Stats Integration */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-white mb-4">Oracle System Status</h3>
+              <OracleStats />
+            </div>
+
             {/* Enhanced Analytics Dashboard */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card className="bg-gray-800 border-gray-700">
@@ -1008,6 +1043,12 @@ function AdminDashboardContent() {
           </DialogContent>
         </Dialog>
           </>
+        )}
+
+        {activeTab === 'oracle' && (
+          <div className="[&_*]:!bg-gray-800 [&_*]:!text-white [&_.border]:!border-gray-700">
+            <OracleManagement />
+          </div>
         )}
 
         {activeTab === 'blockchain' && (

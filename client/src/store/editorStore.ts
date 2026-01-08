@@ -1,11 +1,13 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { createTemplate, updateTemplate, getTemplates } from '@/lib/templates-api';
 
 export interface EditorState {
   editor: any; // GrapesJS editor instance
   isLoading: boolean;
   isDirty: boolean;
   currentTemplate: EnhancedTemplate | null;
+  templates: EnhancedTemplate[];
   canvasSize: { width: number; height: number };
   selectedElement: any;
   history: {
@@ -77,6 +79,7 @@ interface EditorActions {
   updateHistory: (canUndo: boolean, canRedo: boolean) => void;
   setPreviewMode: (preview: boolean) => void;
   saveTemplate: () => Promise<void>;
+  loadTemplates: () => Promise<void>;
   loadTemplate: (template: EnhancedTemplate) => void;
   exportTemplate: (format: 'html' | 'json' | 'png' | 'pdf') => Promise<string | Blob>;
   undo: () => void;
@@ -92,6 +95,7 @@ export const useEditorStore = create<EditorState & EditorActions>()(
       isLoading: false,
       isDirty: false,
       currentTemplate: null,
+      templates: [],
       canvasSize: { width: 800, height: 600 },
       selectedElement: null,
       history: {
@@ -118,6 +122,18 @@ export const useEditorStore = create<EditorState & EditorActions>()(
       
       setPreviewMode: (preview) => set({ previewMode: preview }),
 
+      loadTemplates: async () => {
+        try {
+          set({ isLoading: true });
+          const templates = await getTemplates();
+          set({ templates });
+        } catch (error) {
+          console.error('Error loading templates:', error);
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      
       saveTemplate: async () => {
         const { editor, currentTemplate } = get();
         if (!editor) return;
@@ -130,7 +146,7 @@ export const useEditorStore = create<EditorState & EditorActions>()(
           const grapesJsData = editor.getProjectData();
           
           // Update current template with editor data
-          const updatedTemplate = {
+          const updatedTemplateData = {
             ...currentTemplate,
             htmlContent: html,
             cssContent: css,
@@ -144,16 +160,23 @@ export const useEditorStore = create<EditorState & EditorActions>()(
             }
           };
 
-          set({ currentTemplate: updatedTemplate, isDirty: false });
+          let savedTemplate;
+          if (updatedTemplateData.id) {
+            savedTemplate = await updateTemplate(updatedTemplateData.id, updatedTemplateData);
+          } else {
+            savedTemplate = await createTemplate(updatedTemplateData);
+          }
+
+          set({ currentTemplate: savedTemplate, isDirty: false });
           
-          // Here you would typically save to backend
-          console.log('Template saved:', updatedTemplate);
+          console.log('Template saved:', savedTemplate);
         } catch (error) {
           console.error('Error saving template:', error);
         } finally {
           set({ isLoading: false });
         }
       },
+
 
       loadTemplate: (template) => {
         const { editor } = get();

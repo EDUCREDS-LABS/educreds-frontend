@@ -15,6 +15,8 @@ import InstitutionDashboard from "@/pages/institution/dashboard";
 import Certificates from "@/pages/institution/certificates";
 import Verification from "@/pages/institution/verification";
 import SubscriptionPage from "@/pages/institution/subscription";
+import InstitutionProfile from "@/pages/institution/profile";
+import InstitutionSettings from "@/pages/institution/settings";
 import StudentPage from "@/pages/student/StudentPage";
 import AdminLogin from "@/pages/admin/login";
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -25,7 +27,13 @@ import MarketplaceVerify from "@/pages/marketplace/verify";
 import DesignerPage from "@/pages/designer/index";
 import DesignerEditor from "@/pages/designer/editor";
 import TemplateDetailsPage from "@/pages/marketplace/[id]";
-import { TemplatesPage } from "@/pages/TemplatesPage";
+
+import TemplatesPage from "@/pages/templates";
+import BrowseTemplatesPage from "@/pages/templates/Browse";
+import MyTemplatesPage from "@/pages/templates/MyTemplates";
+import CreateTemplatePage from "@/pages/templates/Create";
+import TemplateDesignerPage from "@/pages/templates/Designer";
+import AnalyticsPage from "@/pages/institution/analytics";
 import { MarketplacePage as CertMarketplacePage } from "@/pages/MarketplacePage";
 import { DesignerPage as CertDesignerPage } from "@/pages/DesignerPage";
 import { TemplateLibraryPage } from "@/pages/TemplateLibraryPage";
@@ -102,6 +110,103 @@ function Router() {
       <Route path="/admin/dashboard" component={AdminDashboard} />
 
       {/* Protected Institution Routes */}
+      <Route path="/institution/dashboard">
+        <ProtectedRoute>
+          <Layout>
+            <InstitutionDashboard />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/institution/certificates">
+        <ProtectedRoute>
+          <Layout>
+            <Certificates />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/institution/verification">
+        <ProtectedRoute>
+          <Layout>
+            <Verification />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/institution/subscription">
+        <ProtectedRoute>
+          <Layout>
+            <SubscriptionPage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/institution/profile">
+        <ProtectedRoute>
+          <Layout>
+            <InstitutionProfile />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/institution/settings">
+        <ProtectedRoute>
+          <Layout>
+            <InstitutionSettings />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/institution/analytics">
+        <ProtectedRoute>
+          <Layout>
+            <AnalyticsPage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/institution/templates">
+        <ProtectedRoute>
+          <Layout>
+            <TemplatesPage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/institution/templates/browse">
+        <ProtectedRoute>
+          <Layout>
+            <BrowseTemplatesPage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/institution/templates/my-templates">
+        <ProtectedRoute>
+          <Layout>
+            <MyTemplatesPage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/institution/templates/create">
+        <ProtectedRoute>
+          <Layout>
+            <CreateTemplatePage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/institution/templates/designer">
+        <ProtectedRoute>
+          <Layout>
+            <TemplateDesignerPage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      
+      {/* Backward compatibility routes */}
       <Route path="/dashboard">
         <ProtectedRoute>
           <Layout>
@@ -130,6 +235,14 @@ function Router() {
         <ProtectedRoute>
           <Layout>
             <SubscriptionPage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/profile">
+        <ProtectedRoute>
+          <Layout>
+            <InstitutionProfile />
           </Layout>
         </ProtectedRoute>
       </Route>
@@ -198,10 +311,74 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
-      <Route path="/templates">
+      <Route path="/template-library">
         <ProtectedRoute>
           <Layout>
-            <TemplatesPage />
+            <TemplateLibraryPage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/usage">
+        <ProtectedRoute>
+          <Layout>
+            <UsagePage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/bulk-issuance">
+        <ProtectedRoute>
+          <Layout>
+            <BulkIssuancePage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/pdf-certificates">
+        <ProtectedRoute>
+          <Layout>
+            <PdfCertificatesPage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/template-management">
+        <ProtectedRoute>
+          <Layout>
+            <TemplateManagement />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/certificate-issuance">
+        <ProtectedRoute>
+          <Layout>
+            <CertificateIssuanceDashboard />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/certificate-management">
+        <ProtectedRoute>
+          <Layout>
+            <CertificateManagement />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/template-designer">
+        <ProtectedRoute>
+          <Layout>
+            <TemplateDesigner />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/system-test">
+        <ProtectedRoute>
+          <Layout>
+            <SystemTest />
           </Layout>
         </ProtectedRoute>
       </Route>
