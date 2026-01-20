@@ -3,16 +3,38 @@ import { useState, useEffect } from "react";
 import { DualAuth, AuthType, AuthUser } from "@/lib/dualAuth";
 import { useLocation } from "wouter";
 
+const BYPASS_AUTH = import.meta.env.VITE_BYPASS_AUTH === "true";
+const DEV_USER: AuthUser = {
+  id: "dev-user",
+  email: "dev@educreds.local",
+  name: "Dev User",
+  type: AuthType.INSTITUTION,
+  walletAddress: "dev-wallet",
+  isVerified: true,
+};
+
 export function useAuth() {
   const queryClient = useQueryClient();
-  const [isAuthenticated, setIsAuthenticated] = useState(DualAuth.isAuthenticated());
-  const [authType, setAuthType] = useState<AuthType | null>(DualAuth.getCurrentAuthType());
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(DualAuth.getCurrentUser());
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    BYPASS_AUTH ? true : DualAuth.isAuthenticated()
+  );
+  const [authType, setAuthType] = useState<AuthType | null>(
+    BYPASS_AUTH ? AuthType.INSTITUTION : DualAuth.getCurrentAuthType()
+  );
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(
+    BYPASS_AUTH ? DEV_USER : DualAuth.getCurrentUser()
+  );
   const [, setLocation] = useLocation();
 
   // Update authentication state when token changes
   useEffect(() => {
     const checkAuth = () => {
+      if (BYPASS_AUTH) {
+        setIsAuthenticated(true);
+        setAuthType(AuthType.INSTITUTION);
+        setCurrentUser(DEV_USER);
+        return;
+      }
       setIsAuthenticated(DualAuth.isAuthenticated());
       setAuthType(DualAuth.getCurrentAuthType());
       setCurrentUser(DualAuth.getCurrentUser());
@@ -50,6 +72,9 @@ export function useAuth() {
   const { data: user, isLoading } = useQuery({
     queryKey: ["auth-user", authType, currentUser?.id],
     queryFn: async () => {
+      if (BYPASS_AUTH) {
+        return DEV_USER;
+      }
       // Return the current user from DualAuth
       if (!isAuthenticated || !currentUser) {
         throw new Error("Not authenticated");

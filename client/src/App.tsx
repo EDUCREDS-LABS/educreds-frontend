@@ -20,6 +20,7 @@ import InstitutionSettings from "@/pages/institution/settings";
 import StudentPage from "@/pages/student/StudentPage";
 import AdminLogin from "@/pages/admin/login";
 import AdminDashboard from "@/pages/admin/dashboard";
+import DAODashboard from "@/pages/DAODashboard";
 import MarketplacePage from "@/pages/marketplace/index";
 import MarketplaceLogin from "@/pages/marketplace/login";
 import MarketplaceRegister from "@/pages/marketplace/register";
@@ -70,10 +71,10 @@ function Router() {
       <Route path="/register/verify-otp" component={RegisterVerifyOtp} />
       <Route path="/student" component={StudentPage} />
       <Route path="/student-portal" component={StudentPortalPage} />
-      <Route path="/verify" component= {verify} />
+      <Route path="/verify" component={verify} />
       <Route path="/verification-portal" component={VerificationPortalPage} />
       <Route path="/w3c-test" component={W3CTestPage} />
-      
+
       {/* Public Routes */}
       <Route path="/marketplace" component={MarketplacePage} />
       <Route path="/marketplace/login" component={MarketplaceLogin} />
@@ -87,11 +88,11 @@ function Router() {
       </MarketplaceProtectedRoute> */}
       <Route path="/designer" component={DesignerPage} />
       <Route path="/designer/editor" component={DesignerEditor} />
-      
+
       {/* Certificate Marketplace Routes */}
       <Route path="/cert-marketplace" component={CertMarketplacePage} />
       <Route path="/cert-designer" component={CertDesignerPage} />
-      
+
       {/* Legal Pages */}
       <Route path="/terms" component={TermsOfService} />
       <Route path="/privacy" component={PrivacyPolicy} />
@@ -101,13 +102,14 @@ function Router() {
       <Route path="/press" component={PressKitPage} />
       <Route path="/documentation" component={DocumentationPage} />
       <Route path="/api-reference" component={ApiReferencePage} />
-      
+
       {/* Public Pricing Page */}
       <Route path="/pricing" component={PricingPage} />
 
       {/* Admin Routes */}
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
+      <Route path="/dao" component={DAODashboard} />
 
       {/* Protected Institution Routes */}
       <Route path="/institution/dashboard">
@@ -117,7 +119,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/institution/certificates">
         <ProtectedRoute>
           <Layout>
@@ -125,7 +127,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/institution/verification">
         <ProtectedRoute>
           <Layout>
@@ -141,7 +143,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/institution/profile">
         <ProtectedRoute>
           <Layout>
@@ -149,7 +151,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/institution/settings">
         <ProtectedRoute>
           <Layout>
@@ -157,7 +159,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/institution/analytics">
         <ProtectedRoute>
           <Layout>
@@ -205,7 +207,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       {/* Backward compatibility routes */}
       <Route path="/dashboard">
         <ProtectedRoute>
@@ -214,7 +216,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/certificates">
         <ProtectedRoute>
           <Layout>
@@ -222,7 +224,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/verification">
         <ProtectedRoute>
           <Layout>
@@ -238,7 +240,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/profile">
         <ProtectedRoute>
           <Layout>
@@ -246,7 +248,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/usage">
         <ProtectedRoute>
           <Layout>
@@ -254,7 +256,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/bulk-issuance">
         <ProtectedRoute>
           <Layout>
@@ -262,7 +264,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/pdf-certificates">
         <ProtectedRoute>
           <Layout>
@@ -270,7 +272,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/template-management">
         <ProtectedRoute>
           <Layout>
@@ -278,7 +280,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/certificate-issuance">
         <ProtectedRoute>
           <Layout>
@@ -286,7 +288,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/certificate-management">
         <ProtectedRoute>
           <Layout>
@@ -294,7 +296,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/template-designer">
         <ProtectedRoute>
           <Layout>
@@ -302,7 +304,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/system-test">
         <ProtectedRoute>
           <Layout>
@@ -310,79 +312,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
-      <Route path="/template-library">
-        <ProtectedRoute>
-          <Layout>
-            <TemplateLibraryPage />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/usage">
-        <ProtectedRoute>
-          <Layout>
-            <UsagePage />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/bulk-issuance">
-        <ProtectedRoute>
-          <Layout>
-            <BulkIssuancePage />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/pdf-certificates">
-        <ProtectedRoute>
-          <Layout>
-            <PdfCertificatesPage />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/template-management">
-        <ProtectedRoute>
-          <Layout>
-            <TemplateManagement />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/certificate-issuance">
-        <ProtectedRoute>
-          <Layout>
-            <CertificateIssuanceDashboard />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/certificate-management">
-        <ProtectedRoute>
-          <Layout>
-            <CertificateManagement />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/template-designer">
-        <ProtectedRoute>
-          <Layout>
-            <TemplateDesigner />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/system-test">
-        <ProtectedRoute>
-          <Layout>
-            <SystemTest />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-      
+
       <Route path="/template-library">
         <ProtectedRoute>
           <Layout>
