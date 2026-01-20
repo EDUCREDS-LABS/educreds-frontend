@@ -1,12 +1,12 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { 
-  securityHeaders, 
-  corsOptions, 
-  validateInput, 
+import {
+  securityHeaders,
+  corsOptions,
+  validateInput,
   requestSizeLimits,
-  rateLimits 
+  rateLimits
 } from "./lib/security";
 import cors from 'cors';
 import session from 'express-session';
@@ -89,7 +89,7 @@ app.use((req, res, next) => {
   const port = parseInt(process.env.PORT || '5002', 10);
   server.listen({
     port,
-    host: "localhost",
+    host: "0.0.0.0",
   }, () => {
     log(`serving on port ${port}`);
   });

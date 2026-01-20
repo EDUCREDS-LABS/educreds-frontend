@@ -154,7 +154,11 @@ export class DualAuth {
         },
         token: backendData.token
       };
-    } catch (error) {
+    } catch (error: any) {
+      // Provide helpful error message if Firebase isn't configured
+      if (error.message?.includes('Firebase is not configured')) {
+        throw new Error('Marketplace authentication requires Firebase configuration. Please set VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, and VITE_FIREBASE_PROJECT_ID environment variables.');
+      }
       throw error;
     }
   }
@@ -201,7 +205,11 @@ export class DualAuth {
         },
         token: backendData.token
       };
-    } catch (error) {
+    } catch (error: any) {
+      // Provide helpful error message if Firebase isn't configured
+      if (error.message?.includes('Firebase is not configured')) {
+        throw new Error('Marketplace authentication requires Firebase configuration. Please set VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, and VITE_FIREBASE_PROJECT_ID environment variables.');
+      }
       throw error;
     }
   }

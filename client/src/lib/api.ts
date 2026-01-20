@@ -319,5 +319,89 @@ export const api = {
 
   getCurrentAuthType: () => auth.getCurrentAuthType(),
   canAccessMarketplace: () => auth.canAccessMarketplace(),
-  getMarketplacePermissions: () => auth.getMarketplacePermissions()
+  getMarketplacePermissions: () => auth.getMarketplacePermissions(),
+
+  // Governance endpoints
+  governance: {
+    createProposal: async (data: any) => {
+      const authHeaders = getAuthHeaders();
+      const response = await fetch(`${API_CONFIG.CERT}/governance/proposal`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders,
+        },
+        body: JSON.stringify(data),
+      });
+      return handleResponse(response);
+    },
+
+    getProposal: async (id: string) => {
+      const authHeaders = getAuthHeaders();
+      const response = await fetch(`${API_CONFIG.CERT}/governance/proposal/${id}`, {
+        headers: authHeaders,
+      });
+      return handleResponse(response);
+    },
+
+    getAllProposals: async () => {
+      const authHeaders = getAuthHeaders();
+      const response = await fetch(`${API_CONFIG.CERT}/governance/proposals`, {
+        headers: authHeaders,
+      });
+      return handleResponse(response);
+    },
+
+    voteOnProposal: async (proposalId: number, vote: number, institutionId?: string) => {
+      const authHeaders = getAuthHeaders();
+      const response = await fetch(`${API_CONFIG.CERT}/governance/vote`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders,
+        },
+        body: JSON.stringify({ proposalId, vote, institutionId }),
+      });
+      return handleResponse(response);
+    },
+
+    getVotingPower: async (institutionId?: string) => {
+      const authHeaders = getAuthHeaders();
+      const response = await fetch(
+        `${API_CONFIG.CERT}/governance/voting-power${institutionId ? `?institutionId=${institutionId}` : ""}`,
+        { headers: authHeaders }
+      );
+      return handleResponse(response);
+    },
+
+    submitDispute: async (data: any) => {
+      const authHeaders = getAuthHeaders();
+      const response = await fetch(`${API_CONFIG.CERT}/governance/dispute`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders,
+        },
+        body: JSON.stringify(data),
+      });
+      return handleResponse(response);
+    },
+
+    getDisputes: async (institutionId?: string) => {
+      const authHeaders = getAuthHeaders();
+      const response = await fetch(
+        `${API_CONFIG.CERT}/governance/disputes${institutionId ? `?institutionId=${institutionId}` : ""}`,
+        { headers: authHeaders }
+      );
+      return handleResponse(response);
+    },
+
+    getPoICScore: async (institutionId: string) => {
+      const authHeaders = getAuthHeaders();
+      const response = await fetch(`${API_CONFIG.CERT}/governance/poic-score/${institutionId}`, {
+        headers: authHeaders,
+      });
+      return handleResponse(response);
+    },
+  },
 };

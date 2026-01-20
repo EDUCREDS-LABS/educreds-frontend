@@ -196,7 +196,15 @@ export default function Verification() {
           </h1>
           <p className="text-neutral-600">Submit documents to verify your institution</p>
         </div>
-        {getStatusBadge(status)}
+        <div className="flex items-center gap-3">
+          {getStatusBadge(status)}
+          <Button asChild variant="outline">
+            <a href="/institution/governance-verification">
+              <Shield className="w-4 h-4 mr-2" />
+              Governance Verification
+            </a>
+          </Button>
+        </div>
       </div>
 
       {/* Verification Status Alert */}

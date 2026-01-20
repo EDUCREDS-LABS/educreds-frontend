@@ -14,6 +14,9 @@ import Register from "@/pages/auth/register";
 import InstitutionDashboard from "@/pages/institution/dashboard";
 import Certificates from "@/pages/institution/certificates";
 import Verification from "@/pages/institution/verification";
+import GovernanceVerification from "@/pages/institution/governance-verification";
+import GovernanceDashboard from "@/pages/institution/governance";
+import ProposalDetail from "@/pages/institution/governance/proposal-detail";
 import SubscriptionPage from "@/pages/institution/subscription";
 import InstitutionProfile from "@/pages/institution/profile";
 import InstitutionSettings from "@/pages/institution/settings";
@@ -132,6 +135,30 @@ function Router() {
         <ProtectedRoute>
           <Layout>
             <Verification />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/institution/governance-verification">
+        <ProtectedRoute>
+          <Layout>
+            <GovernanceVerification />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/institution/governance">
+        <ProtectedRoute>
+          <Layout>
+            <GovernanceDashboard />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/institution/governance/proposals/:id">
+        <ProtectedRoute>
+          <Layout>
+            <ProposalDetail />
           </Layout>
         </ProtectedRoute>
       </Route>
