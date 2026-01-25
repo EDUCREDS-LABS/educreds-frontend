@@ -4,11 +4,11 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  Search, 
-  Award, 
-  Download, 
-  Share2, 
+import {
+  Search,
+  Award,
+  Download,
+  Share2,
   Eye,
   Calendar,
   Building,
@@ -60,8 +60,8 @@ export const StudentPortalEnhanced: React.FC = () => {
       status: cert.isMinted ? 'verified' : 'pending',
       grade: cert.grade,
       creditsEarned: cert.credits,
-      verificationUrl: `https://educreds.com/verify/${cert.id}`,
-      thumbnail: '/cert-thumbnails/cs-degree.jpg', // Placeholder
+      verificationUrl: `${window.location.origin}/verify/${cert.id}`,
+      thumbnail: cert.thumbnail || '/cert-thumbnails/cs-degree.jpg', // Use cert thumbnail or fallback
       skills: cert.skills || [],
       shareCount: cert.shareCount || 0,
       viewCount: cert.viewCount || 0,
@@ -71,7 +71,7 @@ export const StudentPortalEnhanced: React.FC = () => {
 
   const filteredCertificates = certificates.filter(cert => {
     const matchesSearch = cert.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         cert.institution.toLowerCase().includes(searchQuery.toLowerCase());
+      cert.institution.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = selectedType === 'all' || cert.type === selectedType;
     return matchesSearch && matchesType;
   });
@@ -118,6 +118,51 @@ export const StudentPortalEnhanced: React.FC = () => {
 
   const totalCredits = certificates.reduce((sum, cert) => sum + (cert.creditsEarned || 0), 0);
   const verifiedCount = certificates.filter(cert => cert.status === 'verified').length;
+
+  const getTypeIcon = (type: string) => {
+    const iconClass = viewMode === 'grid' ? "w-12 h-12" : "w-8 h-8";
+    switch (type) {
+      case 'degree': return <Trophy className={`${iconClass} text-blue-600`} />;
+      case 'certificate': return <Award className={`${iconClass} text-indigo-600`} />;
+      case 'badge': return <Medal className={`${iconClass} text-orange-600`} />;
+      case 'achievement': return <Star className={`${iconClass} text-yellow-600`} />;
+      default: return <CheckCircle className={`${iconClass} text-green-600`} />;
+    }
+  };
+
+  const handleView = (id: string) => {
+    window.open(`${window.location.origin}/verify/${id}`, '_blank');
+  };
+
+  const handleDownload = async (id: string) => {
+    try {
+      const shareData = await api.getSharePackage(id);
+      if (shareData.w3cCredential) {
+        const blob = new Blob([JSON.stringify(shareData.w3cCredential, null, 2)], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `credential-${id}.json`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        toast({
+          title: "Download Started",
+          description: "Your W3C Verifiable Credential has been downloaded.",
+        });
+      } else {
+        throw new Error("W3C Credential not available for this certificate.");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Download Failed",
+        description: error.message || "Failed to download credential.",
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
@@ -216,7 +261,7 @@ export const StudentPortalEnhanced: React.FC = () => {
                     <option value="achievement">Achievements</option>
                   </select>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <Button
                     variant={viewMode === 'grid' ? 'default' : 'outline'}
@@ -289,7 +334,7 @@ export const StudentPortalEnhanced: React.FC = () => {
                         {certificate.title}
                       </h3>
                       <p className="text-gray-600 text-sm mb-3">{certificate.institution}</p>
-                      
+
                       {certificate.grade && (
                         <div className="mb-3">
                           <Badge variant="outline" className="text-xs">
@@ -341,25 +386,25 @@ export const StudentPortalEnhanced: React.FC = () => {
 
                       {/* Actions */}
                       <div className="flex space-x-2">
-                        <Button size="sm" className="flex-1">
+                        <Button size="sm" className="flex-1" onClick={() => handleView(certificate.id)}>
                           <Eye className="w-4 h-4 mr-2" />
                           View
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => handleShare(certificate.verificationUrl)}>
                           <Share2 className="w-4 h-4" />
                         </Button>
-                        <Button size="sm" variant="outline">
+                        <Button size="sm" variant="outline" onClick={() => handleDownload(certificate.id)}>
                           <Download className="w-4 h-4" />
                         </Button>
                         {!certificate.isMinted && (
-                            <Button 
-                                size="sm" 
-                                variant="outline" 
-                                onClick={() => mintCertificate(certificate)}
-                                disabled={isMinting}
-                            >
-                                {isMinting ? "Minting..." : "Mint Certificate"}
-                            </Button>                        )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => mintCertificate(certificate)}
+                            disabled={isMinting}
+                          >
+                            {isMinting ? "Minting..." : "Mint Certificate"}
+                          </Button>)}
                       </div>
                     </div>
                   </CardContent>
@@ -387,7 +432,7 @@ export const StudentPortalEnhanced: React.FC = () => {
                       <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
                         {getTypeIcon(certificate.type)}
                       </div>
-                      
+
                       <div className="flex-1">
                         <div className="flex items-start justify-between">
                           <div>
@@ -407,24 +452,24 @@ export const StudentPortalEnhanced: React.FC = () => {
                               </div>
                             </div>
                           </div>
-                          
+
                           <div className="flex items-center space-x-2">
                             <Badge className={getStatusColor(certificate.status)}>
                               {certificate.status}
                             </Badge>
-                            <Button size="sm" variant="outline">
+                            <Button size="sm" variant="outline" onClick={() => handleView(certificate.id)}>
                               <Eye className="w-4 h-4 mr-2" />
                               View
                             </Button>
                             {!certificate.isMinted && (
-                                <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    onClick={() => mintCertificate(certificate)}
-                                    disabled={isMinting}
-                                >
-                                    {isMinting ? "Minting..." : "Mint Certificate"}
-                                </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => mintCertificate(certificate)}
+                                disabled={isMinting}
+                              >
+                                {isMinting ? "Minting..." : "Mint Certificate"}
+                              </Button>
                             )}
                           </div>
                         </div>

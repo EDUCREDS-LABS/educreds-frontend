@@ -64,9 +64,9 @@ export default function ModernMarketplace() {
     try {
       setLoading(true);
       const response = await marketplaceService.listTemplates(page, 12, filters);
-      setTemplates(response.templates);
-      setTotalPages(response.pagination.pages);
-      setTotalTemplates(response.pagination.total);
+      setTemplates(response.templates || []);
+      setTotalPages(response.pagination?.pages || 1);
+      setTotalTemplates(response.pagination?.total || 0);
       setLoading(false);
     } catch (error) {
       console.error('Failed to load templates:', error);
@@ -75,6 +75,7 @@ export default function ModernMarketplace() {
         description: 'Failed to load templates. Please try again.',
         variant: 'destructive',
       });
+      setTemplates([]);
       setLoading(false);
     }
   };

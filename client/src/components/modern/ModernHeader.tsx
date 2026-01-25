@@ -1,10 +1,10 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Menu, 
-  X, 
-  Wallet, 
+import {
+  Menu,
+  X,
+  Wallet,
   ChevronDown,
   Globe,
   Moon,
@@ -32,21 +32,12 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-neutral-200/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          
+
           {/* Logo */}
           <Link href="/">
             <div className="flex items-center space-x-3 group cursor-pointer">
               <div className="relative">
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="16" cy="16" r="16" fill="url(#logo-gradient)" />
-                  <path d="M10 22L16 10L22 22" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <defs>
-                    <linearGradient id="logo-gradient" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-                      <stop stopColor="#6366F1" />
-                      <stop offset="1" stopColor="#06B6D4" />
-                    </linearGradient>
-                  </defs>
-                </svg>
+                <img src="/logo.png" alt="EduCreds" className="h-8 w-auto" />
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse" />
               </div>
               <div>
@@ -71,7 +62,7 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-4">
-            
+
             {/* Theme Toggle */}
             <Button
               variant="ghost"
@@ -101,13 +92,13 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
                   Verify
                 </Button>
               </Link>
-              
+
               <Link href="/login">
                 <Button variant="ghost" size="sm">
                   Sign In
                 </Button>
               </Link>
-              
+
               <Link href="/register">
                 <Button size="sm" className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90">
                   Get Started
@@ -133,8 +124,8 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
             <div className="px-2 pt-2 pb-3 space-y-1">
               {navigation.map((item) => (
                 <Link key={item.name} href={item.href}>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     className="w-full justify-start text-neutral-600 hover:text-neutral-900"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
@@ -142,7 +133,7 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
                   </Button>
                 </Link>
               ))}
-              
+
               <div className="border-t border-neutral-200 pt-3 mt-3 space-y-2">
                 <Button variant="outline" className="w-full" onClick={() => { onStudentPortalClick(); setIsMobileMenuOpen(false); }}>
                   <User className="w-4 h-4 mr-2" />
@@ -154,13 +145,13 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
                     Verify Certificate
                   </Button>
                 </Link>
-                
+
                 <Link href="/login">
                   <Button variant="ghost" className="w-full" onClick={() => setIsMobileMenuOpen(false)}>
                     Sign In
                   </Button>
                 </Link>
-                
+
                 <Link href="/register">
                   <Button className="w-full bg-gradient-to-r from-primary to-purple-600" onClick={() => setIsMobileMenuOpen(false)}>
                     Get Started

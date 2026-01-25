@@ -1,10 +1,10 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Mail, 
-  Twitter, 
-  Github, 
+import {
+  Mail,
+  Twitter,
+  Github,
   Linkedin,
   ArrowRight,
   Shield,
@@ -44,31 +44,22 @@ export default function ModernFooter() {
       {/* Main Footer */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
-          
+
           {/* Company Info */}
           <div className="lg:col-span-2">
             <div className="flex items-center space-x-3 mb-4">
-              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="16" cy="16" r="16" fill="url(#footer-logo-gradient)" />
-                <path d="M10 22L16 10L22 22" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <defs>
-                  <linearGradient id="footer-logo-gradient" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#6366F1" />
-                    <stop offset="1" stopColor="#06B6D4" />
-                  </linearGradient>
-                </defs>
-              </svg>
+              <img src="/logo.png" alt="EduCreds" className="h-8 w-auto brightness-0 invert" />
               <div>
                 <h3 className="text-xl font-bold">EduCreds</h3>
                 <p className="text-sm text-neutral-400">Blockchain Certificates</p>
               </div>
             </div>
-            
+
             <p className="text-neutral-400 mb-6 max-w-md">
-              Revolutionizing educational certificates with blockchain technology. 
+              Revolutionizing educational certificates with blockchain technology.
               Secure, verifiable, and globally recognized credentials for the digital age.
             </p>
-            
+
             <div className="flex items-center space-x-4">
               <Badge variant="outline" className="border-green-500 text-green-400">
                 <Shield className="w-3 h-3 mr-1" />
@@ -188,7 +179,7 @@ export default function ModernFooter() {
       <div className="border-t border-neutral-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            
+
             {/* Copyright */}
             <div className="flex items-center space-x-6 text-sm text-neutral-400">
               <span>&copy; {currentYear} EduCreds. All rights reserved.</span>
@@ -206,31 +197,31 @@ export default function ModernFooter() {
 
             {/* Social Links */}
             <div className="flex items-center space-x-4">
-              <a 
-                href="https://twitter.com/educreds_cert" 
-                target="_blank" 
+              <a
+                href="https://twitter.com/educreds_cert"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="text-neutral-400 hover:text-white transition-colors"
               >
                 <Twitter className="w-5 h-5" />
               </a>
-              <a 
-                href="https://linkedin.com/company/educreds" 
-                target="_blank" 
+              <a
+                href="https://linkedin.com/company/educreds"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="text-neutral-400 hover:text-white transition-colors"
               >
                 <Linkedin className="w-5 h-5" />
               </a>
-              <a 
-                href="https://github.com/educreds" 
-                target="_blank" 
+              <a
+                href="https://github.com/educreds"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="text-neutral-400 hover:text-white transition-colors"
               >
                 <Github className="w-5 h-5" />
               </a>
-              <a 
+              <a
                 href="mailto:support@educreds.com"
                 className="text-neutral-400 hover:text-white transition-colors"
               >

@@ -11,27 +11,36 @@ import { api } from "@/lib/api";
 import { format } from "date-fns";
 
 export default function Verify() {
-  const [searchMethod, setSearchMethod] = useState<"ipfs" | "token" | "id">("ipfs");
+  const [searchMethod, setSearchMethod] = useState<"ipfs" | "token" | "id" | "w3c">("ipfs");
   const [searchValue, setSearchValue] = useState("");
+  const [w3cCredential, setW3cCredential] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [disclaimerChecked, setDisclaimerChecked] = useState(false);
 
   const { data: certificateData, isLoading, error, refetch } = useQuery({
     queryKey: ["certificate-verification", searchMethod, searchValue],
     queryFn: async () => {
       if (!searchValue.trim()) return null;
-      
+
       try {
         console.log('Attempting verification with:', { searchMethod, searchValue });
-        
+
         let result;
         if (searchMethod === "ipfs") {
           result = await api.verifyCertificateByIPFS(searchValue);
         } else if (searchMethod === "token") {
           result = await api.verifyCertificateByToken(parseInt(searchValue));
+        } else if (searchMethod === "w3c") {
+          try {
+            const credential = JSON.parse(w3cCredential);
+            result = await api.verifyW3CCredential(credential);
+          } catch (e) {
+            throw new Error('Invalid W3C Credential JSON');
+          }
         } else {
           result = await api.verifyCertificate(searchValue);
         }
-        
+
         console.log('Verification result:', result);
         return result;
       } catch (error: any) {
@@ -43,7 +52,12 @@ export default function Verify() {
   });
 
   const handleSearch = async () => {
-    if (!searchValue.trim()) return;
+    if (searchMethod === "w3c" && !w3cCredential.trim()) return;
+    if (searchMethod !== "w3c" && !searchValue.trim()) return;
+    if (!disclaimerChecked) {
+      alert("Please agree to the verification disclaimer before proceeding.");
+      return;
+    }
     setIsSearching(true);
     try {
       await refetch();
@@ -54,26 +68,26 @@ export default function Verify() {
 
   const getVerificationStatus = (certificate: any) => {
     if (!certificate) return null;
-    
+
     // Extract certificate data from the nested structure
     const certData = certificate.certificate || certificate;
     const blockchainData = certificate.blockchainVerification?.certificate;
-    
+
     // Check if certificate exists and has data
     if (!certData.studentName && !certData.courseName) {
       return { status: "not_found", icon: XCircle, color: "text-red-600", bg: "bg-red-100", text: "Certificate Not Found" };
     }
-    
+
     // Check if certificate is revoked
     if (certData.isValid === false) {
       return { status: "revoked", icon: XCircle, color: "text-red-600", bg: "bg-red-100", text: "Certificate Revoked" };
     }
-    
+
     // Check if certificate is minted on blockchain
     if (certData.isMinted || certData.tokenId || blockchainData) {
       return { status: "active", icon: CheckCircle, color: "text-green-600", bg: "bg-green-100", text: "Certificate Verified" };
     }
-    
+
     // Certificate exists but not minted
     return { status: "pending", icon: AlertTriangle, color: "text-yellow-600", bg: "bg-yellow-100", text: "Certificate Pending Mint" };
   };
@@ -111,9 +125,10 @@ export default function Verify() {
               </p>
             </div>
           </div>
-          
-          <Tabs value={searchMethod} onValueChange={(value) => setSearchMethod(value as "ipfs" | "token" | "id")}>
-            <TabsList className="grid w-full grid-cols-3">
+
+
+          <Tabs value={searchMethod} onValueChange={(value) => setSearchMethod(value as any)}>
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="ipfs" className="flex items-center gap-2">
                 <Hash className="w-4 h-4" />
                 IPFS Hash
@@ -124,10 +139,14 @@ export default function Verify() {
               </TabsTrigger>
               <TabsTrigger value="id" className="flex items-center gap-2">
                 <Search className="w-4 h-4" />
-                Certificate ID
+                Cert ID
+              </TabsTrigger>
+              <TabsTrigger value="w3c" className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4" />
+                W3C DID
               </TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="ipfs" className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">IPFS Hash</label>
@@ -148,7 +167,7 @@ export default function Verify() {
                 </div>
               </div>
             </TabsContent>
-            
+
             <TabsContent value="token" className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Token ID</label>
@@ -170,7 +189,7 @@ export default function Verify() {
                 </div>
               </div>
             </TabsContent>
-            
+
             <TabsContent value="id" className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Certificate ID</label>
@@ -181,7 +200,7 @@ export default function Verify() {
                     onChange={(e) => setSearchValue(e.target.value)}
                     className="flex-1"
                   />
-                  <Button onClick={handleSearch} disabled={isSearching || !searchValue.trim()}>
+                  <Button onClick={handleSearch} disabled={isSearching || !searchValue.trim() || !disclaimerChecked}>
                     {isSearching ? (
                       <Skeleton className="w-4 h-4" />
                     ) : (
@@ -191,6 +210,38 @@ export default function Verify() {
                 </div>
               </div>
             </TabsContent>
+
+            <TabsContent value="w3c" className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">W3C Verifiable Credential JSON</label>
+                <textarea
+                  className="w-full h-32 p-2 border rounded font-mono text-xs"
+                  placeholder='{ "@context": [...], "id": "...", "type": [...], ... }'
+                  value={w3cCredential}
+                  onChange={(e) => setW3cCredential(e.target.value)}
+                />
+                <Button
+                  onClick={handleSearch}
+                  className="w-full"
+                  disabled={isSearching || !w3cCredential.trim() || !disclaimerChecked}
+                >
+                  {isSearching ? "Verifying..." : "Verify W3C Credential"}
+                </Button>
+              </div>
+            </TabsContent>
+
+            <div className="mt-6 flex items-start space-x-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+              <input
+                type="checkbox"
+                id="disclaimer"
+                checked={disclaimerChecked}
+                onChange={(e) => setDisclaimerChecked(e.target.checked)}
+                className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="disclaimer" className="text-sm text-amber-900">
+                <strong>GDPR & Verification Disclaimer:</strong> I acknowledge that I am authorized to verify this credential and that this verification is compliant with GDPR standards. I understand that EduCreds provides the infrastructure for verification but is not responsible for the underlying data accuracy.
+              </label>
+            </div>
           </Tabs>
         </CardContent>
       </Card>
@@ -247,8 +298,8 @@ export default function Verify() {
               </p>
             )}
           </CardHeader>
-          
-         
+
+
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
@@ -269,8 +320,8 @@ export default function Verify() {
                   <div className="flex justify-between">
                     <span className="text-neutral-500">Completion Date:</span>
                     <span className="font-medium">
-                      {certificateData.certificate?.completionDate ? 
-                        format(new Date(certificateData.certificate.completionDate), "MMM dd, yyyy") : 
+                      {certificateData.certificate?.completionDate ?
+                        format(new Date(certificateData.certificate.completionDate), "MMM dd, yyyy") :
                         'Not available'
                       }
                     </span>
@@ -278,15 +329,15 @@ export default function Verify() {
                   <div className="flex justify-between">
                     <span className="text-neutral-500">Issue Date:</span>
                     <span className="font-medium">
-                      {certificateData.certificate?.issuedAt ? 
-                        format(new Date(certificateData.certificate.issuedAt), "MMM dd, yyyy") : 
+                      {certificateData.certificate?.issuedAt ?
+                        format(new Date(certificateData.certificate.issuedAt), "MMM dd, yyyy") :
                         'Not available'
                       }
                     </span>
                   </div>
                 </div>
               </div>
-              
+
               <div className="space-y-4">
                 <h3 className="font-semibold text-lg">Institution & Blockchain</h3>
                 <div className="space-y-3">
@@ -297,8 +348,8 @@ export default function Verify() {
                   <div className="flex justify-between">
                     <span className="text-neutral-500">Student Address:</span>
                     <span className="font-medium font-mono text-sm">
-                      {certificateData.certificate?.studentAddress ? 
-                        `${certificateData.certificate.studentAddress.slice(0, 6)}...${certificateData.certificate.studentAddress.slice(-4)}` : 
+                      {certificateData.certificate?.studentAddress ?
+                        `${certificateData.certificate.studentAddress.slice(0, 6)}...${certificateData.certificate.studentAddress.slice(-4)}` :
                         'Not available'
                       }
                     </span>
@@ -306,8 +357,8 @@ export default function Verify() {
                   <div className="flex justify-between">
                     <span className="text-neutral-500">IPFS Hash:</span>
                     <span className="font-medium font-mono text-sm">
-                      {certificateData.certificate?.ipfsHash ? 
-                        `${certificateData.certificate.ipfsHash.slice(0, 10)}...` : 
+                      {certificateData.certificate?.ipfsHash ?
+                        `${certificateData.certificate.ipfsHash.slice(0, 10)}...` :
                         'Not available'
                       }
                     </span>
@@ -322,7 +373,7 @@ export default function Verify() {
                     <span className="text-neutral-500">Certificate Type:</span>
                     <span className="font-medium">{certificateData.certificate?.certificateType || 'Not available'}</span>
                   </div>
-                  
+
                   {/* Blockchain Verification Info */}
                   {certificateData.blockchainVerification && (
                     <>
@@ -338,8 +389,8 @@ export default function Verify() {
                           <div className="flex justify-between">
                             <span className="text-gray-600">Contract Address:</span>
                             <span className="font-mono text-xs">
-                              {certificateData.contractAddress ? 
-                                `${certificateData.contractAddress.slice(0, 6)}...${certificateData.contractAddress.slice(-4)}` : 
+                              {certificateData.contractAddress ?
+                                `${certificateData.contractAddress.slice(0, 6)}...${certificateData.contractAddress.slice(-4)}` :
                                 'Not available'
                               }
                             </span>
@@ -355,13 +406,13 @@ export default function Verify() {
                     </>
                   )}
                 </div>
-                
+
                 <div className="pt-4">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full"
-                    onClick={() => certificateData.certificate?.ipfsHash ? 
-                      window.open(`https://ipfs.io/ipfs/${certificateData.certificate.ipfsHash}`, '_blank') : 
+                    onClick={() => certificateData.certificate?.ipfsHash ?
+                      window.open(`https://ipfs.io/ipfs/${certificateData.certificate.ipfsHash}`, '_blank') :
                       alert('IPFS hash not available')
                     }
                     disabled={!certificateData.certificate?.ipfsHash}

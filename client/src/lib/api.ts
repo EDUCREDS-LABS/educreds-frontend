@@ -83,10 +83,10 @@ export const api = {
     // Transform verificationDocuments to URLs for backend
     const transformedData = {
       ...data,
-      verificationDocuments: data.verificationDocuments ? 
+      verificationDocuments: data.verificationDocuments ?
         transformDocumentsForBackend(data.verificationDocuments) : []
     };
-    
+
     const response = await fetch(API_CONFIG.INSTITUTIONS.REGISTER, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -134,11 +134,11 @@ export const api = {
 
   uploadVerificationDocuments: async (formData: FormData) => {
     const token = localStorage.getItem('institution_token');
-    
+
     if (!token) {
       throw new Error('User not authenticated');
     }
-    
+
     const response = await fetch(API_CONFIG.INSTITUTIONS.VERIFICATION_DOCUMENTS, {
       method: "POST",
       headers: {
@@ -154,7 +154,7 @@ export const api = {
     const user = auth.getUser();
     const address = walletAddress || user?.walletAddress;
     if (!address) throw new Error('Wallet address required');
-    
+
     const response = await fetch(API_CONFIG.ORACLE.INSTITUTION(address), {
       method: "GET",
       headers: { "Content-Type": "application/json" }
@@ -164,11 +164,11 @@ export const api = {
 
   submitOracleDocuments: async (walletAddress: string, formData: FormData) => {
     const token = localStorage.getItem('institution_token');
-    
+
     if (!token) {
       throw new Error('User not authenticated');
     }
-    
+
     const response = await fetch(API_CONFIG.ORACLE.SUBMIT_DOCUMENTS(walletAddress), {
       method: "POST",
       headers: {
@@ -217,10 +217,10 @@ export const api = {
     const list = Array.isArray(data)
       ? data
       : Array.isArray((data as any)?.certificates)
-      ? (data as any).certificates
-      : Array.isArray((data as any)?.data)
-      ? (data as any).data
-      : [];
+        ? (data as any).certificates
+        : Array.isArray((data as any)?.data)
+          ? (data as any).data
+          : [];
 
     const certificates = list.map((c: any) => ({
       id: c.id ?? c._id ?? c.uuid ?? String(c.tokenId ?? c._id ?? Math.random()),
@@ -277,6 +277,51 @@ export const api = {
       headers: { ...authHeaders, "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
+    return handleResponse(response);
+  },
+
+  // Verification Methods
+  verifyCertificate: async (id: string) => {
+    const response = await fetch(API_CONFIG.CERTIFICATES.VERIFY(id));
+    return handleResponse(response);
+  },
+
+  verifyCertificateByIPFS: async (ipfsHash: string) => {
+    const response = await fetch(API_CONFIG.CERTIFICATES.VERIFY_IPFS(ipfsHash));
+    return handleResponse(response);
+  },
+
+  verifyCertificateByToken: async (tokenId: number) => {
+    const response = await fetch(API_CONFIG.CERTIFICATES.VERIFY_TOKEN(tokenId));
+    return handleResponse(response);
+  },
+
+  verifyW3CCredential: async (credential: any) => {
+    const response = await fetch(API_CONFIG.W3C.VERIFY, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credential }),
+    });
+    return handleResponse(response);
+  },
+
+  verifyHybridCredential: async (data: { w3cCredential: any; tokenId?: number }) => {
+    const response = await fetch(API_CONFIG.W3C.HYBRID_VERIFY, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  // Sharing Methods
+  getSharePackage: async (certificateId: string) => {
+    const response = await fetch(API_CONFIG.CERTIFICATES.SHARE_PACKAGE(certificateId));
+    return handleResponse(response);
+  },
+
+  getShareMethods: async (certificateId: string) => {
+    const response = await fetch(API_CONFIG.CERTIFICATES.SHARE_METHODS(certificateId));
     return handleResponse(response);
   },
 

@@ -10,10 +10,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import OtpInput from "@/components/ui/otp-input";
-import { 
-  Loader2, 
-  AlertCircle, 
-  CheckCircle, 
+import {
+  Loader2,
+  AlertCircle,
+  CheckCircle,
   ArrowLeft,
   Shield,
   Wallet,
@@ -134,23 +134,23 @@ export default function ModernRegister() {
       // Handle OTP verification
       return;
     }
-    
+
     setIsLoading(true);
     setError("");
-    
+
     // Final validation
     if (!walletAddress) {
       setError("Please connect your wallet before registering.");
       setIsLoading(false);
       return;
     }
-    
+
     if (data.password !== data.confirmPassword) {
       setError("Passwords don't match.");
       setIsLoading(false);
       return;
     }
-    
+
     try {
       // Check if paid plan and no payment method selected
       if (selectedPlan !== "Free" && !paymentMethod && !showPayment) {
@@ -158,7 +158,7 @@ export default function ModernRegister() {
         setIsLoading(false);
         return;
       }
-      
+
       // Handle payment flow for paid plans
       if (selectedPlan !== "Free" && paymentMethod && paymentMethod !== 'later') {
         // TODO: Integrate with actual payment processors
@@ -169,7 +169,7 @@ export default function ModernRegister() {
           });
         } else if (paymentMethod === 'paypal') {
           toast({
-            title: "Payment Integration", 
+            title: "Payment Integration",
             description: "PayPal payment integration coming soon. Starting with Free plan.",
           });
         }
@@ -177,41 +177,41 @@ export default function ModernRegister() {
         form.setValue('plan', 'Free');
         setSelectedPlan('Free');
       }
-      
+
       // If pay later selected, set plan to Free
       if (paymentMethod === 'later') {
         form.setValue('plan', 'Free');
         setSelectedPlan('Free');
       }
-      
+
       // Send OTP using correct endpoint
       const otpResponse = await fetch(`${import.meta.env.VITE_CERT_API_BASE || "http://localhost:3001"}/auth/institution/send-registration-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: data.email })
       });
-      
+
       if (!otpResponse.ok) {
         throw new Error('Failed to send OTP. Please check your email address.');
       }
-      
+
       const { otpToken } = await otpResponse.json();
       setOtpToken(otpToken);
       setUserEmail(data.email);
       setShowOtp(true);
-      
+
       toast({
         title: "OTP Sent",
         description: "Please check your email for the verification code.",
       });
-      
+
     } catch (err: any) {
       setError(err.message || "Failed to send OTP. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   const handleOtpVerify = async (otp: string, token: string) => {
     setIsLoading(true);
     setError("");
@@ -219,8 +219,8 @@ export default function ModernRegister() {
     try {
       const formData = form.getValues();
       const { confirmPassword, ...registrationData } = formData;
-      const payload = { 
-        ...registrationData, 
+      const payload = {
+        ...registrationData,
         role: "institution",
         walletAddress,
         otp,
@@ -228,7 +228,7 @@ export default function ModernRegister() {
       };
 
       const response = await api.register(payload);
-      
+
       // Store authentication data properly with MongoDB ID
       localStorage.setItem('institution_token', response.token);
       localStorage.setItem('auth_type', 'institution');
@@ -243,15 +243,15 @@ export default function ModernRegister() {
           isVerified: response.institution.isVerified
         }));
       }
-      
+
       // Dispatch auth state change event
       window.dispatchEvent(new CustomEvent('authStateChange'));
-      
+
       toast({
         title: "Registration successful!",
         description: "Your institution has been registered. Welcome to EduCreds!",
       });
-      
+
       window.location.href = '/dashboard';
     } catch (err: any) {
       setError(err.message || "Invalid OTP. Please try again.");
@@ -266,9 +266,9 @@ export default function ModernRegister() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: userEmail })
     });
-    
+
     if (!response.ok) throw new Error('Failed to resend OTP');
-    
+
     const { otpToken } = await response.json();
     setOtpToken(otpToken);
     return { otpToken };
@@ -276,7 +276,7 @@ export default function ModernRegister() {
 
   const nextStep = () => {
     setError("");
-    
+
     // Validate current step before proceeding
     if (currentStep === 1) {
       const { name, email, registrationNumber } = form.getValues();
@@ -285,12 +285,12 @@ export default function ModernRegister() {
         return;
       }
     }
-    
+
     if (currentStep === 2 && !selectedPlan) {
       setError("Please select a plan to continue.");
       return;
     }
-    
+
     if (currentStep === 3) {
       const { password, confirmPassword } = form.getValues();
       if (!password || !confirmPassword) {
@@ -306,7 +306,7 @@ export default function ModernRegister() {
         return;
       }
     }
-    
+
     if (currentStep < 4) setCurrentStep(currentStep + 1);
   };
 
@@ -332,21 +332,12 @@ export default function ModernRegister() {
         <Card className="w-full max-w-2xl shadow-xl border-0">
           <CardHeader className="text-center pb-6">
             <div className="flex items-center justify-center space-x-2 mb-4">
-              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="16" cy="16" r="16" fill="url(#register-logo-gradient)" />
-                <path d="M10 22L16 10L22 22" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <defs>
-                  <linearGradient id="register-logo-gradient" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#6366F1" />
-                    <stop offset="1" stopColor="#06B6D4" />
-                  </linearGradient>
-                </defs>
-              </svg>
+              <img src="/logo.png" alt="EduCreds" className="h-8 w-auto" />
               <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-500 to-cyan-400 bg-clip-text text-transparent">
                 EduCreds
               </h1>
             </div>
-            
+
             <CardTitle className="text-2xl font-bold text-neutral-900">
               Register Your Institution
             </CardTitle>
@@ -367,23 +358,21 @@ export default function ModernRegister() {
             <div className="flex justify-center space-x-4 mt-4">
               {[1, 2, 3, 4].map((step) => (
                 <div key={step} className="flex items-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    step <= currentStep 
-                      ? 'bg-primary text-white' 
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step <= currentStep
+                      ? 'bg-primary text-white'
                       : 'bg-neutral-200 text-neutral-500'
-                  }`}>
+                    }`}>
                     {step < currentStep ? <CheckCircle className="w-4 h-4" /> : step}
                   </div>
                   {step < 4 && (
-                    <div className={`w-12 h-0.5 mx-2 ${
-                      step < currentStep ? 'bg-primary' : 'bg-neutral-200'
-                    }`} />
+                    <div className={`w-12 h-0.5 mx-2 ${step < currentStep ? 'bg-primary' : 'bg-neutral-200'
+                      }`} />
                   )}
                 </div>
               ))}
             </div>
           </CardHeader>
-          
+
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -458,9 +447,9 @@ export default function ModernRegister() {
                       )}
                     />
 
-                    <Button 
-                      type="button" 
-                      onClick={nextStep} 
+                    <Button
+                      type="button"
+                      onClick={nextStep}
                       className="w-full h-11"
                       disabled={!form.watch("name") || !form.watch("email") || !form.watch("registrationNumber")}
                     >
@@ -469,7 +458,7 @@ export default function ModernRegister() {
                     </Button>
                   </div>
                 )}
-                
+
                 {/* Step 2: Plan Selection */}
                 {currentStep === 2 && (
                   <div className="space-y-4">
@@ -488,11 +477,10 @@ export default function ModernRegister() {
                       {tiers.map((tier) => (
                         <Card
                           key={tier.name}
-                          className={`flex flex-col cursor-pointer transition-all duration-200 hover:shadow-md relative min-h-[280px] ${
-                            selectedPlan === tier.name
+                          className={`flex flex-col cursor-pointer transition-all duration-200 hover:shadow-md relative min-h-[280px] ${selectedPlan === tier.name
                               ? "border-2 border-primary bg-primary/5 shadow-lg ring-2 ring-primary/20 scale-105"
                               : "border border-gray-200 hover:border-primary/50"
-                          } ${tier.name === "Professional" ? "ring-2 ring-orange-400 border-orange-400" : ""}`}
+                            } ${tier.name === "Professional" ? "ring-2 ring-orange-400 border-orange-400" : ""}`}
                           onClick={() => {
                             setSelectedPlan(tier.name);
                             form.setValue("plan", tier.name);
@@ -590,7 +578,7 @@ export default function ModernRegister() {
                         const confirmPassword = field.value;
                         const passwordsMatch = password && confirmPassword && password === confirmPassword;
                         const showMismatch = confirmPassword && password && password !== confirmPassword;
-                        
+
                         return (
                           <FormItem>
                             <FormLabel>Confirm Password</FormLabel>
@@ -600,10 +588,9 @@ export default function ModernRegister() {
                                   type={showPassword ? "text" : "password"}
                                   placeholder="Confirm your password"
                                   {...field}
-                                  className={`h-11 pr-10 ${
-                                    showMismatch ? 'border-red-500 focus:border-red-500' : 
-                                    passwordsMatch ? 'border-green-500 focus:border-green-500' : ''
-                                  }`}
+                                  className={`h-11 pr-10 ${showMismatch ? 'border-red-500 focus:border-red-500' :
+                                      passwordsMatch ? 'border-green-500 focus:border-green-500' : ''
+                                    }`}
                                 />
                                 <button
                                   type="button"
@@ -642,9 +629,9 @@ export default function ModernRegister() {
                                   readOnly
                                   className="h-11"
                                 />
-                                <Button 
-                                  type="button" 
-                                  onClick={isConnected ? disconnect : connect} 
+                                <Button
+                                  type="button"
+                                  onClick={isConnected ? disconnect : connect}
                                   disabled={walletLoading}
                                   variant={isConnected ? "secondary" : "default"}
                                   className="h-11 px-6"
@@ -670,9 +657,9 @@ export default function ModernRegister() {
                       <Button type="button" onClick={prevStep} variant="outline" className="flex-1 h-11">
                         Back
                       </Button>
-                      <Button 
-                        type="button" 
-                        onClick={nextStep} 
+                      <Button
+                        type="button"
+                        onClick={nextStep}
                         className="flex-1 h-11"
                         disabled={!isConnected || !form.watch("password") || !form.watch("confirmPassword")}
                       >
@@ -693,7 +680,7 @@ export default function ModernRegister() {
                           <h3 className="text-lg font-semibold">Verify Your Email</h3>
                           <p className="text-sm text-neutral-600">Enter the code sent to {userEmail}</p>
                         </div>
-                        
+
                         <OtpInput
                           email={userEmail}
                           type="register"
@@ -702,7 +689,7 @@ export default function ModernRegister() {
                           isLoading={isLoading}
                           otpToken={otpToken}
                         />
-                        
+
                         <Button
                           type="button"
                           onClick={() => setShowOtp(false)}
@@ -719,18 +706,17 @@ export default function ModernRegister() {
                           <h3 className="text-lg font-semibold">Payment Method</h3>
                           <p className="text-sm text-neutral-600">Choose how you'd like to pay for {selectedPlan} plan</p>
                         </div>
-                        
+
                         <div className="space-y-3">
-                          <div 
-                            className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                              paymentMethod === 'stripe' ? 'border-primary bg-primary/5' : 'border-neutral-200 hover:border-primary/50'
-                            }`}
+                          <div
+                            className={`p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'stripe' ? 'border-primary bg-primary/5' : 'border-neutral-200 hover:border-primary/50'
+                              }`}
                             onClick={() => setPaymentMethod('stripe')}
                           >
                             <div className="flex items-center space-x-3">
-                              <input 
-                                type="radio" 
-                                checked={paymentMethod === 'stripe'} 
+                              <input
+                                type="radio"
+                                checked={paymentMethod === 'stripe'}
                                 onChange={() => setPaymentMethod('stripe')}
                                 className="text-primary"
                               />
@@ -740,17 +726,16 @@ export default function ModernRegister() {
                               </div>
                             </div>
                           </div>
-                          
-                          <div 
-                            className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                              paymentMethod === 'paypal' ? 'border-primary bg-primary/5' : 'border-neutral-200 hover:border-primary/50'
-                            }`}
+
+                          <div
+                            className={`p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'paypal' ? 'border-primary bg-primary/5' : 'border-neutral-200 hover:border-primary/50'
+                              }`}
                             onClick={() => setPaymentMethod('paypal')}
                           >
                             <div className="flex items-center space-x-3">
-                              <input 
-                                type="radio" 
-                                checked={paymentMethod === 'paypal'} 
+                              <input
+                                type="radio"
+                                checked={paymentMethod === 'paypal'}
                                 onChange={() => setPaymentMethod('paypal')}
                                 className="text-primary"
                               />
@@ -760,17 +745,16 @@ export default function ModernRegister() {
                               </div>
                             </div>
                           </div>
-                          
-                          <div 
-                            className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                              paymentMethod === 'later' ? 'border-primary bg-primary/5' : 'border-neutral-200 hover:border-primary/50'
-                            }`}
+
+                          <div
+                            className={`p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'later' ? 'border-primary bg-primary/5' : 'border-neutral-200 hover:border-primary/50'
+                              }`}
                             onClick={() => setPaymentMethod('later')}
                           >
                             <div className="flex items-center space-x-3">
-                              <input 
-                                type="radio" 
-                                checked={paymentMethod === 'later'} 
+                              <input
+                                type="radio"
+                                checked={paymentMethod === 'later'}
                                 onChange={() => setPaymentMethod('later')}
                                 className="text-primary"
                               />
@@ -781,12 +765,12 @@ export default function ModernRegister() {
                             </div>
                           </div>
                         </div>
-                        
+
                         <div className="flex gap-3">
-                          <Button 
-                            type="button" 
-                            onClick={() => setShowPayment(false)} 
-                            variant="outline" 
+                          <Button
+                            type="button"
+                            onClick={() => setShowPayment(false)}
+                            variant="outline"
                             className="flex-1 h-11"
                           >
                             Back
@@ -797,9 +781,9 @@ export default function ModernRegister() {
                             disabled={!paymentMethod || isLoading}
                           >
                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {paymentMethod === 'later' ? 'Continue with Free Plan' : 
-                             paymentMethod === 'stripe' ? 'Continue (Payment Coming Soon)' :
-                             paymentMethod === 'paypal' ? 'Continue (Payment Coming Soon)' : 'Continue'}
+                            {paymentMethod === 'later' ? 'Continue with Free Plan' :
+                              paymentMethod === 'stripe' ? 'Continue (Payment Coming Soon)' :
+                                paymentMethod === 'paypal' ? 'Continue (Payment Coming Soon)' : 'Continue'}
                           </Button>
                         </div>
                       </div>

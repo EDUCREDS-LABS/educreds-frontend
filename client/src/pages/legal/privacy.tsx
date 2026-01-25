@@ -18,7 +18,7 @@ export default function PrivacyPolicy() {
             <div className="flex items-center space-x-2">
               <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="16" cy="16" r="16" fill="url(#logo-gradient)" />
-                <path d="M10 22L16 10L22 22" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M10 22L16 10L22 22" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 <defs>
                   <linearGradient id="logo-gradient" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
                     <stop stopColor="#6366F1" />
@@ -67,7 +67,7 @@ export default function PrivacyPolicy() {
           <div className="prose prose-neutral max-w-none">
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-neutral-900 mb-4">1. Information We Collect</h2>
-              
+
               <h3 className="text-xl font-medium text-neutral-800 mb-2">1.1 Personal Information</h3>
               <p className="text-neutral-700 mb-4">
                 When you register for EduCreds, we collect:
@@ -118,7 +118,7 @@ export default function PrivacyPolicy() {
               <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 mb-4">
                 <p className="text-amber-800 font-medium mb-2">Important Notice:</p>
                 <p className="text-amber-700 text-sm">
-                  Certificate data stored on the blockchain is publicly accessible and immutable. 
+                  Certificate data stored on the blockchain is publicly accessible and immutable.
                   This includes certificate metadata, issuance details, and verification records.
                 </p>
               </div>
@@ -136,7 +136,7 @@ export default function PrivacyPolicy() {
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-neutral-900 mb-4">4. Information Sharing</h2>
               <p className="text-neutral-700 mb-4">We do not sell your personal information. We may share information in these situations:</p>
-              
+
               <h3 className="text-xl font-medium text-neutral-800 mb-2">4.1 With Your Consent</h3>
               <p className="text-neutral-700 mb-4">
                 When you explicitly authorize us to share information with third parties.
@@ -190,7 +190,7 @@ export default function PrivacyPolicy() {
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-neutral-900 mb-4">7. International Data Transfers</h2>
               <p className="text-neutral-700 mb-4">
-                EduCreds operates globally. Your information may be transferred to and processed in countries other than your own. 
+                EduCreds operates globally. Your information may be transferred to and processed in countries other than your own.
                 We ensure appropriate safeguards are in place for international transfers.
               </p>
             </section>
@@ -198,7 +198,7 @@ export default function PrivacyPolicy() {
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-neutral-900 mb-4">8. Children's Privacy</h2>
               <p className="text-neutral-700 mb-4">
-                EduCreds is not intended for children under 13. We do not knowingly collect personal information from children under 13. 
+                EduCreds is not intended for children under 13. We do not knowingly collect personal information from children under 13.
                 If we become aware of such collection, we will take steps to delete the information.
               </p>
             </section>
@@ -206,7 +206,7 @@ export default function PrivacyPolicy() {
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-neutral-900 mb-4">9. Changes to This Policy</h2>
               <p className="text-neutral-700 mb-4">
-                We may update this Privacy Policy periodically. We will notify you of significant changes via email or platform notifications. 
+                We may update this Privacy Policy periodically. We will notify you of significant changes via email or platform notifications.
                 Continued use of EduCreds after changes constitutes acceptance of the updated policy.
               </p>
             </section>

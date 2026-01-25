@@ -9,10 +9,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
 import OtpInput from "@/components/ui/otp-input";
-import { 
-  Loader2, 
-  AlertCircle, 
-  CheckCircle, 
+import {
+  Loader2,
+  AlertCircle,
+  CheckCircle,
   ArrowLeft,
   Shield,
   Zap,
@@ -61,14 +61,14 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: data.email })
       });
-      
+
       if (!otpResponse.ok) throw new Error('Failed to send OTP');
-      
+
       const { otpToken } = await otpResponse.json();
       setOtpToken(otpToken);
       setUserEmail(data.email);
       setShowOtp(true);
-      
+
       toast({
         title: "OTP Sent",
         description: "Check your email for the verification code",
@@ -91,7 +91,7 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
         otp,
         otpToken: token
       });
-      
+
       // Store authentication data properly
       localStorage.setItem('institution_token', response.token);
       localStorage.setItem('auth_type', 'institution');
@@ -107,19 +107,19 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
           isVerified: response.institution.isVerified
         }));
       }
-      
+
       // Dispatch auth state change event
       window.dispatchEvent(new CustomEvent('authStateChange'));
-      
+
       toast({
         title: "Login successful",
         description: "Welcome back to EduCreds!",
       });
-      
+
       // Force redirect to dashboard
       console.log('Redirecting to dashboard...');
       window.location.href = '/dashboard';
-      
+
     } catch (err: any) {
       setError(err.message || "Invalid OTP. Please try again.");
     } finally {
@@ -133,9 +133,9 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: userEmail })
     });
-    
+
     if (!response.ok) throw new Error('Failed to resend OTP');
-    
+
     const { otpToken } = await response.json();
     return { otpToken };
   };
@@ -180,16 +180,7 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
         <div className="hidden lg:flex lg:w-1/2 flex-col justify-center p-12 bg-gradient-to-br from-primary/10 to-purple-500/10">
           <div className="max-w-md">
             <div className="flex items-center space-x-2 mb-8">
-              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="16" cy="16" r="16" fill="url(#logo-gradient)" />
-                <path d="M10 22L16 10L22 22" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <defs>
-                  <linearGradient id="logo-gradient" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#6366F1" />
-                    <stop offset="1" stopColor="#06B6D4" />
-                  </linearGradient>
-                </defs>
-              </svg>
+              <img src="/logo.png" alt="EduCreds" className="h-10 w-auto" />
               <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-500 to-cyan-400 bg-clip-text text-transparent">
                 EduCreds
               </h1>
@@ -199,7 +190,7 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
               The Future of Educational Certificates
             </h2>
             <p className="text-lg text-neutral-600 mb-8">
-              Issue, verify, and manage educational certificates with blockchain technology. 
+              Issue, verify, and manage educational certificates with blockchain technology.
               Join the revolution in academic credential verification.
             </p>
 
@@ -242,30 +233,21 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
           <Card className="w-full max-w-md shadow-xl border-0">
             <CardHeader className="text-center pb-6">
               <div className="lg:hidden flex items-center justify-center space-x-2 mb-4">
-                <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="16" cy="16" r="16" fill="url(#mobile-logo-gradient)" />
-                  <path d="M10 22L16 10L22 22" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <defs>
-                    <linearGradient id="mobile-logo-gradient" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-                      <stop stopColor="#6366F1" />
-                      <stop offset="1" stopColor="#06B6D4" />
-                    </linearGradient>
-                  </defs>
-                </svg>
+                <img src="/logo.png" alt="EduCreds" className="h-6 w-auto" />
                 <span className="text-lg font-bold text-neutral-900">EduCreds</span>
               </div>
-              
+
               <CardTitle className="text-2xl font-bold text-neutral-900">
                 {mode === 'login' ? 'Welcome Back' : 'Get Started'}
               </CardTitle>
               <p className="text-neutral-600">
-                {mode === 'login' 
-                  ? 'Sign in to your institution dashboard' 
+                {mode === 'login'
+                  ? 'Sign in to your institution dashboard'
                   : 'Create your institution account'
                 }
               </p>
             </CardHeader>
-            
+
             <CardContent>
               {showOtp ? (
                 <OtpInput
@@ -286,120 +268,120 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
                       </Alert>
                     )}
 
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email Address</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="email"
-                            placeholder="admin@university.edu"
-                            {...field}
-                            className="h-11"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <div className="relative">
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email Address</FormLabel>
+                          <FormControl>
                             <Input
-                              type={showPassword ? "text" : "password"}
-                              placeholder="Enter your password"
+                              type="email"
+                              placeholder="admin@university.edu"
                               {...field}
-                              className="h-11 pr-10"
+                              className="h-11"
                             />
-                            <button
-                              type="button"
-                              onClick={() => setShowPassword(!showPassword)}
-                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-neutral-700"
-                            >
-                              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                            </button>
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Input
+                                type={showPassword ? "text" : "password"}
+                                placeholder="Enter your password"
+                                {...field}
+                                className="h-11 pr-10"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-neutral-700"
+                              >
+                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                              </button>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {mode === 'login' && (
+                      <div className="flex items-center justify-between text-sm">
+                        <label className="flex items-center space-x-2">
+                          <input type="checkbox" className="rounded border-neutral-300" />
+                          <span className="text-neutral-600">Remember me</span>
+                        </label>
+                        <Link href="/forgot-password">
+                          <button type="button" className="text-primary hover:underline">
+                            Forgot password?
+                          </button>
+                        </Link>
+                      </div>
                     )}
-                  />
 
-                  {mode === 'login' && (
-                    <div className="flex items-center justify-between text-sm">
-                      <label className="flex items-center space-x-2">
-                        <input type="checkbox" className="rounded border-neutral-300" />
-                        <span className="text-neutral-600">Remember me</span>
-                      </label>
-                      <Link href="/forgot-password">
-                        <button type="button" className="text-primary hover:underline">
-                          Forgot password?
-                        </button>
-                      </Link>
-                    </div>
-                  )}
-
-                  <Button
-                    type="submit"
-                    className="w-full h-11 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
-                    disabled={isLoading}
-                  >
-                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {mode === 'login' ? 'Sign In' : 'Create Account'}
-                  </Button>
-                </form>
+                    <Button
+                      type="submit"
+                      className="w-full h-11 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
+                      disabled={isLoading}
+                    >
+                      {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      {mode === 'login' ? 'Sign In' : 'Create Account'}
+                    </Button>
+                  </form>
                 </Form>
               )}
 
               {!showOtp && (
                 <>
-                <p className="text-sm text-neutral-600">
-                  {mode === 'login' ? "Don't have an account? " : "Already have an account? "}
-                  <Link href={mode === 'login' ? '/register' : '/login'}>
-                    <button className="text-primary hover:underline font-medium">
-                      {mode === 'login' ? 'Register your institution' : 'Sign in here'}
-                    </button>
-                  </Link>
-                </p>
+                  <p className="text-sm text-neutral-600">
+                    {mode === 'login' ? "Don't have an account? " : "Already have an account? "}
+                    <Link href={mode === 'login' ? '/register' : '/login'}>
+                      <button className="text-primary hover:underline font-medium">
+                        {mode === 'login' ? 'Register your institution' : 'Sign in here'}
+                      </button>
+                    </Link>
+                  </p>
 
-              <div className="mt-4 text-center">
-                <p className="text-sm text-neutral-600">
-                  Are you a student?{" "}
-                  <Link href="/student">
-                    <button className="text-secondary hover:underline font-medium">
-                      Access Student Portal
-                    </button>
-                  </Link>
-                </p>
-              </div>
-
-              {mode === 'login' && (
-                <div className="mt-6 pt-6 border-t border-neutral-200">
-                  <div className="text-center">
-                    <p className="text-xs text-neutral-500 mb-2">Quick Access</p>
-                    <div className="flex gap-2">
-                      <Link href="/verify" className="flex-1">
-                        <Button variant="outline" size="sm" className="w-full">
-                          Verify Certificate
-                        </Button>
+                  <div className="mt-4 text-center">
+                    <p className="text-sm text-neutral-600">
+                      Are you a student?{" "}
+                      <Link href="/student">
+                        <button className="text-secondary hover:underline font-medium">
+                          Access Student Portal
+                        </button>
                       </Link>
-                      <Link href="/marketplace" className="flex-1">
-                        <Button variant="outline" size="sm" className="w-full">
-                          Browse Templates
-                        </Button>
-                      </Link>
-                    </div>
+                    </p>
                   </div>
-                </div>
-              )}
+
+                  {mode === 'login' && (
+                    <div className="mt-6 pt-6 border-t border-neutral-200">
+                      <div className="text-center">
+                        <p className="text-xs text-neutral-500 mb-2">Quick Access</p>
+                        <div className="flex gap-2">
+                          <Link href="/verify" className="flex-1">
+                            <Button variant="outline" size="sm" className="w-full">
+                              Verify Certificate
+                            </Button>
+                          </Link>
+                          <Link href="/marketplace" className="flex-1">
+                            <Button variant="outline" size="sm" className="w-full">
+                              Browse Templates
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </CardContent>

@@ -24,6 +24,7 @@ export default function EnhancedCertificateManagement() {
   const [editingCert, setEditingCert] = useState<Certificate | null>(null);
   const [revokingCert, setRevokingCert] = useState<Certificate | null>(null);
   const [revokeReason, setRevokeReason] = useState("");
+  const [editFormData, setEditFormData] = useState({ studentName: "", grade: "" });
 
   const { data: certificatesData, isLoading } = useQuery({
     queryKey: ["/api/certificates/institution"],
@@ -178,7 +179,15 @@ export default function EnhancedCertificateManagement() {
       )}
 
       {/* Edit Dialog */}
-      <Dialog open={!!editingCert} onOpenChange={() => setEditingCert(null)}>
+      <Dialog 
+        open={!!editingCert} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingCert(null);
+            setEditFormData({ studentName: "", grade: "" });
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Certificate</DialogTitle>
@@ -188,22 +197,58 @@ export default function EnhancedCertificateManagement() {
             <div className="space-y-4">
               <div>
                 <Label>Student Name</Label>
-                <Input defaultValue={editingCert.studentName} />
+                <Input 
+                  value={editFormData.studentName || editingCert.studentName}
+                  onChange={(e) => setEditFormData({ ...editFormData, studentName: e.target.value })}
+                />
               </div>
               <div>
                 <Label>Grade</Label>
-                <Input defaultValue={editingCert.grade} />
+                <Input 
+                  value={editFormData.grade || editingCert.grade || ""}
+                  onChange={(e) => setEditFormData({ ...editFormData, grade: e.target.value })}
+                  placeholder="e.g., A+, Pass, 95%"
+                />
               </div>
               <div>
-                <Label>Notes</Label>
-                <Textarea rows={3} />
+                <Label>Course Name</Label>
+                <Input 
+                  value={editingCert.courseName}
+                  disabled
+                  className="bg-neutral-100 cursor-not-allowed"
+                />
+                <p className="text-xs text-neutral-500 mt-1">Course name cannot be edited</p>
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingCert(null)}>Cancel</Button>
-            <Button onClick={() => editingCert && updateCertMutation.mutate({ id: editingCert.id, updates: {} })}>
-              Save Changes
+            <Button variant="outline" onClick={() => {
+              setEditingCert(null);
+              setEditFormData({ studentName: "", grade: "" });
+            }}>Cancel</Button>
+            <Button 
+              onClick={() => {
+                if (editingCert) {
+                  const updates: Partial<Certificate> = {};
+                  if (editFormData.studentName && editFormData.studentName !== editingCert.studentName) {
+                    updates.studentName = editFormData.studentName;
+                  }
+                  if (editFormData.grade && editFormData.grade !== editingCert.grade) {
+                    updates.grade = editFormData.grade;
+                  }
+                  updateCertMutation.mutate({ id: editingCert.id, updates });
+                }
+              }}
+              disabled={updateCertMutation.isPending}
+            >
+              {updateCertMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

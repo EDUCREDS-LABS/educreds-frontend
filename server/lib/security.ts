@@ -25,16 +25,16 @@ export const createRateLimit = (windowMs: number, max: number, message?: string)
 export const rateLimits = {
   // General API rate limit - Very lenient for normal browsing
   general: createRateLimit(15 * 60 * 1000, 2000), // 2000 requests per 15 minutes
-  
+
   // Authentication endpoints - Allow reasonable failed attempts
   auth: createRateLimit(30 * 60 * 1000, 15), // 15 login attempts per 30 minutes
-  
+
   // Certificate issuance - Reasonable for institutions
   certificates: createRateLimit(60 * 1000, 100), // 100 certificates per minute
-  
+
   // File uploads - Allow multiple uploads
   uploads: createRateLimit(60 * 1000, 25), // 25 uploads per minute
-  
+
   // Verification endpoints - Very lenient for public use
   verification: createRateLimit(60 * 1000, 500), // 500 verifications per minute
 };
@@ -56,11 +56,11 @@ export const securityHeaders = helmet({
     },
   },
   crossOriginEmbedderPolicy: false, // Disable for blockchain wallet compatibility
-  hsts: {
+  hsts: process.env.NODE_ENV === 'production' ? {
     maxAge: 31536000,
     includeSubDomains: true,
     preload: true
-  }
+  } : false
 });
 
 // CORS configuration
@@ -70,7 +70,7 @@ export const corsOptions = {
     if (!origin && process.env.NODE_ENV === 'development') {
       return callback(null, true);
     }
-    
+
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:5002',
@@ -82,7 +82,7 @@ export const corsOptions = {
       process.env.FRONTEND_URL,
       process.env.ADMIN_URL,
     ].filter(Boolean);
-    
+
     if (origin && allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -101,8 +101,8 @@ export const validateInput = (req: Request, res: Response, next: NextFunction) =
   // Remove any potential XSS attempts
   const sanitizeString = (str: string): string => {
     return str.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-              .replace(/javascript:/gi, '')
-              .replace(/on\w+\s*=/gi, '');
+      .replace(/javascript:/gi, '')
+      .replace(/on\w+\s*=/gi, '');
   };
 
   const sanitizeObject = (obj: any): any => {
@@ -127,7 +127,7 @@ export const validateInput = (req: Request, res: Response, next: NextFunction) =
   if (req.body) {
     req.body = sanitizeObject(req.body);
   }
-  
+
   if (req.query) {
     req.query = sanitizeObject(req.query);
   }
@@ -158,28 +158,28 @@ export const requireSecureContext = (req: Request, res: Response, next: NextFunc
 export const validateApiKey = (req: Request, res: Response, next: NextFunction) => {
   const apiKey = req.headers['x-api-key'] as string;
   const validApiKey = process.env.ADMIN_API_KEY;
-  
+
   if (!validApiKey) {
     return res.status(500).json({
       error: 'Server configuration error',
       message: 'Admin API key not configured'
     });
   }
-  
+
   if (!apiKey || apiKey !== validApiKey) {
     return res.status(401).json({
       error: 'Invalid API key',
       message: 'Valid API key required for this operation'
     });
   }
-  
+
   next();
 };
 
 // Blockchain operation security
 export const validateBlockchainOperation = (req: Request, res: Response, next: NextFunction) => {
   const { walletAddress, signature } = req.body;
-  
+
   // Basic wallet address validation
   if (walletAddress && !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
     return res.status(400).json({
@@ -187,7 +187,7 @@ export const validateBlockchainOperation = (req: Request, res: Response, next: N
       message: 'Wallet address must be a valid Ethereum address'
     });
   }
-  
+
   // Add signature validation here if needed
   next();
 };

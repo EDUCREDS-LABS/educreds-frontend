@@ -15,23 +15,28 @@ export function CertificateVerification() {
   const [certificateId, setCertificateId] = useState('');
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [disclaimerChecked, setDisclaimerChecked] = useState(false);
 
   const verifyW3CCredential = async () => {
+    if (!disclaimerChecked) {
+      alert("Please agree to the verification disclaimer before proceeding.");
+      return;
+    }
     setLoading(true);
     try {
       const credential = JSON.parse(w3cCredential);
       const tokenIdNum = tokenId ? parseInt(tokenId) : undefined;
-      
+
       const result = await api.verifyHybridCredential({
         w3cCredential: credential,
         tokenId: tokenIdNum
       });
-      
+
       setResult(result);
     } catch (error) {
-      setResult({ 
-        valid: false, 
-        error: error instanceof Error ? error.message : 'Verification failed' 
+      setResult({
+        valid: false,
+        error: error instanceof Error ? error.message : 'Verification failed'
       });
     } finally {
       setLoading(false);
@@ -39,10 +44,14 @@ export function CertificateVerification() {
   };
 
   const verifyLegacyCredential = async () => {
+    if (!disclaimerChecked) {
+      alert("Please agree to the verification disclaimer before proceeding.");
+      return;
+    }
     setLoading(true);
     try {
       let result;
-      
+
       if (ipfsHash) {
         result = await api.verifyCertificateByIPFS(ipfsHash);
       } else if (tokenId) {
@@ -52,12 +61,12 @@ export function CertificateVerification() {
       } else {
         throw new Error('Please provide at least one verification method');
       }
-      
+
       setResult(result);
     } catch (error) {
-      setResult({ 
-        valid: false, 
-        error: error instanceof Error ? error.message : 'Verification failed' 
+      setResult({
+        valid: false,
+        error: error instanceof Error ? error.message : 'Verification failed'
       });
     } finally {
       setLoading(false);
@@ -73,6 +82,34 @@ export function CertificateVerification() {
       };
       reader.readAsText(file);
     }
+  };
+
+  const loadSampleW3C = () => {
+    const sample = {
+      "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://educreds.com/contexts/v1"
+      ],
+      "id": "http://educreds.com/credentials/3732",
+      "type": ["VerifiableCredential", "UniversityDegreeCredential"],
+      "issuer": "did:educreds:inst_001",
+      "issuanceDate": new Date().toISOString(),
+      "credentialSubject": {
+        "id": "did:educreds:student_123",
+        "degree": {
+          "type": "BachelorDegree",
+          "name": "Bachelor of Science in Computer Science"
+        }
+      },
+      "proof": {
+        "type": "Ed25519Signature2018",
+        "created": new Date().toISOString(),
+        "proofPurpose": "assertionMethod",
+        "verificationMethod": "did:educreds:inst_001#key-1",
+        "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..truncated"
+      }
+    };
+    setW3cCredential(JSON.stringify(sample, null, 2));
   };
 
   return (
@@ -120,28 +157,38 @@ export function CertificateVerification() {
                   <Upload className="h-4 w-4" />
                 </Button>
               </div>
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-sm font-medium">Or paste W3C Verifiable Credential JSON here...</label>
+                <Button variant="link" size="sm" onClick={loadSampleW3C} className="h-auto p-0">
+                  Load Sample JSON
+                </Button>
+              </div>
               <Textarea
-                placeholder="Or paste W3C Verifiable Credential JSON here..."
+                placeholder='{ "@context": [...], "id": "...", "type": [...], ... }'
                 value={w3cCredential}
                 onChange={(e) => setW3cCredential(e.target.value)}
-                rows={8}
+                rows={10}
+                className="font-mono text-xs"
               />
             </div>
-            
+
             <div>
               <label className="text-sm font-medium mb-2 block">
-                Token ID (Optional - for blockchain cross-verification)
+                Blockchain Token ID (Optional)
               </label>
               <Input
-                placeholder="e.g., 12345"
+                placeholder="e.g., 12345 (for cross-chain verification)"
                 value={tokenId}
                 onChange={(e) => setTokenId(e.target.value)}
               />
+              <p className="text-[10px] text-gray-500 mt-1">
+                If provided, we will verify the W3C credential against the on-chain record for token ID {tokenId}.
+              </p>
             </div>
-            
-            <Button 
+
+            <Button
               onClick={verifyW3CCredential}
-              disabled={!w3cCredential || loading}
+              disabled={!w3cCredential || loading || !disclaimerChecked}
               className="w-full"
             >
               <Search className="h-4 w-4 mr-2" />
@@ -166,7 +213,7 @@ export function CertificateVerification() {
                 onChange={(e) => setCertificateId(e.target.value)}
               />
             </div>
-            
+
             <div>
               <label className="text-sm font-medium mb-2 block">IPFS Hash</label>
               <Input
@@ -175,7 +222,7 @@ export function CertificateVerification() {
                 onChange={(e) => setIpfsHash(e.target.value)}
               />
             </div>
-            
+
             <div>
               <label className="text-sm font-medium mb-2 block">Token ID</label>
               <Input
@@ -184,10 +231,10 @@ export function CertificateVerification() {
                 onChange={(e) => setTokenId(e.target.value)}
               />
             </div>
-            
-            <Button 
+
+            <Button
               onClick={verifyLegacyCredential}
-              disabled={(!certificateId && !ipfsHash && !tokenId) || loading}
+              disabled={(!certificateId && !ipfsHash && !tokenId) || loading || !disclaimerChecked}
               className="w-full"
             >
               <Search className="h-4 w-4 mr-2" />
@@ -216,7 +263,7 @@ export function CertificateVerification() {
                 <Badge variant="default" className="bg-green-500">
                   ✓ Certificate is Valid
                 </Badge>
-                
+
                 {result.checks && (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="flex items-center gap-2">
@@ -227,7 +274,7 @@ export function CertificateVerification() {
                       )}
                       <span className="text-sm">W3C Signature</span>
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       {result.checks.onChainMatch ? (
                         <CheckCircle className="h-4 w-4 text-green-500" />
@@ -236,7 +283,7 @@ export function CertificateVerification() {
                       )}
                       <span className="text-sm">Blockchain Match</span>
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       {result.checks.institutionAuthorized ? (
                         <CheckCircle className="h-4 w-4 text-green-500" />
@@ -247,7 +294,7 @@ export function CertificateVerification() {
                     </div>
                   </div>
                 )}
-                
+
                 {result.certificate && (
                   <div className="bg-gray-50 p-4 rounded">
                     <h4 className="font-medium mb-2">Certificate Details</h4>
@@ -273,6 +320,19 @@ export function CertificateVerification() {
           </CardContent>
         </Card>
       )}
+
+      <div className="flex items-start space-x-2 p-4 bg-amber-50 border border-amber-200 rounded-md">
+        <input
+          type="checkbox"
+          id="disclaimer"
+          checked={disclaimerChecked}
+          onChange={(e) => setDisclaimerChecked(e.target.checked)}
+          className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+        />
+        <label htmlFor="disclaimer" className="text-sm text-amber-900">
+          <strong>GDPR & Verification Disclaimer:</strong> I acknowledge that I am authorized to verify this credential and that this verification is compliant with GDPR standards. I understand that EduCreds provides the infrastructure for verification but is not responsible for the underlying data accuracy.
+        </label>
+      </div>
     </div>
   );
 }
