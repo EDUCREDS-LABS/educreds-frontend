@@ -24,7 +24,8 @@ import {
   Upload,
   BarChart3,
   Zap,
-  Award
+  Award,
+  Vote
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -37,6 +38,7 @@ const navigation = [
   { name: "Templates", href: "/institution/templates", icon: Palette },
   { name: "Issuance", href: "/certificate-issuance", icon: Zap },
   { name: "Analytics", href: "/institution/analytics", icon: BarChart3 },
+  { name: "Governance", href: "/institution/governance", icon: Vote },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {

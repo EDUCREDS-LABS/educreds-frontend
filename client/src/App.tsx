@@ -23,6 +23,7 @@ import InstitutionSettings from "@/pages/institution/settings";
 import StudentPage from "@/pages/student/StudentPage";
 import AdminLogin from "@/pages/admin/login";
 import AdminDashboard from "@/pages/admin/dashboard";
+import AdminGovernanceDashboard from "@/pages/admin/governance-dashboard";
 import DAODashboard from "@/pages/DAODashboard";
 import MarketplacePage from "@/pages/marketplace/index";
 import MarketplaceLogin from "@/pages/marketplace/login";
@@ -112,6 +113,13 @@ function Router() {
       {/* Admin Routes */}
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
+      <Route path="/admin/governance">
+        <ProtectedRoute>
+          <Layout>
+            <AdminGovernanceDashboard />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
       <Route path="/dao" component={DAODashboard} />
 
       {/* Protected Institution Routes */}
