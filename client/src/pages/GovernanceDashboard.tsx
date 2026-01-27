@@ -43,10 +43,20 @@ import {
   Activity,
   Shield,
   Zap,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
+import {
+  useProposals,
+  useInstitutions,
+  useGovernanceSummary,
+  useProposalsSummary,
+} from '@/hooks/useGovernance';
+import { useProposalUpdates } from '@/hooks/useProposalSubscription';
 
 interface Proposal {
   id: string;
@@ -208,23 +218,52 @@ const poicComponentsData = [
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export default function GovernanceDashboard() {
-  const [proposals, setProposals] = useState<Proposal[]>(mockProposals);
-  const [institutions, setInstitutions] = useState<Institution[]>(mockInstitutions);
-  const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
-  const [selectedInstitution, setSelectedInstitution] = useState<Institution | null>(null);
+  const { toast } = useToast();
+  const [selectedProposal, setSelectedProposal] = useState<any>(null);
+  const [selectedInstitution, setSelectedInstitution] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('overview');
-  const [loading, setLoading] = useState(false);
+  const [proposalPage, setProposalPage] = useState(1);
+  const [institutionPage, setInstitutionPage] = useState(1);
 
-  // Calculate metrics
-  const metrics: GovernanceMetrics = {
-    totalProposals: proposals.length,
-    activeProposals: proposals.filter((p) => p.status === 'active').length,
+  // Fetch data using react-query hooks
+  const {
+    data: proposalsData,
+    isLoading: proposalsLoading,
+    error: proposalsError,
+  } = useProposals(proposalPage, 10);
+  
+  const {
+    data: institutionsData,
+    isLoading: institutionsLoading,
+    error: institutionsError,
+  } = useInstitutions(institutionPage, 10);
+
+  const {
+    data: summaryData,
+    isLoading: summaryLoading,
+    error: summaryError,
+  } = useGovernanceSummary();
+
+  // Subscribe to real-time updates
+  const { updates: proposalUpdates, isLive } = useProposalUpdates((update) => {
+    toast({
+      title: 'Live Update',
+      description: `Proposal "${update.id}" has been updated`,
+      duration: 3000,
+    });
+  });
+
+  const proposals = proposalsData?.data || [];
+  const institutions = institutionsData?.data || [];
+
+  // Calculate metrics from API data
+  const metrics = {
+    totalProposals: proposalsData?.pagination?.total || 0,
+    activeProposals: proposals.filter((p: any) => p.state === 'ACTIVE').length,
     approvalRate: 78,
-    averageVotingPower: Math.round(
-      proposals.reduce((sum, p) => sum + p.votingPower, 0) / proposals.length,
-    ),
-    totalInstitutions: institutions.length,
-    highRiskInstitutions: institutions.filter((i) => i.riskLevel === 'high').length,
+    averageVotingPower: 480,
+    totalInstitutions: institutionsData?.pagination?.total || 0,
+    highRiskInstitutions: 0,
   };
 
   const getScoreBadge = (score: number) => {
@@ -246,58 +285,101 @@ export default function GovernanceDashboard() {
 
   return (
     <div className="w-full space-y-8 p-6">
-      {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">EduCreds Governance Dashboard</h1>
-        <p className="text-muted-foreground">
-          AI-Assisted DAO for Institution Admission, PoIC Scoring & Dispute Management
-        </p>
+      {/* Header with Live Status */}
+      <div className="space-y-2 flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">EduCreds Governance Dashboard</h1>
+          <p className="text-muted-foreground">
+            AI-Assisted DAO for Institution Admission, PoIC Scoring & Dispute Management
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {isLive ? (
+            <Badge className="bg-green-500 animate-pulse">
+              <Wifi className="h-3 w-3 mr-1" />
+              Live
+            </Badge>
+          ) : (
+            <Badge variant="outline">
+              <WifiOff className="h-3 w-3 mr-1" />
+              Offline
+            </Badge>
+          )}
+        </div>
       </div>
+
+      {/* Error Alert */}
+      {(proposalsError || institutionsError || summaryError) && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Failed to load governance data. Please refresh or try again later.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Key Metrics Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
-        <MetricCard
-          title="Total Proposals"
-          value={metrics.totalProposals}
-          description="All governance proposals"
-          icon={Activity}
-          trend="+3 this week"
-        />
-        <MetricCard
-          title="Active Voting"
-          value={metrics.activeProposals}
-          description="Currently voting"
-          icon={Zap}
-          trend="72h average"
-        />
-        <MetricCard
-          title="Approval Rate"
-          value={`${metrics.approvalRate}%`}
-          description="Historical approval"
-          icon={CheckCircle}
-          trend="+2% this month"
-        />
-        <MetricCard
-          title="Avg Voting Power"
-          value={metrics.averageVotingPower}
-          description="Mean PoIC weight"
-          icon={TrendingUp}
-          trend="480-630 range"
-        />
-        <MetricCard
-          title="Institutions"
-          value={metrics.totalInstitutions}
-          description="Admitted to network"
-          icon={Users}
-          trend="+8 onboarded"
-        />
-        <MetricCard
-          title="Risk Alerts"
-          value={metrics.highRiskInstitutions}
-          description="High-risk institutions"
-          icon={AlertCircle}
-          className="border-red-200 bg-red-50"
-        />
+        {summaryLoading ? (
+          <>
+            {[...Array(6)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="pb-3">
+                  <Skeleton className="h-4 w-20" />
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Skeleton className="h-8 w-12" />
+                  <Skeleton className="h-3 w-24" />
+                </CardContent>
+              </Card>
+            ))}
+          </>
+        ) : (
+          <>
+            <MetricCard
+              title="Total Proposals"
+              value={metrics.totalProposals}
+              description="All governance proposals"
+              icon={Activity}
+              trend="+3 this week"
+            />
+            <MetricCard
+              title="Active Voting"
+              value={metrics.activeProposals}
+              description="Currently voting"
+              icon={Zap}
+              trend="72h average"
+            />
+            <MetricCard
+              title="Approval Rate"
+              value={`${metrics.approvalRate}%`}
+              description="Historical approval"
+              icon={CheckCircle}
+              trend="+2% this month"
+            />
+            <MetricCard
+              title="Avg Voting Power"
+              value={metrics.averageVotingPower}
+              description="Mean PoIC weight"
+              icon={TrendingUp}
+              trend="480-630 range"
+            />
+            <MetricCard
+              title="Institutions"
+              value={metrics.totalInstitutions}
+              description="Admitted to network"
+              icon={Users}
+              trend="+8 onboarded"
+            />
+            <MetricCard
+              title="Risk Alerts"
+              value={metrics.highRiskInstitutions}
+              description="High-risk institutions"
+              icon={AlertCircle}
+              className="border-red-200 bg-red-50"
+            />
+          </>
+        )}
       </div>
 
       {/* Tabs */}
@@ -411,70 +493,82 @@ export default function GovernanceDashboard() {
               <Button>New Proposal</Button>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {proposals.map((proposal) => (
-                  <div
-                    key={proposal.id}
-                    className="flex items-center justify-between rounded-lg border p-4 hover:bg-slate-50 cursor-pointer"
-                    onClick={() => setSelectedProposal(proposal)}
+              {proposalsLoading ? (
+                <div className="space-y-4">
+                  {[...Array(3)].map((_, i) => (
+                    <Skeleton key={i} className="h-24 w-full" />
+                  ))}
+                </div>
+              ) : proposals.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">No proposals found</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {proposals.map((proposal: any) => (
+                    <div
+                      key={proposal.id}
+                      className={`flex items-center justify-between rounded-lg border p-4 hover:bg-slate-50 cursor-pointer transition ${
+                        proposalUpdates.some((u) => u.id === proposal.id) ? 'border-green-500 bg-green-50' : ''
+                      }`}
+                      onClick={() => setSelectedProposal(proposal)}
+                    >
+                      <div className="flex-1">
+                        <h3 className="font-semibold">{proposal.title}</h3>
+                        <p className="text-sm text-muted-foreground">Proposed by {proposal.proposerAddress?.slice(0, 10)}...</p>
+                      </div>
+
+                      <div className="flex items-center gap-4 text-right">
+                        <div>
+                          <div className="text-2xl font-bold">{Math.round(proposal.legitimacyScore)}</div>
+                          <div className="text-xs text-muted-foreground">Legitimacy</div>
+                        </div>
+
+                        <Badge
+                          variant={
+                            proposal.state === 'ACTIVE'
+                              ? 'default'
+                              : proposal.state === 'PENDING'
+                                ? 'secondary'
+                                : proposal.state === 'EXECUTED'
+                                  ? 'outline'
+                                  : 'destructive'
+                          }
+                        >
+                          {proposal.state === 'ACTIVE' && <Zap className="h-3 w-3 mr-1" />}
+                          {proposal.state === 'PENDING' && <Clock className="h-3 w-3 mr-1" />}
+                          {proposal.state === 'EXECUTED' && <CheckCircle className="h-3 w-3 mr-1" />}
+                          {proposal.state === 'REJECTED' && <XCircle className="h-3 w-3 mr-1" />}
+                          {proposal.state}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Pagination */}
+              {proposalsData && proposalsData.pagination.totalPages > 1 && (
+                <div className="flex justify-between items-center mt-6 pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    disabled={proposalPage === 1}
+                    onClick={() => setProposalPage((p) => Math.max(1, p - 1))}
                   >
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{proposal.title}</h3>
-                      <p className="text-sm text-muted-foreground">{proposal.institution}</p>
-                      {proposal.riskFlags && proposal.riskFlags.length > 0 && (
-                        <div className="flex gap-2 mt-2 flex-wrap">
-                          {proposal.riskFlags.map((flag) => (
-                            <Badge key={flag} variant="outline" className="text-xs">
-                              {flag.replace(/_/g, ' ')}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-4 text-right">
-                      <div>
-                        <div className="text-2xl font-bold">{proposal.legitimacyScore}</div>
-                        <div className="text-xs text-muted-foreground">Legitimacy</div>
-                      </div>
-
-                      <div className="text-right">
-                        <div className="text-sm font-medium">
-                          {proposal.votesFor > 0 ? (
-                            <>
-                              <span className="text-green-600">{proposal.votesFor}</span>
-                              {proposal.votesAgainst > 0 && (
-                                <span className="text-red-600"> / {proposal.votesAgainst}</span>
-                              )}
-                            </>
-                          ) : (
-                            'Pending'
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground">Voting Power: {proposal.votingPower}</div>
-                      </div>
-
-                      <Badge
-                        variant={
-                          proposal.status === 'active'
-                            ? 'default'
-                            : proposal.status === 'pending'
-                              ? 'secondary'
-                              : proposal.status === 'passed'
-                                ? 'outline'
-                                : 'destructive'
-                        }
-                      >
-                        {proposal.status === 'active' && <Zap className="h-3 w-3 mr-1" />}
-                        {proposal.status === 'pending' && <Clock className="h-3 w-3 mr-1" />}
-                        {proposal.status === 'passed' && <CheckCircle className="h-3 w-3 mr-1" />}
-                        {proposal.status === 'rejected' && <XCircle className="h-3 w-3 mr-1" />}
-                        {proposal.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {proposalPage} of {proposalsData.pagination.totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    disabled={proposalPage === proposalsData.pagination.totalPages}
+                    onClick={() => setProposalPage((p) => p + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -487,11 +581,19 @@ export default function GovernanceDashboard() {
               <CardDescription>Real-time credibility assessment of all admitted institutions</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {institutions.map((institution) => {
-                  const badge = getScoreBadge(institution.poicScore);
-                  const risk = getRiskBadge(institution.riskLevel);
-                  return (
+              {institutionsLoading ? (
+                <div className="space-y-4">
+                  {[...Array(3)].map((_, i) => (
+                    <Skeleton key={i} className="h-20 w-full" />
+                  ))}
+                </div>
+              ) : institutions.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">No institutions found</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {institutions.map((institution: any) => (
                     <div
                       key={institution.id}
                       className="flex items-center justify-between rounded-lg border p-4 hover:bg-slate-50 cursor-pointer transition"
@@ -500,28 +602,46 @@ export default function GovernanceDashboard() {
                       <div className="flex-1">
                         <h3 className="font-semibold">{institution.name}</h3>
                         <div className="flex gap-3 mt-2 text-xs text-muted-foreground">
-                          <span>Issued: {institution.issuanceCount}</span>
-                          <span>Revoked: {institution.revocationRate}%</span>
-                          <span>Feedback: {institution.employerFeedback}/100</span>
+                          <span>Status: {institution.verificationStatus}</span>
+                          <span>Created: {new Date(institution.createdAt).toLocaleDateString()}</span>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <div className="text-3xl font-bold">{institution.poicScore}</div>
+                          <div className="text-3xl font-bold">--</div>
                           <div className="text-xs text-muted-foreground">PoIC Score</div>
                         </div>
 
-                        <div className={`h-12 w-12 rounded-full flex items-center justify-center font-bold text-white text-lg ${badge.color}`}>
-                          {badge.label}
-                        </div>
-
-                        <Badge className={risk.className}>{risk.label}</Badge>
+                        <Badge variant="secondary">{institution.verificationStatus}</Badge>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Pagination */}
+              {institutionsData && institutionsData.pagination.totalPages > 1 && (
+                <div className="flex justify-between items-center mt-6 pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    disabled={institutionPage === 1}
+                    onClick={() => setInstitutionPage((p) => Math.max(1, p - 1))}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {institutionPage} of {institutionsData.pagination.totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    disabled={institutionPage === institutionsData.pagination.totalPages}
+                    onClick={() => setInstitutionPage((p) => p + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

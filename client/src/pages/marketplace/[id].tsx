@@ -248,7 +248,7 @@ export default function MarketplacePage() {
               )}
             </div>
             <div className="text-sm text-gray-500">
-              Showing {templates.length} of {totalTemplates} templates
+              Showing {templates?.length || 0} of {totalTemplates} templates
             </div>
           </div>
         </CardContent>
@@ -259,7 +259,7 @@ export default function MarketplacePage() {
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
-      ) : templates.length === 0 ? (
+      ) : templates?.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-gray-400 mb-4">
             <Search className="h-12 w-12 mx-auto" />
@@ -274,7 +274,7 @@ export default function MarketplacePage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {templates.map((template) => (
+          {templates?.map((template) => (
             <TemplateCard
               key={template.id}
               template={template}

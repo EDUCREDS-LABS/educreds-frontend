@@ -32,6 +32,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertTriangle,
   TrendingUp,
@@ -44,8 +45,16 @@ import {
   Clock,
   Activity,
   Settings,
+  AlertCircle,
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
+import {
+  useSystemMetrics,
+  useAuditLog,
+  useSystemStatus,
+  useInstitutionRegistry,
+} from '@/hooks/useGovernance';
 
 interface AdminMetrics {
   totalInstitutions: number;
@@ -186,9 +195,53 @@ const systemStatus: SystemStatus[] = [
 ];
 
 export default function AdminGovernanceDashboard() {
+  const { toast } = useToast();
   const [selectedInstitution, setSelectedInstitution] = useState<string | null>(null);
   const [showAuditDetail, setShowAuditDetail] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [auditPage, setAuditPage] = useState(1);
+  const [institutionPage, setInstitutionPage] = useState(1);
+
+  // Fetch data using react-query hooks
+  const {
+    data: metricsData,
+    isLoading: metricsLoading,
+    error: metricsError,
+  } = useSystemMetrics();
+
+  const {
+    data: auditData,
+    isLoading: auditLoading,
+    error: auditError,
+  } = useAuditLog(auditPage, 20);
+
+  const {
+    data: statusData,
+    isLoading: statusLoading,
+    error: statusError,
+  } = useSystemStatus();
+
+  const {
+    data: registryData,
+    isLoading: registryLoading,
+    error: registryError,
+  } = useInstitutionRegistry(institutionPage, 10);
+
+  // Handle errors with toast notifications
+  useEffect(() => {
+    if (metricsError) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load system metrics',
+        variant: 'destructive',
+      });
+    }
+  }, [metricsError, toast]);
+
+  const metrics = metricsData || mockMetrics;
+  const auditLogs = auditData?.data || [];
+  const institutions = registryData?.data || [];
+  const systemStatus = statusData?.components || [];
 
   return (
     <div className="w-full space-y-8 p-6">
@@ -200,12 +253,22 @@ export default function AdminGovernanceDashboard() {
         </p>
       </div>
 
+      {/* Error Alert */}
+      {(metricsError || auditError || statusError || registryError) && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Failed to load admin data. Please refresh or try again later.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* System Health Alert */}
-      {mockMetrics.systemHealth < 95 && (
+      {metrics.systemHealthScore < 95 && (
         <Alert className="border-yellow-200 bg-yellow-50">
           <AlertTriangle className="h-4 w-4 text-yellow-600" />
           <AlertDescription className="text-yellow-800">
-            System health at {mockMetrics.systemHealth}%. Quack AI service showing intermittent issues.
+            System health at {Math.round(metrics.systemHealthScore)}%. Some services may be degraded.
             <Button variant="link" className="ml-2 h-auto p-0">
               View Details
             </Button>
@@ -215,34 +278,52 @@ export default function AdminGovernanceDashboard() {
 
       {/* Key Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <AdminMetricCard
-          title="Total Institutions"
-          value={mockMetrics.totalInstitutions}
-          active={mockMetrics.activeInstitutions}
-          icon={Users}
-          trend="+3 this month"
-        />
-        <AdminMetricCard
-          title="Total Credentials"
-          value={mockMetrics.totalCredentials}
-          subtext={`Revoked: ${mockMetrics.totalRevocations}`}
-          icon={Activity}
-          trend="+420 this week"
-        />
-        <AdminMetricCard
-          title="Avg PoIC Score"
-          value={mockMetrics.avgPoICScore}
-          subtext={`High Risk: ${mockMetrics.highRiskCount}`}
-          icon={TrendingUp}
-          trend="+2.1 this month"
-        />
-        <AdminMetricCard
-          title="System Health"
-          value={`${mockMetrics.systemHealth}%`}
-          subtext={`Pending: ${mockMetrics.pendingReviews} reviews`}
-          icon={Shield}
-          className={mockMetrics.systemHealth < 95 ? 'border-yellow-200 bg-yellow-50' : ''}
-        />
+        {metricsLoading ? (
+          <>
+            {[...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="pb-3">
+                  <Skeleton className="h-4 w-20" />
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Skeleton className="h-8 w-12" />
+                  <Skeleton className="h-3 w-24" />
+                </CardContent>
+              </Card>
+            ))}
+          </>
+        ) : (
+          <>
+            <AdminMetricCard
+              title="Total Institutions"
+              value={metrics.totalInstitutions}
+              active={metrics.totalInstitutions}
+              icon={Users}
+              trend="+3 this month"
+            />
+            <AdminMetricCard
+              title="Total Proposals"
+              value={metrics.totalProposals}
+              subtext={`Active: ${metrics.activeProposals}`}
+              icon={Activity}
+              trend="+5 this week"
+            />
+            <AdminMetricCard
+              title="Avg PoIC Score"
+              value={Math.round(metrics.averagePoICScore * 10) / 10}
+              subtext="Institutional credibility"
+              icon={TrendingUp}
+              trend="+0.2 this month"
+            />
+            <AdminMetricCard
+              title="System Health"
+              value={`${Math.round(metrics.systemHealthScore)}%`}
+              subtext="Overall operational status"
+              icon={Shield}
+              className={metrics.systemHealthScore < 95 ? 'border-yellow-200 bg-yellow-50' : ''}
+            />
+          </>
+        )}
       </div>
 
       {/* Tabs */}
@@ -408,40 +489,68 @@ export default function AdminGovernanceDashboard() {
               <Button variant="outline">Export Log</Button>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {auditLogs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="flex items-start gap-4 rounded-lg border p-4 hover:bg-slate-50 cursor-pointer transition"
-                    onClick={() => setShowAuditDetail(log.id)}
-                  >
-                    <div className={`mt-1 h-3 w-3 rounded-full flex-shrink-0 ${
-                      log.severity === 'info' ? 'bg-blue-500' :
-                      log.severity === 'warning' ? 'bg-yellow-500' :
-                      'bg-red-500'
-                    }`} />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <p className="font-semibold">{log.action}</p>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(log.timestamp).toLocaleString()}
-                        </span>
+              {auditLoading ? (
+                <div className="space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className="h-20 w-full" />
+                  ))}
+                </div>
+              ) : auditLogs.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">No audit logs found</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {auditLogs.map((log: any) => (
+                    <div
+                      key={log.id}
+                      className="flex items-start gap-4 rounded-lg border p-4 hover:bg-slate-50 cursor-pointer transition"
+                      onClick={() => setShowAuditDetail(log.id)}
+                    >
+                      <div className={`mt-1 h-3 w-3 rounded-full flex-shrink-0 ${
+                        log.action === 'CREATED' ? 'bg-blue-500' :
+                        log.action === 'UPDATED' ? 'bg-yellow-500' :
+                        'bg-red-500'
+                      }`} />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <p className="font-semibold">{log.action}</p>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(log.timestamp).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          <span className="font-medium">{log.resourceType}</span> → <span className="font-medium">{log.resourceId}</span>
+                        </p>
+                        <p className="text-sm mt-2">By: {log.userId}</p>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        <span className="font-medium">{log.actor}</span> → <span className="font-medium">{log.target}</span>
-                      </p>
-                      <p className="text-sm mt-2">{log.details}</p>
                     </div>
-                    <Badge variant={
-                      log.severity === 'info' ? 'default' :
-                      log.severity === 'warning' ? 'secondary' :
-                      'destructive'
-                    }>
-                      {log.severity}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Pagination */}
+              {auditData && auditData.pagination.totalPages > 1 && (
+                <div className="flex justify-between items-center mt-6 pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    disabled={auditPage === 1}
+                    onClick={() => setAuditPage((p) => Math.max(1, p - 1))}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {auditPage} of {auditData.pagination.totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    disabled={auditPage === auditData.pagination.totalPages}
+                    onClick={() => setAuditPage((p) => p + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -453,35 +562,41 @@ export default function AdminGovernanceDashboard() {
               <CardTitle>Governance System Components Status</CardTitle>
               <CardDescription>Real-time health monitoring</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {systemStatus.map((component, idx) => (
-                <div key={idx} className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="flex-1">
-                    <p className="font-semibold">{component.component}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Last check: {component.lastCheck}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-sm font-medium">Uptime</p>
-                      <p className="text-lg font-bold">{component.uptime}</p>
-                    </div>
-                    <div className={`h-3 w-3 rounded-full ${
-                      component.status === 'healthy' ? 'bg-green-500' :
-                      component.status === 'warning' ? 'bg-yellow-500' :
-                      'bg-red-500'
-                    }`} />
-                    <Badge variant={
-                      component.status === 'healthy' ? 'default' :
-                      component.status === 'warning' ? 'secondary' :
-                      'destructive'
-                    }>
-                      {component.status}
-                    </Badge>
-                  </div>
+            <CardContent>
+              {statusLoading ? (
+                <div className="space-y-3">
+                  {[...Array(3)].map((_, i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <div className="space-y-3">
+                  {Object.entries(statusData?.components || {}).map(([key, component]: [string, any]) => (
+                    <div key={key} className="flex items-center justify-between rounded-lg border p-4">
+                      <div className="flex-1">
+                        <p className="font-semibold">{key}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {component.message || 'Monitoring active'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className={`h-3 w-3 rounded-full ${
+                          component.status === 'healthy' ? 'bg-green-500' :
+                          component.status === 'warning' ? 'bg-yellow-500' :
+                          'bg-red-500'
+                        }`} />
+                        <Badge variant={
+                          component.status === 'healthy' ? 'default' :
+                          component.status === 'warning' ? 'secondary' :
+                          'destructive'
+                        }>
+                          {component.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
