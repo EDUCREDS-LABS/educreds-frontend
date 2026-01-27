@@ -1,5 +1,5 @@
-import ModernRegister from "@/components/modern/ModernRegister";
+import ModernRegisterUnified from "@/components/modern/ModernRegisterUnified";
 
 export default function Register() {
-  return <ModernRegister />;
+  return <ModernRegisterUnified />;
 }

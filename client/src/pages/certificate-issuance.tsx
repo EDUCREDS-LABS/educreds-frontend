@@ -18,9 +18,9 @@ import {
 } from 'lucide-react';
 import { BulkCertificateIssuance } from '../components/BulkCertificateIssuance';
 import { PdfCertificateUpload } from '../components/PdfCertificateUpload';
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from '@/hooks/use-toast';
+import QuickIssuance from '@/components/institution/QuickIssuance';
+import ManageSpecs from '@/components/institution/ManageSpecs';
+import { useLocation } from 'wouter';
 
 interface Template {
   id: string;
@@ -46,6 +46,7 @@ export const CertificateIssuanceDashboard: React.FC = () => {
     successRate: 99.8
   });
   const [selectedMethod, setSelectedMethod] = useState<'quick' | 'template' | 'bulk' | 'pdf'>('quick');
+  const [location, setLocation] = useLocation();
 
   useEffect(() => {
     fetchDashboardData();
@@ -164,11 +165,12 @@ export const CertificateIssuanceDashboard: React.FC = () => {
               transition={{ delay: 0.2 + idx * 0.05 }}
             >
               <Card
-                className={`group cursor-pointer transition-all duration-300 rounded-3xl overflow-hidden relative border-2 ${selectedMethod === method.id
+                className={`group cursor-pointer transition-all duration-300 rounded-3xl overflow-hidden relative border-2 ${
+                    (location.startsWith('/certificate-issuance/') ? location.split('/')[2] : 'quick') === method.id
                     ? 'border-neutral-900 bg-neutral-900 text-white shadow-2xl'
                     : 'border-white bg-white hover:border-neutral-200'
                   }`}
-                onClick={() => setSelectedMethod(method.id as any)}
+                onClick={() => setLocation(`/certificate-issuance/${method.id}`)}
               >
                 <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${method.gradient} opacity-[0.05] rounded-bl-full`} />
                 <CardContent className="p-6 relative z-10">
@@ -212,8 +214,8 @@ export const CertificateIssuanceDashboard: React.FC = () => {
                     <p className="text-sm font-medium text-neutral-400 uppercase tracking-widest mt-0.5">Configuration Panel</p>
                   </div>
                 </div>
-                {selectedMethod === 'template' && (
-                  <Button variant="ghost" size="sm" className="font-bold text-indigo-600 hover:bg-indigo-50">
+                {((location.startsWith('/certificate-issuance/') ? location.split('/')[2] : 'quick') === 'template') && (
+                  <Button variant="ghost" size="sm" className="font-bold text-indigo-600 hover:bg-indigo-50" onClick={() => setLocation('/certificate-issuance/manage-specs')}>
                     Manage Specs <ChevronRight className="w-4 h-4 ml-1" />
                   </Button>
                 )}
@@ -221,10 +223,14 @@ export const CertificateIssuanceDashboard: React.FC = () => {
             </CardHeader>
             <CardContent className="p-8">
               <div className="max-w-4xl">
-                {selectedMethod === 'quick' && <QuickIssuanceForm />}
-                {selectedMethod === 'template' && <TemplateBasedIssuance templates={templates} />}
-                {selectedMethod === 'bulk' && <BulkCertificateIssuance />}
-                {selectedMethod === 'pdf' && <PdfCertificateUpload />}
+                {(() => {
+                  const method = location.startsWith('/certificate-issuance/') ? location.split('/')[2] : 'quick';
+                  if (method === 'manage-specs') return <ManageSpecs />;
+                  if (method === 'bulk') return <BulkCertificateIssuance />;
+                  if (method === 'pdf') return <PdfCertificateUpload />;
+                  // default: quick/template both use the unified QuickIssuance component
+                  return <QuickIssuance />;
+                })()}
               </div>
             </CardContent>
           </Card>
@@ -234,209 +240,6 @@ export const CertificateIssuanceDashboard: React.FC = () => {
   );
 };
 
-const QuickIssuanceForm: React.FC = () => {
-  const [formData, setFormData] = useState({
-    studentName: '',
-    studentEmail: '',
-    courseName: '',
-    grade: '',
-    completionDate: '',
-    agreedToTerms: false
-  });
-  const { toast } = useToast();
-
-  const handleDownloadAgreement = () => {
-    window.open('/docs/issuance%20aggrement.md', '_blank');
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await fetch('/api/v1/standard/certificates/issue', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Institution-ID': 'demo-id'
-        },
-        body: JSON.stringify({
-          student: { id: formData.studentEmail, name: formData.studentName },
-          course: { name: formData.courseName },
-          achievement: {
-            grade: formData.grade,
-            completionDate: formData.completionDate,
-            certificateType: 'completion'
-          }
-        })
-      });
-
-      if (response.ok) {
-        toast({
-          title: "Credential Issued",
-          description: `Successfully deployed to ${formData.studentEmail}`,
-        });
-        setFormData({
-          studentName: '',
-          studentEmail: '',
-          courseName: '',
-          grade: '',
-          completionDate: '',
-          agreedToTerms: false
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Issuance Failed",
-        description: "An error occurred while connecting to the blockchain.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-        <div className="space-y-2">
-          <Label className="text-xs font-bold text-neutral-400 uppercase tracking-widest ml-1">Recipient Identity</Label>
-          <Input
-            placeholder="Legal Full Name"
-            value={formData.studentName}
-            onChange={(e) => setFormData(prev => ({ ...prev, studentName: e.target.value }))}
-            className="h-12 rounded-xl bg-neutral-50 border-neutral-100 focus-visible:ring-indigo-200"
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-xs font-bold text-neutral-400 uppercase tracking-widest ml-1">Delivery Endpoint</Label>
-          <Input
-            type="email"
-            placeholder="Official Email Address"
-            value={formData.studentEmail}
-            onChange={(e) => setFormData(prev => ({ ...prev, studentEmail: e.target.value }))}
-            className="h-12 rounded-xl bg-neutral-50 border-neutral-100 focus-visible:ring-indigo-200"
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-xs font-bold text-neutral-400 uppercase tracking-widest ml-1">Credential Name</Label>
-          <Input
-            placeholder="Degree or certification title"
-            value={formData.courseName}
-            onChange={(e) => setFormData(prev => ({ ...prev, courseName: e.target.value }))}
-            className="h-12 rounded-xl bg-neutral-50 border-neutral-100 focus-visible:ring-indigo-200"
-            required
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label className="text-xs font-bold text-neutral-400 uppercase tracking-widest ml-1">Rating</Label>
-            <Input
-              placeholder="A+, 4.0, etc"
-              value={formData.grade}
-              onChange={(e) => setFormData(prev => ({ ...prev, grade: e.target.value }))}
-              className="h-12 rounded-xl bg-neutral-50 border-neutral-100 focus-visible:ring-indigo-200"
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-xs font-bold text-neutral-400 uppercase tracking-widest ml-1">Date</Label>
-            <Input
-              type="date"
-              value={formData.completionDate}
-              onChange={(e) => setFormData(prev => ({ ...prev, completionDate: e.target.value }))}
-              className="h-12 rounded-xl bg-neutral-50 border-neutral-100 focus-visible:ring-indigo-200 px-4"
-              required
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100 space-y-4">
-        <h4 className="flex items-center gap-2 text-indigo-900 font-bold text-sm">
-          <ShieldCheck className="w-5 h-5 text-indigo-500" />
-          Protocol Compliance
-        </h4>
-        <div className="flex items-start space-x-3">
-          <div className="pt-1">
-            <input
-              type="checkbox"
-              id="agreedToTerms"
-              checked={formData.agreedToTerms}
-              onChange={(e) => setFormData(prev => ({ ...prev, agreedToTerms: e.target.checked }))}
-              className="h-4 w-4 rounded border-indigo-200 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-            />
-          </div>
-          <label htmlFor="agreedToTerms" className="text-sm text-neutral-600 leading-relaxed cursor-pointer">
-            I confirm that I have verified the recipient's identity and that this issuance complies with the
-            <button type="button" onClick={handleDownloadAgreement} className="text-indigo-600 font-bold mx-1 hover:underline underline-offset-4">
-              Issuance Protocol Agreement
-            </button>
-            and global GDPR standards.
-          </label>
-        </div>
-      </div>
-
-      <div className="flex justify-end pt-4">
-        <Button
-          type="submit"
-          disabled={!formData.agreedToTerms}
-          className="h-14 px-12 bg-neutral-900 hover:bg-neutral-800 text-white rounded-full font-black text-lg shadow-xl shadow-neutral-900/10 group overflow-hidden relative"
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-600 opacity-0 group-hover:opacity-10 transition-opacity" />
-          Deploy Credential <ArrowRight className="ml-3 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-        </Button>
-      </div>
-    </form>
-  );
-};
-
-const TemplateBasedIssuance: React.FC<{ templates: Template[] }> = ({ templates }) => {
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
-
-  return (
-    <div className="space-y-8">
-      <div className="space-y-3">
-        <Label className="text-xs font-bold text-neutral-400 uppercase tracking-widest ml-1">Select Specification</Label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {templates.length === 0 ? (
-            <div className="col-span-2 p-12 text-center bg-neutral-50 rounded-3xl border border-dashed border-neutral-200">
-              <Sparkles className="w-8 h-8 text-neutral-300 mx-auto mb-3" />
-              <p className="text-neutral-500 font-medium">No approved specs found in your library.</p>
-              <Button variant="link" className="text-indigo-600 font-bold mt-2">Initialize Store</Button>
-            </div>
-          ) : (
-            templates.map(t => (
-              <div
-                key={t.id}
-                onClick={() => setSelectedTemplate(t.id)}
-                className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedTemplate === t.id
-                    ? 'border-indigo-600 bg-indigo-50'
-                    : 'border-neutral-100 hover:border-neutral-300 bg-white'
-                  }`}
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-bold text-neutral-900">{t.name}</p>
-                    <p className="text-xs text-neutral-500 mt-1 uppercase tracking-wider font-bold">{t.type}</p>
-                  </div>
-                  <Badge className="bg-neutral-900">{t.usageCount}</Badge>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      {selectedTemplate && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pt-8 border-t border-neutral-100">
-          <QuickIssuanceForm />
-        </motion.div>
-      )}
-    </div>
-  );
-};
 
 const Calendar: React.FC<{ className?: string }> = ({ className }) => (
   <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -32,6 +32,7 @@ import {
   Underline,
   CalendarDays,
   Pen,
+  Smartphone,
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
@@ -129,6 +130,8 @@ export const CertificateDesigner: React.FC = () => {
   const [selectedField, setSelectedField] = useState<string | null>(null);
   const [newTag, setNewTag] = useState('');
   const [previewMode, setPreviewMode] = useState(false);
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('landscape');
+  const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
 
   const addField = (type: CertificateField['type']) => {
     const newField: CertificateField = {
@@ -491,6 +494,42 @@ export const CertificateDesigner: React.FC = () => {
               <div>
                 <h3 className="font-semibold mb-3">Canvas Settings</h3>
                 <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Page Orientation</label>
+                    <div className="flex gap-2">
+                      <Button
+                        variant={orientation === 'portrait' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => {
+                          setOrientation('portrait');
+                          setTemplate(prev => ({
+                            ...prev,
+                            design: { ...prev.design, width: 600, height: 800 }
+                          }));
+                        }}
+                        className="flex-1 flex items-center justify-center gap-2"
+                      >
+                        <Smartphone className="w-4 h-4" style={{ transform: 'rotate(90deg)' }} />
+                        Portrait
+                      </Button>
+                      <Button
+                        variant={orientation === 'landscape' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => {
+                          setOrientation('landscape');
+                          setTemplate(prev => ({
+                            ...prev,
+                            design: { ...prev.design, width: 800, height: 600 }
+                          }));
+                        }}
+                        className="flex-1 flex items-center justify-center gap-2"
+                      >
+                        <Smartphone className="w-4 h-4" />
+                        Landscape
+                      </Button>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="text-sm font-medium mb-1 block">Width</label>
@@ -580,7 +619,11 @@ export const CertificateDesigner: React.FC = () => {
                 style={{
                   width: `${Math.min(template.design.width, 800)}px`,
                   height: `${Math.min(template.design.height, 600)}px`,
-                  backgroundColor: template.design.backgroundColor
+                  backgroundColor: template.design.backgroundColor,
+                  backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat'
                 }}
               >
                 {/* Certificate Fields */}

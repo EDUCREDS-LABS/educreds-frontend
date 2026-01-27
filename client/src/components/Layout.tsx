@@ -36,7 +36,8 @@ const navigation = [
   { name: "Subscription", href: "/institution/subscription", icon: CreditCard },
   { name: "Profile", href: "/institution/profile", icon: User },
   { name: "Templates", href: "/institution/templates", icon: Palette },
-  { name: "Issuance", href: "/certificate-issuance", icon: Zap },
+  { name: "Issue", href: "/institution/issue", icon: Zap },
+  { name: "Manage Specs", href: "/institution/manage-specs", icon: Store },
   { name: "Analytics", href: "/institution/analytics", icon: BarChart3 },
   { name: "Governance", href: "/institution/governance", icon: Vote },
 ];
@@ -89,7 +90,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </nav>
 
             <div className="flex items-center space-x-4">
-              <Link href="/student">
+              <Link href="/student-portal">
                 <Button
                   variant="outline"
                   size="sm"

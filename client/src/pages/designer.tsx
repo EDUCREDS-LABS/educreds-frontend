@@ -26,7 +26,8 @@ import {
   Download,
   Shield,
   Award,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Smartphone
 } from 'lucide-react';
 import {
   Dialog,
@@ -62,6 +63,7 @@ export const TemplateDesigner: React.FC = () => {
   const [zoom, setZoom] = useState(100);
   const [activeTab, setActiveTab] = useState<'fields' | 'layers'>('fields');
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
+  const [pageOrientation, setPageOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [location] = useLocation();
@@ -382,6 +384,31 @@ export const TemplateDesigner: React.FC = () => {
             <Upload className="w-4 h-4 mr-2" />
             Background
           </Button>
+          
+          {/* Page Orientation Toggle */}
+          <div className="flex items-center bg-[#18181f] rounded-lg border border-white/5 p-0.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`h-7 px-3 text-xs flex items-center gap-1.5 ${pageOrientation === 'portrait' ? 'bg-white/10 text-white' : 'text-slate-400'}`}
+              onClick={() => setPageOrientation('portrait')}
+              title="Portrait Orientation (595×842)"
+            >
+              <Smartphone className="w-3.5 h-3.5" style={{ transform: 'rotate(90deg)' }} />
+              Portrait
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`h-7 px-3 text-xs flex items-center gap-1.5 ${pageOrientation === 'landscape' ? 'bg-white/10 text-white' : 'text-slate-400'}`}
+              onClick={() => setPageOrientation('landscape')}
+              title="Landscape Orientation (842×595)"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              Landscape
+            </Button>
+          </div>
+
           <div className="flex items-center bg-[#18181f] rounded-lg border border-white/5 p-0.5">
             <Button
               variant="ghost"
@@ -403,6 +430,31 @@ export const TemplateDesigner: React.FC = () => {
                 <SelectItem value="150">150%</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <Separator orientation="vertical" className="h-4 bg-white/5" />
+
+          <div className="flex items-center bg-[#18181f] rounded-lg border border-white/5 p-0.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`h-7 px-3 text-xs flex items-center gap-1 ${pageOrientation === 'portrait' ? 'bg-white/10 text-white' : 'text-slate-400'}`}
+              onClick={() => setPageOrientation('portrait')}
+              title="Portrait Orientation (595×842)"
+            >
+              <Smartphone className="w-4 h-4" style={{ transform: 'rotate(0deg)' }} />
+              <span className="hidden sm:inline">Portrait</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`h-7 px-3 text-xs flex items-center gap-1 ${pageOrientation === 'landscape' ? 'bg-white/10 text-white' : 'text-slate-400'}`}
+              onClick={() => setPageOrientation('landscape')}
+              title="Landscape Orientation (842×595)"
+            >
+              <Smartphone className="w-4 h-4" style={{ transform: 'rotate(90deg)' }} />
+              <span className="hidden sm:inline">Landscape</span>
+            </Button>
           </div>
 
           <Separator orientation="vertical" className="h-4 bg-white/5" />
@@ -559,8 +611,8 @@ export const TemplateDesigner: React.FC = () => {
                 animate={{ scale: 1, opacity: 1 }}
                 className="relative bg-white shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] overflow-hidden"
                 style={{
-                  width: `${595 * (zoom / 100)}px`,
-                  height: `${842 * (zoom / 100)}px`,
+                  width: `${(pageOrientation === 'portrait' ? 595 : 842) * (zoom / 100)}px`,
+                  height: `${(pageOrientation === 'portrait' ? 842 : 595) * (zoom / 100)}px`,
                   backgroundImage: backgroundImage ? `url(${backgroundImage})` : (showGrid ?
                     `radial-gradient(circle, #f0f0f0 1px, transparent 1px)` : 'none'),
                   backgroundSize: backgroundImage ? 'contain' : (showGrid ? `${15 * (zoom / 100)}px ${15 * (zoom / 100)}px` : 'auto'),

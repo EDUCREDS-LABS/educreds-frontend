@@ -86,7 +86,7 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
                 <User className="w-4 h-4 mr-2" />
                 Student Portal
               </Button>
-              <Link href="/verify">
+              <Link href="/verification-portal">
                 <Button variant="outline" size="sm">
                   <Wallet className="w-4 h-4 mr-2" />
                   Verify
@@ -139,7 +139,7 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
                   <User className="w-4 h-4 mr-2" />
                   Student Portal
                 </Button>
-                <Link href="/verify">
+                <Link href="/verification-portal">
                   <Button variant="outline" className="w-full" onClick={() => setIsMobileMenuOpen(false)}>
                     <Wallet className="w-4 h-4 mr-2" />
                     Verify Certificate

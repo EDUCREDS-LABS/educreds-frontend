@@ -1,5 +1,5 @@
-import ModernAuth from "@/components/modern/ModernAuth";
+import ModernAuthUnified from "@/components/modern/ModernAuthUnified";
 
 export default function Login() {
-  return <ModernAuth mode="login" />;
+  return <ModernAuthUnified />;
 }

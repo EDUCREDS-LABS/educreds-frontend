@@ -255,7 +255,7 @@ export function InstitutionDashboard({ institutionId }: InstitutionDashboardProp
               </CardContent>
             </Card>
 
-            <Link to="/certificate-issuance">
+            <Link to="/institution/issuance">
               <Card className="hover:shadow-md transition-shadow cursor-pointer">
                 <CardContent className="p-6 text-center">
                   <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
@@ -420,7 +420,7 @@ export function InstitutionDashboard({ institutionId }: InstitutionDashboardProp
 
         <TabsContent value="issuance" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Link to="/certificate-issuance">
+            <Link to="/institution/issuance">
               <Card className="hover:shadow-md transition-shadow cursor-pointer">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">

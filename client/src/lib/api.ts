@@ -198,6 +198,22 @@ export const api = {
     return handleResponse(response);
   },
 
+  // Privacy-First Certificate Issuance
+  // Backend will:
+  // 1. Wrap personal data in DID document
+  // 2. Create W3C credential
+  // 3. Store both on IPFS
+  // 4. Store only DIDs and IPFS hashes in database
+  issueCertificatePrivacyFirst: async (formData: FormData) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(API_CONFIG.CERTIFICATES.ISSUE_PRIVACY_FIRST || '/api/v1/privacy-first/certificates/issue', {
+      method: "POST",
+      headers: authHeaders,
+      body: formData,
+    });
+    return handleResponse(response);
+  },
+
   updateCertificateAfterMint: async (certificateId: string, data: { tokenId: number; walletAddress: string }) => {
     const response = await fetch(API_CONFIG.CERTIFICATES.ONCHAIN_MINT(certificateId), {
       method: "POST",
@@ -325,6 +341,31 @@ export const api = {
     return handleResponse(response);
   },
 
+  // Get certificates by wallet address
+  getCertificatesByWallet: async (walletAddress: string) => {
+    const response = await fetch(`${API_CONFIG.CERT}/api/certificates/wallet/${walletAddress}`);
+    return handleResponse(response);
+  },
+
+  // Get statistics
+  getStats: async () => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/stats`, {
+      headers: authHeaders,
+    });
+    return handleResponse(response);
+  },
+
+  // Connect wallet
+  connectWallet: async (walletAddress: string) => {
+    const response = await fetch(`${API_CONFIG.CERT}/api/students/connect-wallet`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ walletAddress }),
+    });
+    return handleResponse(response);
+  },
+
   getBulkStatus: async (jobId: string) => {
     const authHeaders = getAuthHeaders();
     const response = await fetch(`${API_CONFIG.CERT}/api/bulk/certificates/bulk-status/${jobId}`, {
@@ -342,6 +383,105 @@ export const api = {
       throw new Error("Failed to download bulk certificates");
     }
     return response.blob();
+  },
+
+  // New unified issuance methods
+  issueFromTemplate: async (data: {
+    templateId: string;
+    recipientWallet: string;
+    recipientName: string;
+    completionDate: string;
+    certificateType: string;
+    courseId?: string;
+    grade?: string;
+    additionalData?: any;
+  }) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/certificates/issue-from-template`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  bulkIssueFromTemplate: async (data: {
+    templateId: string;
+    certificates: Array<{
+      studentName: string;
+      studentEmail: string;
+      walletAddress: string;
+      completionDate: string;
+      grade?: string;
+      courseName?: string;
+    }>;
+  }) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/certificates/bulk-issue-template`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  bulkIssueLegacyPDF: async (formData: FormData) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/certificates/bulk-issue-legacy-pdf`, {
+      method: "POST",
+      headers: authHeaders,
+      body: formData,
+    });
+    return handleResponse(response);
+  },
+
+  // Template management methods
+  getTemplateSpecs: async (category?: string, status?: string) => {
+    const params = new URLSearchParams();
+    if (category) params.append('category', category);
+    if (status) params.append('status', status);
+    
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(`${API_CONFIG.CERT}/templates/specs${query}`);
+    return handleResponse(response);
+  },
+
+  deleteTemplate: async (templateId: string) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/templates/${templateId}`, {
+      method: "DELETE",
+      headers: authHeaders,
+    });
+    return handleResponse(response);
+  },
+
+  updateTemplateStatus: async (templateId: string, status: 'active' | 'draft' | 'archived') => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/templates/${templateId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify({ status }),
+    });
+    return handleResponse(response);
+  },
+
+  bulkDeleteTemplates: async (templateIds: string[]) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/templates/bulk-delete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify({ templateIds }),
+    });
+    return handleResponse(response);
+  },
+
+  // Subscription methods
+  getCurrentSubscription: async () => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/subscription/current`, {
+      headers: authHeaders,
+    });
+    return handleResponse(response);
   },
 
   // Marketplace Authentication (Firebase)

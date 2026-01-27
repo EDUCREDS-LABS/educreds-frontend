@@ -20,7 +20,6 @@ import ProposalDetail from "@/pages/institution/governance/proposal-detail";
 import SubscriptionPage from "@/pages/institution/subscription";
 import InstitutionProfile from "@/pages/institution/profile";
 import InstitutionSettings from "@/pages/institution/settings";
-import StudentPage from "@/pages/student/StudentPage";
 import AdminLogin from "@/pages/admin/login";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminGovernanceDashboard from "@/pages/admin/governance-dashboard";
@@ -39,9 +38,6 @@ import MyTemplatesPage from "@/pages/templates/MyTemplates";
 import CreateTemplatePage from "@/pages/templates/Create";
 import TemplateDesignerPage from "@/pages/templates/Designer";
 import AnalyticsPage from "@/pages/institution/analytics";
-import { MarketplacePage as CertMarketplacePage } from "@/pages/MarketplacePage";
-import { DesignerPage as CertDesignerPage } from "@/pages/DesignerPage";
-import { TemplateLibraryPage } from "@/pages/TemplateLibraryPage";
 import NotFound from "@/pages/not-found";
 import verify from "@/pages/employer/verify";
 import TermsOfService from "@/pages/legal/terms";
@@ -56,14 +52,9 @@ import PricingPage from "@/pages/pricing";
 import W3CTestPage from "@/pages/w3c-test";
 import StudentPortalPage from "@/pages/student-portal";
 import VerificationPortalPage from "@/pages/verification-portal";
-import UsagePage from "@/pages/usage";
-import BulkIssuancePage from "@/pages/bulk-issuance";
-import PdfCertificatesPage from "@/pages/pdf-certificates";
-import CertificateIssuanceDashboard from "@/pages/certificate-issuance";
-import CertificateManagement from "@/pages/certificate-management";
-import TemplateDesigner from "@/pages/designer";
 import SystemTest from "@/pages/system-test";
-import TemplateManagement from "@/pages/template-management";
+import ManageSpecs from "@/components/institution/ManageSpecs";
+import CertificateIssuanceDashboard from '@/pages/certificate-issuance';
 // import MarketplaceProtectedRoute from "@/components/MarketplaceProtectedRoute";
 
 function Router() {
@@ -73,9 +64,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/register/verify-otp" component={RegisterVerifyOtp} />
-      <Route path="/student" component={StudentPage} />
       <Route path="/student-portal" component={StudentPortalPage} />
-      <Route path="/verify" component={verify} />
       <Route path="/verification-portal" component={VerificationPortalPage} />
       <Route path="/w3c-test" component={W3CTestPage} />
 
@@ -93,10 +82,6 @@ function Router() {
       <Route path="/designer" component={DesignerPage} />
       <Route path="/designer/editor" component={DesignerEditor} />
 
-      {/* Certificate Marketplace Routes */}
-      <Route path="/cert-marketplace" component={CertMarketplacePage} />
-      <Route path="/cert-designer" component={CertDesignerPage} />
-
       {/* Legal Pages */}
       <Route path="/terms" component={TermsOfService} />
       <Route path="/privacy" component={PrivacyPolicy} />
@@ -112,7 +97,6 @@ function Router() {
 
       {/* Admin Routes */}
       <Route path="/admin/login" component={AdminLogin} />
-      <Route path="/admin/dashboard" component={AdminDashboard} />
       <Route path="/admin/governance">
         <ProtectedRoute>
           <Layout>
@@ -203,6 +187,22 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
+      <Route path="/institution/issue">
+        <ProtectedRoute>
+          <Layout>
+            <CertificateIssuanceDashboard />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/institution/manage-specs">
+        <ProtectedRoute>
+          <Layout>
+            <ManageSpecs />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/institution/templates">
         <ProtectedRoute>
           <Layout>
@@ -243,115 +243,10 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      {/* Backward compatibility routes */}
-      <Route path="/dashboard">
-        <ProtectedRoute>
-          <Layout>
-            <InstitutionDashboard />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/certificates">
-        <ProtectedRoute>
-          <Layout>
-            <Certificates />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/verification">
-        <ProtectedRoute>
-          <Layout>
-            <Verification />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/subscription">
-        <ProtectedRoute>
-          <Layout>
-            <SubscriptionPage />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/profile">
-        <ProtectedRoute>
-          <Layout>
-            <InstitutionProfile />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/usage">
-        <ProtectedRoute>
-          <Layout>
-            <UsagePage />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/bulk-issuance">
-        <ProtectedRoute>
-          <Layout>
-            <BulkIssuancePage />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/pdf-certificates">
-        <ProtectedRoute>
-          <Layout>
-            <PdfCertificatesPage />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/template-management">
-        <ProtectedRoute>
-          <Layout>
-            <TemplateManagement />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/certificate-issuance">
-        <ProtectedRoute>
-          <Layout>
-            <CertificateIssuanceDashboard />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/certificate-management">
-        <ProtectedRoute>
-          <Layout>
-            <CertificateManagement />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/template-designer">
-        <ProtectedRoute>
-          <Layout>
-            <TemplateDesigner />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-
       <Route path="/system-test">
         <ProtectedRoute>
           <Layout>
             <SystemTest />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/template-library">
-        <ProtectedRoute>
-          <Layout>
-            <TemplateLibraryPage />
           </Layout>
         </ProtectedRoute>
       </Route>
