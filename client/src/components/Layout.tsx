@@ -32,14 +32,12 @@ import { useAuth } from "@/hooks/useAuth";
 const navigation = [
   { name: "Dashboard", href: "/institution/dashboard", icon: LayoutDashboard },
   { name: "Certificates", href: "/institution/certificates", icon: FileText },
+  { name: "Issue", href: "/institution/issue", icon: Zap },
+  { name: "Templates", href: "/institution/templates", icon: Palette },
   { name: "Verification", href: "/institution/verification", icon: Shield },
   { name: "Subscription", href: "/institution/subscription", icon: CreditCard },
   { name: "Profile", href: "/institution/profile", icon: User },
-  { name: "Templates", href: "/institution/templates", icon: Palette },
-  { name: "Issue", href: "/institution/issue", icon: Zap },
   { name: "Manage Specs", href: "/institution/manage-specs", icon: Store },
-  { name: "Analytics", href: "/institution/analytics", icon: BarChart3 },
-  { name: "Governance", href: "/institution/governance", icon: Vote },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -80,7 +78,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     className={`${isActive(item.href)
                       ? "text-primary border-b-2 border-primary font-medium"
                       : "text-neutral-600 hover:text-neutral-900"
-                      } transition-colors`}
+                      } transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded px-2 py-1`}
                     data-testid={`nav-${item.name.toLowerCase()}`}
                   >
                     {item.name}

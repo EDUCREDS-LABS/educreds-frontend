@@ -222,7 +222,7 @@ export default function ModernFooter() {
                 <Github className="w-5 h-5" />
               </a>
               <a
-                href="mailto:support@educreds.com"
+                href="mailto:support@educreds.xyz"
                 className="text-neutral-400 hover:text-white transition-colors"
               >
                 <Mail className="w-5 h-5" />

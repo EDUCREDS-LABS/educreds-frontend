@@ -98,9 +98,9 @@ export default function ProposalDetail() {
           <AlertDescription>Proposal not found</AlertDescription>
         </Alert>
         <Button asChild>
-          <Link href="/institution/governance">
+          <Link href="/institution/governance-workspace">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Governance
+            Back to Governance Workspace
           </Link>
         </Button>
       </div>
@@ -112,9 +112,9 @@ export default function ProposalDetail() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" asChild>
-          <Link href="/institution/governance">
+          <Link href="/institution/governance-workspace">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
+            Back to Workspace
           </Link>
         </Button>
         <div className="flex-1">

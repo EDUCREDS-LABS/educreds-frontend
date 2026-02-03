@@ -123,14 +123,14 @@ export function TemplateCard({
         <div className="space-y-3">
           {/* Tags */}
           <div className="flex flex-wrap gap-1">
-            {template.tags.slice(0, 3).map((tag) => (
+            {(template.tags || []).slice(0, 3).map((tag) => (
               <Badge key={tag} variant="secondary" className="text-xs">
                 {tag}
               </Badge>
             ))}
-            {template.tags.length > 3 && (
+            {(template.tags || []).length > 3 && (
               <Badge variant="secondary" className="text-xs">
-                +{template.tags.length - 3} more
+                +{(template.tags || []).length - 3} more
               </Badge>
             )}
           </div>

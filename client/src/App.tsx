@@ -16,6 +16,7 @@ import Certificates from "@/pages/institution/certificates";
 import Verification from "@/pages/institution/verification";
 import GovernanceVerification from "@/pages/institution/governance-verification";
 import GovernanceDashboard from "@/pages/institution/governance";
+import GovernanceWorkspace from "@/pages/institution/governance-workspace";
 import ProposalDetail from "@/pages/institution/governance/proposal-detail";
 import SubscriptionPage from "@/pages/institution/subscription";
 import InstitutionProfile from "@/pages/institution/profile";
@@ -139,6 +140,15 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
+      <Route path="/institution/governance-workspace">
+        <ProtectedRoute>
+          <Layout>
+            <GovernanceWorkspace />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      {/* Legacy governance route - redirects to workspace */}
       <Route path="/institution/governance">
         <ProtectedRoute>
           <Layout>

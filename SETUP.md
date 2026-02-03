@@ -98,7 +98,7 @@ This guide will help you set up the frontend to communicate with your backend an
 
 ### Admin Access
 1. **Login Credentials:**
-   - Email: `admin@Educreds.com`
+   - Email: `admin@educreds.xyz`
    - Password: `admin123`
 
 2. **Access Admin Dashboard:**
@@ -113,21 +113,21 @@ This guide will help you set up the frontend to communicate with your backend an
 // Admin can also manually register institutions:
 
 POST /api/admin/institutions/:institutionId/blockchain-register
-Headers: { 'admin-email': 'admin@Educreds.com' }
+Headers: { 'admin-email': 'admin@educreds.xyz' }
 ```
 
 #### 2. Bulk Registration
 ```typescript
 // Register all verified institutions at once
 POST /api/admin/blockchain-register-all
-Headers: { 'admin-email': 'admin@Educreds.com' }
+Headers: { 'admin-email': 'admin@educreds.xyz' }
 ```
 
 #### 3. Institution Authorization
 ```typescript
 // Authorize institutions to issue certificates
 POST /api/admin/institutions/:institutionId/blockchain-authorize
-Headers: { 'admin-email': 'admin@Educreds.com' }
+Headers: { 'admin-email': 'admin@educreds.xyz' }
 ```
 
 ### Blockchain Status Monitoring

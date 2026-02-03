@@ -12,8 +12,8 @@ const queryClient = new QueryClient()
 const metadata = {
   name: 'EduCreds',
   description: 'Blockchain-powered educational credential management platform',
-  url: typeof window !== 'undefined' ? window.location.origin : 'https://educreds.com',
-  icons: ['https://educreds.com/favicon.ico'],
+  url: typeof window !== 'undefined' ? window.location.origin : 'https://educreds.xyz',
+  icons: ['https://educreds.xyz/favicon.ico'],
 }
 
 // Initialize AppKit

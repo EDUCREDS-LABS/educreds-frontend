@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   Check, 
   Download, 
@@ -15,12 +16,21 @@ import {
   Database, 
   Phone, 
   Star,
-  AlertCircle
+  AlertCircle,
+  X
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { 
+  PaymentMethodSelector, 
+  StripeCardPaymentForm, 
+  StripeProvider,
+  PayPalPayment,
+  CryptoPayment 
+} from "@/components/payment";
+import type { PaymentMethodType } from "@/components/payment/PaymentMethodSelector";
 
 interface Plan {
   id: string;
@@ -41,6 +51,11 @@ export default function SubscriptionPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Payment modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('stripe');
 
   const { data: subscriptionData, isLoading: subscriptionLoading } = useQuery({
     queryKey: ["/api/subscription/current"],
@@ -93,66 +108,86 @@ export default function SubscriptionPage() {
   });
 
   const handleSubscribe = (planId: string) => {
-    subscribeMutation.mutate({ planId, paymentMethod: 'stripe' });
+    const plan = plans.find(p => p.id === planId);
+    if (plan) {
+      setSelectedPlan(plan);
+      setShowPaymentModal(true);
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    setShowPaymentModal(false);
+    setSelectedPlan(null);
+    queryClient.invalidateQueries({ queryKey: ["/api/subscription/current"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/subscription/payments"] });
+  };
+
+  const handlePaymentError = (error: Error) => {
+    toast({
+      title: "Payment Failed",
+      description: error.message || "An error occurred during payment processing.",
+      variant: "destructive",
+    });
   };
 
   const plans: Plan[] = [
     {
-      id: 'basic',
-      name: 'Basic',
-      price: 29.99,
+      id: 'starter',
+      name: 'Starter',
+      price: 29,
       currency: 'USD',
-      description: 'Perfect for small institutions',
+      description: 'Perfect for small and mid-sized institutions evaluating EduCreds at scale',
       features: [
-        '100 certificates/month',
-        '1 GB storage',
-        '1,000 API calls/month',
+        'Up to 200 certificates/month',
+        'Standard certificate templates',
+        'Standard EduCreds API access',
         'Email support',
       ],
       limits: {
-        certificatesPerMonth: 100,
-        storageGB: 1,
-        apiCalls: 1000,
+        certificatesPerMonth: 200,
+        storageGB: 5,
+        apiCalls: 20_000,
       },
     },
     {
-      id: 'professional',
-      name: 'Professional',
-      price: 99.99,
+      id: 'pro',
+      name: 'Pro',
+      price: 99,
       currency: 'USD',
-      description: 'Best for growing institutions',
+      description: 'Best for growing institutions and multi-campus deployments',
       features: [
-        '500 certificates/month',
-        '10 GB storage',
-        '5,000 API calls/month',
+        'Up to 1,000 certificates/month',
+        '20 GB storage',
+        '100,000 API calls/month',
+        'Batch issuance',
+        'Advanced analytics dashboard',
         'Priority support',
-        'Analytics dashboard',
       ],
       limits: {
-        certificatesPerMonth: 500,
-        storageGB: 10,
-        apiCalls: 5000,
+        certificatesPerMonth: 1_000,
+        storageGB: 20,
+        apiCalls: 100_000,
       },
       highlighted: true,
     },
     {
       id: 'enterprise',
       name: 'Enterprise',
-      price: 299.99,
+      price: 499,
       currency: 'USD',
-      description: 'For large institutions',
+      description: 'For large university systems, ministries, and national platforms',
       features: [
-        'Unlimited certificates',
-        '100 GB storage',
-        '50,000 API calls/month',
-        '24/7 phone support',
-        'Custom integrations',
-        'Dedicated account manager',
+        'Unlimited certificates (fair use)',
+        'Custom storage & retention',
+        'Unlimited API calls (fair use)',
+        'Dedicated success & solutions team',
+        'Custom integrations & SSO',
+        'Enterprise SLA & governance reporting',
       ],
       limits: {
         certificatesPerMonth: -1,
         storageGB: 100,
-        apiCalls: 50000,
+        apiCalls: -1,
       },
     },
   ];
@@ -424,6 +459,75 @@ export default function SubscriptionPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Payment Modal */}
+      <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5" />
+              Subscribe to {selectedPlan?.name}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedPlan && (
+            <div className="space-y-6">
+              {/* Amount Summary */}
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Monthly Subscription</span>
+                  <span className="text-2xl font-bold">
+                    ${selectedPlan.price}
+                    <span className="text-sm font-normal text-gray-500">/month</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Payment Method Selector */}
+              <PaymentMethodSelector
+                selectedMethod={paymentMethod}
+                onSelect={(method) => setPaymentMethod(method)}
+              />
+
+              {/* Payment Form */}
+              {paymentMethod === 'stripe' && (
+                <StripeProvider>
+                  <StripeCardPaymentForm
+                    planId={selectedPlan.id}
+                    planName={selectedPlan.name}
+                    amount={selectedPlan.price}
+                    onSuccess={handlePaymentSuccess}
+                    onError={handlePaymentError}
+                    onCancel={() => setShowPaymentModal(false)}
+                  />
+                </StripeProvider>
+              )}
+
+              {paymentMethod === 'paypal' && (
+                <PayPalPayment
+                  planId={selectedPlan.id}
+                  planName={selectedPlan.name}
+                  amount={selectedPlan.price}
+                  onSuccess={handlePaymentSuccess}
+                  onError={handlePaymentError}
+                  onCancel={() => setShowPaymentModal(false)}
+                />
+              )}
+
+              {paymentMethod === 'crypto' && (
+                <CryptoPayment
+                  planId={selectedPlan.id}
+                  planName={selectedPlan.name}
+                  amount={selectedPlan.price}
+                  onSuccess={handlePaymentSuccess}
+                  onError={handlePaymentError}
+                  onCancel={() => setShowPaymentModal(false)}
+                />
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

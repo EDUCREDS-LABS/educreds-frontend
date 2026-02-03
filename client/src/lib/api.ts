@@ -484,6 +484,88 @@ export const api = {
     return handleResponse(response);
   },
 
+  subscribe: async (data: { planId: string; paymentMethod: string }) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/subscription/subscribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  cancelSubscription: async () => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/subscription/cancel`, {
+      method: "POST",
+      headers: authHeaders,
+    });
+    return handleResponse(response);
+  },
+
+  // Stripe Payment Methods
+  createStripePaymentIntent: async (data: { planId: string; amount: number; currency: string }) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/payments/stripe/create-intent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  confirmSubscriptionPayment: async (data: { planId: string; paymentIntentId: string; paymentMethod: string }) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/payments/stripe/confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  // PayPal Payment Methods
+  createPayPalOrder: async (data: { planId: string; amount: number; currency: string }) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/payments/paypal/create-order`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  capturePayPalOrder: async (data: { orderId: string; planId: string }) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/payments/paypal/capture-order`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  // Crypto Payment Methods
+  createCryptoPayment: async (data: { planId: string; cryptoCurrency: string; walletAddress: string }) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/payments/crypto/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  confirmCryptoPayment: async (data: { planId: string; transactionHash: string; cryptoCurrency: string; walletAddress: string }) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/payments/crypto/confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
   // Marketplace Authentication (Firebase)
   marketplaceLogin: async (email: string, password: string) => {
     return auth.marketplaceLogin(email, password);

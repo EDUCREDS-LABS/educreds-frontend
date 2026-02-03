@@ -34,49 +34,47 @@ import { useWallet } from "@/hooks/useWallet";
 
 const tiers = [
   {
-    name: "Free",
+    name: "Free Trial",
     price: "$0",
     features: [
-      "50 Certificate Issuances per month",
-      "Basic Certificate Templates",
-      "Student Self-Service Portal",
-      "Basic Analytics",
+      "14 days access",
+      "Up to 15 certificates total",
+      "Standard certificate templates",
+      "Sandbox environment",
     ],
-    cta: "Get Started",
+    cta: "Start Free Trial",
   },
   {
-    name: "Basic",
-    price: "$29.99/mo",
+    name: "Starter",
+    price: "$29/mo",
     features: [
-      "500 certificates/month",
-      "1 GB storage",
-      "1,000 API calls/month",
+      "Up to 200 certificates/month",
+      "Standard certificate templates",
+      "Standard API access",
       "Email support",
     ],
-    cta: "Choose Basic",
+    cta: "Choose Starter",
   },
   {
-    name: "Professional",
-    price: "$99.99/mo",
+    name: "Pro",
+    price: "$99/mo",
     features: [
-      "1500 certificates/month",
-      "10 GB storage",
-      "5,000 API calls/month",
+      "Up to 1,000 certificates/month",
+      "Advanced templates & designer",
+      "Full API + batch issuance",
+      "Advanced analytics",
       "Priority support",
-      "Analytics dashboard",
     ],
     cta: "Most Popular",
   },
   {
     name: "Enterprise",
-    price: "$299.99/mo",
+    price: "Custom",
     features: [
-      "Unlimited certificates",
-      "100 GB storage",
-      "50,000 API calls/month",
-      "24/7 phone support",
-      "Custom integrations",
-      "Dedicated account manager",
+      "Unlimited certificates (fair use)",
+      "Custom integrations & SSO",
+      "Dedicated success team",
+      "Enterprise SLAs",
     ],
     cta: "Contact Sales",
   },
@@ -91,7 +89,7 @@ export default function ModernRegister() {
   const { toast } = useToast();
   const { isConnected, walletAddress, connect, disconnect, isLoading: walletLoading, error: walletError } = useWallet();
 
-  const [selectedPlan, setSelectedPlan] = useState("Free");
+  const [selectedPlan, setSelectedPlan] = useState("Free Trial");
   const [showOtp, setShowOtp] = useState(false);
   const [otpToken, setOtpToken] = useState("");
   const [userEmail, setUserEmail] = useState("");
@@ -153,14 +151,14 @@ export default function ModernRegister() {
 
     try {
       // Check if paid plan and no payment method selected
-      if (selectedPlan !== "Free" && !paymentMethod && !showPayment) {
+      if (selectedPlan !== "Free Trial" && !paymentMethod && !showPayment) {
         setShowPayment(true);
         setIsLoading(false);
         return;
       }
 
       // Handle payment flow for paid plans
-      if (selectedPlan !== "Free" && paymentMethod && paymentMethod !== 'later') {
+      if (selectedPlan !== "Free Trial" && paymentMethod && paymentMethod !== 'later') {
         // TODO: Integrate with actual payment processors
         if (paymentMethod === 'stripe') {
           toast({
@@ -174,14 +172,14 @@ export default function ModernRegister() {
           });
         }
         // For now, set to Free plan
-        form.setValue('plan', 'Free');
-        setSelectedPlan('Free');
+        form.setValue('plan', 'Starter');
+        setSelectedPlan('Starter');
       }
 
       // If pay later selected, set plan to Free
       if (paymentMethod === 'later') {
-        form.setValue('plan', 'Free');
-        setSelectedPlan('Free');
+        form.setValue('plan', 'Free Trial');
+        setSelectedPlan('Free Trial');
       }
 
       // Send OTP using correct endpoint

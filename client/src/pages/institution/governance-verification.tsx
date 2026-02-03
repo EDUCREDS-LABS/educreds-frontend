@@ -192,7 +192,9 @@ export default function GovernanceVerification() {
 
   const removeWalletField = (index: number) => {
     const wallets = form.watch("representativeWallets");
-    form.setValue("representativeWallets", wallets.filter((_, i) => i !== index));
+    if (wallets.length > 1) {
+      form.setValue("representativeWallets", wallets.filter((_, i) => i !== index));
+    }
   };
 
   const completionPercentage = () => {
@@ -561,15 +563,17 @@ export default function GovernanceVerification() {
                       Use My Wallet
                     </Button>
                   )}
-                  {form.watch("representativeWallets").length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => removeWalletField(index)}
-                    >
-                      Remove
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeWalletField(index)}
+                    disabled={form.watch("representativeWallets").length === 1}
+                    aria-label={`Remove wallet ${index + 1}`}
+                    title={form.watch("representativeWallets").length === 1 ? "At least one wallet is required" : "Remove this wallet"}
+                  >
+                    Remove
+                  </Button>
                 </div>
               ))}
               <Button type="button" variant="outline" onClick={addWalletField}>

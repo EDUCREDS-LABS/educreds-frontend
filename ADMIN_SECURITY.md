@@ -37,7 +37,7 @@ This document outlines the security measures implemented for admin authenticatio
 ## Default Credentials
 
 ### Production Setup
-**Email**: `admin@educreds.com`  
+**Email**: `admin@educreds.xyz`  
 **Password**: `password`
 
 ⚠️ **IMPORTANT**: Change the default password before deploying to production!
@@ -122,7 +122,7 @@ client/src/
 For additional security, you can move credentials to environment variables:
 
 ```env
-VITE_ADMIN_EMAIL=admin@educreds.com
+VITE_ADMIN_EMAIL=admin@educreds.xyz
 VITE_ADMIN_PASSWORD_HASH=your_hash_here
 VITE_ADMIN_SALT=your_salt_here
 ```

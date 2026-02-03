@@ -48,6 +48,7 @@ import {
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -215,7 +216,15 @@ const poicComponentsData = [
   { name: 'AI Risk Score', value: 5 },
 ];
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+// Use CSS variable references instead of hardcoded hex values
+const COLORS = [
+  'hsl(var(--primary))',           // Blue
+  'hsl(var(--success))',           // Green
+  'hsl(var(--warning))',           // Amber
+  'hsl(var(--destructive))',       // Red
+  'hsl(var(--accent))',            // Purple
+  'hsl(var(--chart-5))',           // Pink
+];
 
 export default function GovernanceDashboard() {
   const { toast } = useToast();
@@ -420,19 +429,19 @@ export default function GovernanceDashboard() {
                 <CardTitle>PoIC Score Components</CardTitle>
                 <CardDescription>Weighting of the credibility formula</CardDescription>
               </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
-                    <Pie
-                      data={poicComponentsData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, value }) => `${name} (${value}%)`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
+              <CardContent className="w-full">
+               <ResponsiveContainer width="100%" height={250} minHeight={200}>
+                    <PieChart>
+                     <Pie
+                       data={poicComponentsData}
+                       cx="50%"
+                       cy="50%"
+                       labelLine={false}
+                       label={({ name, value }) => `${name} (${value}%)`}
+                       outerRadius={80}
+                       fill="hsl(var(--primary))"
+                       dataKey="value"
+                     >
                       {COLORS.map((color, index) => (
                         <Cell key={`cell-${index}`} fill={color} />
                       ))}
@@ -653,8 +662,8 @@ export default function GovernanceDashboard() {
               <CardTitle>PoIC Score Trend</CardTitle>
               <CardDescription>Average institutional credibility over time</CardDescription>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
+            <CardContent className="w-full">
+              <ResponsiveContainer width="100%" height={300} minHeight={250}>
                 <LineChart data={scoreHistoryData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
@@ -662,8 +671,8 @@ export default function GovernanceDashboard() {
                   <YAxis yAxisId="right" orientation="right" label={{ value: 'Institution Count', angle: 90, position: 'insideRight' }} />
                   <Tooltip />
                   <Legend />
-                  <Line yAxisId="left" type="monotone" dataKey="avgScore" stroke="#3b82f6" name="Avg PoIC Score" />
-                  <Line yAxisId="right" type="monotone" dataKey="institutionCount" stroke="#10b981" name="Institution Count" />
+                  <Line yAxisId="left" type="monotone" dataKey="avgScore" stroke="hsl(var(--primary))" name="Avg PoIC Score" />
+                  <Line yAxisId="right" type="monotone" dataKey="institutionCount" stroke="hsl(var(--success))" name="Institution Count" />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -674,8 +683,8 @@ export default function GovernanceDashboard() {
               <CardTitle>Risk vs. Issuance Volume</CardTitle>
               <CardDescription>Correlation analysis of institutional risk and activity</CardDescription>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
+            <CardContent className="w-full">
+              <ResponsiveContainer width="100%" height={300} minHeight={250}>
                 <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="poicScore" name="PoIC Score" type="number" />
@@ -684,7 +693,7 @@ export default function GovernanceDashboard() {
                   <Scatter
                     name="Institutions"
                     data={institutions}
-                    fill="#3b82f6"
+                    fill="hsl(var(--primary))"
                   />
                 </ScatterChart>
               </ResponsiveContainer>

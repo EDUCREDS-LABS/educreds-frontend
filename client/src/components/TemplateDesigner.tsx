@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,11 +37,51 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
   onSave
 }) => {
   const [fields, setFields] = useState<FieldMapping[]>(initialFields);
+  // Layers allow free-form text/images/shapes in addition to mapped fields.
+  interface Layer {
+    id: string;
+    type: 'text' | 'image' | 'shape' | 'field';
+    content?: string; // for text
+    src?: string; // for image
+    fieldId?: string; // for linked field
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation?: number;
+    fontSize?: number;
+    fontFamily?: string;
+    fontWeight?: string;
+    color?: string;
+    locked?: boolean;
+  }
+
+  const [layers, setLayers] = useState<Layer[]>(() =>
+    initialFields.map(f => ({
+      id: f.id,
+      type: 'field' as const,
+      fieldId: f.id,
+      x: f.x,
+      y: f.y,
+      width: f.width,
+      height: f.height,
+      fontSize: f.fontSize,
+      fontFamily: f.fontFamily,
+      fontWeight: f.fontWeight,
+      color: f.color,
+      locked: f.locked
+    }))
+  );
   const [selectedField, setSelectedField] = useState<string | null>(null);
+  const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
   const [draggedField, setDraggedField] = useState<string | null>(null);
+  const [draggedLayer, setDraggedLayer] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
+  const [isResizing, setIsResizing] = useState(false);
+  const resizingRef = useRef<{ id: string; corner: string } | null>(null);
 
   const availableFields = [
     { name: 'studentName', label: 'Student Name', required: true, locked: false },
@@ -80,6 +120,21 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
     };
 
     setFields(prev => [...prev, newField]);
+    // also add a corresponding layer so designers can freely move/resize
+    setLayers(prev => [...prev, {
+      id: newField.id,
+      type: 'field',
+      fieldId: newField.id,
+      x: newField.x,
+      y: newField.y,
+      width: newField.width,
+      height: newField.height,
+      fontSize: newField.fontSize,
+      fontFamily: newField.fontFamily,
+      fontWeight: newField.fontWeight,
+      color: newField.color,
+      locked: newField.locked
+    }]);
   };
 
   const updateField = (fieldId: string, updates: Partial<FieldMapping>) => {
@@ -103,14 +158,17 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
     const y = event.clientY - rect.top;
 
     // Check if clicked on existing field
-    const clickedField = fields.find(field => 
-      x >= field.x && x <= field.x + field.width &&
-      y >= field.y && y <= field.y + field.height
+    // check layers first (top-most last in array)
+    const clickedLayer = [...layers].reverse().find(layer =>
+      x >= layer.x && x <= layer.x + layer.width &&
+      y >= layer.y && y <= layer.y + layer.height
     );
 
-    if (clickedField) {
-      setSelectedField(clickedField.id);
+    if (clickedLayer) {
+      setSelectedLayer(clickedLayer.id);
+      setSelectedField(clickedLayer.type === 'field' ? clickedLayer.fieldId || null : null);
     } else {
+      setSelectedLayer(null);
       setSelectedField(null);
     }
   };
@@ -118,6 +176,77 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
   const handleFieldDrag = useCallback((fieldId: string, newX: number, newY: number) => {
     updateField(fieldId, { x: newX, y: newY });
   }, []);
+
+  // Layer drag/resize handlers
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!canvasRef.current) return;
+      const rect = canvasRef.current.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      if (draggedLayer) {
+        setLayers(prev => prev.map(l => l.id === draggedLayer ? { ...l, x: Math.max(0, mx - (l.width/2)), y: Math.max(0, my - (l.height/2)) } : l));
+      }
+
+      if (isResizing && resizingRef.current) {
+        setLayers(prev => prev.map(l => {
+          if (l.id !== resizingRef.current!.id) return l;
+          // simple bottom-right corner resizing behavior
+          const newW = Math.max(20, mx - l.x);
+          const newH = Math.max(20, my - l.y);
+          return { ...l, width: newW, height: newH };
+        }));
+      }
+    };
+
+    const onUp = () => {
+      setDraggedLayer(null);
+      setIsResizing(false);
+      resizingRef.current = null;
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+  }, [draggedLayer, isResizing]);
+
+  const addTextLayer = (text = 'Editable Text') => {
+    const id = `layer_text_${Date.now()}`;
+    setLayers(prev => [...prev, { id, type: 'text', content: text, x: 120, y: 120, width: 200, height: 40, fontSize: 16, fontFamily: 'Arial', fontWeight: 'normal', color: '#111' }]);
+    setSelectedLayer(id);
+  };
+
+  const addShapeLayer = () => {
+    const id = `layer_shape_${Date.now()}`;
+    setLayers(prev => [...prev, { id, type: 'shape', x: 140, y: 140, width: 120, height: 80, color: '#E5E7EB' }]);
+    setSelectedLayer(id);
+  };
+
+  const addImageLayer = (file?: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const src = String(reader.result);
+      const id = `layer_image_${Date.now()}`;
+      setLayers(prev => [...prev, { id, type: 'image', src, x: 100, y: 100, width: 200, height: 120 }]);
+      setSelectedLayer(id);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeLayer = (id: string) => {
+    setLayers(prev => prev.filter(l => l.id !== id));
+    // if it's a field layer, also remove mapping
+    const layer = layers.find(l => l.id === id);
+    if (layer?.type === 'field' && layer.fieldId) {
+      setFields(prev => prev.filter(f => f.id !== layer.fieldId));
+    }
+    if (selectedLayer === id) setSelectedLayer(null);
+  };
 
   const validateTemplate = (): boolean => {
     const requiredFields = availableFields.filter(f => f.required).map(f => f.name);
@@ -208,45 +337,70 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
 
             {/* Field Overlays */}
             {fields.map(field => (
-              <div
-                key={field.id}
-                className={`absolute border-2 cursor-move ${
-                  selectedField === field.id 
-                    ? 'border-blue-500 bg-blue-100' 
-                    : 'border-gray-400 bg-gray-100'
-                } ${field.locked ? 'border-red-400 bg-red-50' : ''}`}
-                style={{
-                  left: field.x,
-                  top: field.y,
-                  width: field.width,
-                  height: field.height,
-                  fontSize: field.fontSize,
-                  fontFamily: field.fontFamily,
-                  fontWeight: field.fontWeight,
-                  color: field.color
-                }}
-                onMouseDown={(e) => {
-                  setDraggedField(field.id);
-                  setSelectedField(field.id);
-                }}
-              >
-                <div className="p-1 text-xs truncate">
-                  {showPreview ? (field.placeholder || field.name) : field.name}
+              // Render layers (fields are represented as 'field' layers)
+              {layers.map(layer => (
+                <div
+                  key={layer.id}
+                  className={`absolute ${layer.type === 'text' ? '' : ''} border-2 ${selectedLayer === layer.id ? 'border-blue-500 bg-blue-50' : 'border-transparent'} ${layer.locked ? 'opacity-80' : ''}`}
+                  style={{
+                    left: layer.x,
+                    top: layer.y,
+                    width: layer.width,
+                    height: layer.height,
+                    fontSize: layer.fontSize,
+                    fontFamily: layer.fontFamily,
+                    fontWeight: layer.fontWeight as any,
+                    color: layer.color
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    setDraggedLayer(layer.id);
+                    setSelectedLayer(layer.id);
+                    // if it's a field layer select corresponding field
+                    if (layer.type === 'field') setSelectedField(layer.fieldId || null);
+                    else setSelectedField(null);
+                  }}
+                >
+                  <div className="p-1 text-xs truncate">
+                    {layer.type === 'text' && (showPreview ? (layer.content || 'Text') : 'Text Layer')}
+                    {layer.type === 'image' && (
+                      <img src={layer.src} alt="img" className="w-full h-full object-cover" />
+                    )}
+                    {layer.type === 'shape' && (
+                      <div className="w-full h-full" style={{ background: layer.color }} />
+                    )}
+                    {layer.type === 'field' && (
+                      <div className="text-xs truncate">{showPreview ? (fields.find(f => f.id === layer.fieldId)?.placeholder || layer.fieldId) : `Field: ${layer.fieldId}`}</div>
+                    )}
+                  </div>
+
+                  {selectedLayer === layer.id && !layer.locked && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="absolute -top-2 -right-2 h-6 w-6 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeLayer(layer.id);
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+
+                      {/* Resize handle (bottom-right) */}
+                      <div
+                        className="absolute -right-2 -bottom-2 w-4 h-4 bg-white border rounded cursor-se-resize"
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          setIsResizing(true);
+                          resizingRef.current = { id: layer.id, corner: 'br' };
+                        }}
+                      />
+                    </>
+                  )}
                 </div>
-                {selectedField === field.id && !field.locked && (
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="absolute -top-2 -right-2 h-6 w-6 p-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeField(field.id);
-                    }}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                )}
-              </div>
+              ))}
             ))}
           </div>
         </CardContent>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Search, Filter, Eye, Edit, AlertTriangle, Download } from "lucide-react";
+import { Plus, Search, Filter, Eye, Edit, AlertTriangle, Download, Award, Check, Clock, X, CalendarIcon, Star, Hash, Trash2 } from "lucide-react";
 import { saveAs } from "file-saver";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Certificates() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isCertificateModalOpen, setIsCertificateModalOpen] = useState(false);
@@ -148,65 +150,131 @@ export default function Certificates() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900" data-testid="page-title">
-            Certificate Management
-          </h1>
-          <p className="text-neutral-600">Manage and track your institution's certificates</p>
-        </div>
-        <div className="flex gap-2">
-          {selectedCertificateIds.length > 0 && (
-            <Button
-              variant="destructive"
-              onClick={handleBulkRevoke}
-              data-testid="bulk-revoke-button"
+    <div className="space-y-8">
+      {/* Header Section */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent" data-testid="page-title">
+              Certificate Management
+            </h1>
+            <p className="text-neutral-600 mt-1">Manage, track, and issue your institution's digital credentials</p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            {selectedCertificateIds.length > 0 && (
+              <Button
+                variant="destructive"
+                onClick={handleBulkRevoke}
+                className="bg-red-600 hover:bg-red-700"
+                data-testid="bulk-revoke-button"
+              >
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                Revoke ({selectedCertificateIds.length})
+              </Button>
+            )}
+            <Button 
+              onClick={() => setLocation('/institution/issue')} 
+              className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-lg hover:shadow-xl transition-all"
+              data-testid="button-create-certificate"
             >
-              Revoke ({selectedCertificateIds.length})
+              <Plus className="w-4 h-4 mr-2" />
+              Create New Certificate
             </Button>
-          )}
-          <Button onClick={() => setIsCertificateModalOpen(true)} data-testid="button-create-certificate">
-            <Plus className="w-4 h-4 mr-2" />
-            Create New Certificate
-          </Button>
-          <Button variant="outline" onClick={handleExportCsv} data-testid="button-export-csv">
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
+            <Button 
+              variant="outline" 
+              onClick={handleExportCsv}
+              className="border-neutral-200 hover:bg-neutral-50"
+              data-testid="button-export-csv"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
+        </div>
+
+        {/* Quick Stats Overview */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-gradient-to-br from-blue-50 to-blue-25 border border-blue-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-blue-600 font-medium">Total Certificates</p>
+                <p className="text-2xl font-bold text-blue-900">{filteredCertificates.length}</p>
+              </div>
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Award className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-green-50 to-green-25 border border-green-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-green-600 font-medium">Active</p>
+                <p className="text-2xl font-bold text-green-900">{filteredCertificates.filter((c: Certificate) => c.isValid && c.status === 'active').length}</p>
+              </div>
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <Check className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-amber-50 to-amber-25 border border-amber-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-amber-600 font-medium">Pending</p>
+                <p className="text-2xl font-bold text-amber-900">{filteredCertificates.filter((c: Certificate) => c.status === 'pending').length}</p>
+              </div>
+              <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
+                <Clock className="w-6 h-6 text-amber-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-red-50 to-red-25 border border-red-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-red-600 font-medium">Revoked</p>
+                <p className="text-2xl font-bold text-red-900">{filteredCertificates.filter((c: Certificate) => c.status === 'revoked').length}</p>
+              </div>
+              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                <X className="w-6 h-6 text-red-600" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Select All Checkbox */}
-      <div className="flex items-center space-x-2">
-        <Checkbox
-          id="selectAll"
-          checked={selectedCertificateIds.length === filteredCertificates.length && filteredCertificates.length > 0}
-          onCheckedChange={handleSelectAll}
-        />
-        <label htmlFor="selectAll" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-          Select All ({selectedCertificateIds.length} selected)
-        </label>
-      </div>
+      {/* Select All Checkbox - Enhanced */}
+      {filteredCertificates.length > 0 && (
+        <div className="flex items-center space-x-2 px-4 py-2 bg-blue-50 border border-blue-100 rounded-lg">
+          <Checkbox
+            id="selectAll"
+            checked={selectedCertificateIds.length === filteredCertificates.length && filteredCertificates.length > 0}
+            onCheckedChange={handleSelectAll}
+          />
+          <label htmlFor="selectAll" className="text-sm font-medium text-blue-900">
+            Select All ({selectedCertificateIds.length} of {filteredCertificates.length} selected)
+          </label>
+        </div>
+      )}
 
-      {/* Search and Filter */}
-      <Card>
+      {/* Search and Filter - Professional Card */}
+      <Card className="border border-neutral-200 shadow-sm">
         <CardContent className="p-6">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-neutral-400" />
               <Input
-                placeholder="Search certificates..."
+                placeholder="Search by certificate name, student, or program..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
+                className="pl-10 border-neutral-200 focus:border-blue-500 focus:ring-blue-500"
                 data-testid="search-certificates"
               />
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-full sm:w-[140px] border-neutral-200">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -218,7 +286,7 @@ export default function Certificates() {
               </Select>
               
               <Select value={programFilter} onValueChange={setProgramFilter}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:w-[180px] border-neutral-200">
                   <SelectValue placeholder="All Programs" />
                 </SelectTrigger>
                 <SelectContent>
@@ -233,11 +301,11 @@ export default function Certificates() {
         </CardContent>
       </Card>
 
-      {/* Certificates Grid */}
+      {/* Certificates Grid - Advanced Card Design */}
       {isLoading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i}>
+            <Card key={i} className="border-neutral-200">
               <CardContent className="p-6">
                 <Skeleton className="h-6 w-3/4 mb-2" />
                 <Skeleton className="h-4 w-1/2 mb-4" />
@@ -256,89 +324,147 @@ export default function Certificates() {
           ))}
         </div>
       ) : filteredCertificates.length === 0 ? (
-        <Card>
+        <Card className="border border-neutral-200 shadow-sm">
           <CardContent className="p-12 text-center">
-            <div className="w-12 h-12 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="w-6 h-6 text-neutral-400" />
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-8 h-8 text-blue-600" />
             </div>
-            <h3 className="text-lg font-medium text-neutral-900 mb-2">No certificates found</h3>
-            <p className="text-neutral-500 mb-4">
+            <h3 className="text-xl font-semibold text-neutral-900 mb-2">No certificates found</h3>
+            <p className="text-neutral-600 mb-6">
               {searchTerm || statusFilter !== "all" || programFilter !== "all"
-                ? "Try adjusting your search filters."
-                : "Start by creating your first certificate."}
+                ? "Try adjusting your search filters to find what you're looking for."
+                : "Start by creating your first certificate to get began managing digital credentials."}
             </p>
             {(!searchTerm && statusFilter === "all" && programFilter === "all") && (
-              <Button onClick={() => setIsCertificateModalOpen(true)}>
+              <Button 
+                onClick={() => setLocation('/institution/issue')}
+                className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-lg"
+              >
                 <Plus className="w-4 h-4 mr-2" />
-                Create Certificate
+                Create Your First Certificate
               </Button>
             )}
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredCertificates.map((certificate: Certificate) => (
-            <Card key={certificate.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-neutral-900 mb-1" data-testid={`certificate-title-${certificate.id}`}>
-                      {certificate.courseName}
-                    </h3>
-                    <p className="text-sm text-neutral-600" data-testid={`certificate-student-${certificate.id}`}>
-                      {certificate.studentName}
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {getStatusBadge(certificate)}
-                    <Checkbox
-                      checked={selectedCertificateIds.includes(certificate.id!)}
-                      onCheckedChange={(checked: boolean) => handleSelectCertificate(certificate.id!, checked)}
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-2 mb-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-neutral-500">Issue Date:</span>
-                    <span className="text-neutral-900">
-                      {format(new Date(certificate.issuedAt), "MMM dd, yyyy")}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-neutral-500">Grade:</span>
-                    <span className="text-neutral-900">{certificate.grade}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-neutral-500">Type:</span>
-                    <span className="text-neutral-900">{certificate.certificateType}</span>
-                  </div>
-                  {certificate.tokenId && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-neutral-500">Token ID:</span>
-                      <span className="text-neutral-900 font-mono">#{certificate.tokenId}</span>
-                    </div>
-                  )}
-                </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredCertificates.map((certificate: Certificate) => {
+            const isRevoked = certificate.status === 'revoked';
+            const isPending = certificate.status === 'pending';
+            const isActive = certificate.isValid && certificate.status === 'active';
+            
+            // Determine color scheme based on status
+            const colorScheme = isRevoked 
+              ? { bg: 'bg-red-50', border: 'border-red-200', icon: 'bg-red-100', text: 'text-red-700' }
+              : isPending
+              ? { bg: 'bg-amber-50', border: 'border-amber-200', icon: 'bg-amber-100', text: 'text-amber-700' }
+              : { bg: 'bg-blue-50', border: 'border-blue-200', icon: 'bg-blue-100', text: 'text-blue-700' };
 
-                <div className="flex space-x-2">
-                  <Button variant="outline" size="sm" className="flex-1" onClick={() => window.open(`https://ipfs.io/ipfs/${certificate.ipfsHash}`, '_blank')}>
-                    <Eye className="w-4 h-4 mr-1" />
-                    View
-                  </Button>
-                  <Button variant="outline" size="sm" className="flex-1">
-                    <Edit className="w-4 h-4 mr-1" />
-                    Edit
-                  </Button>
-                  {certificate.isValid && (
-                    <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                      Revoke
+            return (
+              <Card 
+                key={certificate.id} 
+                className={`${colorScheme.border} border-2 transition-all duration-300 hover:shadow-lg hover:scale-105 group overflow-hidden`}
+              >
+                {/* Status bar top */}
+                <div className={`h-1 ${isRevoked ? 'bg-red-500' : isPending ? 'bg-amber-500' : 'bg-gradient-to-r from-blue-500 to-blue-400'}`} />
+                
+                <CardContent className="p-6">
+                  {/* Header with status badge and checkbox */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-neutral-900 text-lg mb-1 line-clamp-2" data-testid={`certificate-title-${certificate.id}`}>
+                        {certificate.courseName}
+                      </h3>
+                      <p className="text-sm text-neutral-600 line-clamp-1" data-testid={`certificate-student-${certificate.id}`}>
+                        {certificate.studentName}
+                      </p>
+                    </div>
+                    <div className="flex gap-2 items-start">
+                      {getStatusBadge(certificate)}
+                      <Checkbox
+                        checked={selectedCertificateIds.includes(certificate.id!)}
+                        onCheckedChange={(checked: boolean) => handleSelectCertificate(certificate.id!, checked)}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Certificate info grid */}
+                  <div className={`${colorScheme.bg} rounded-lg p-4 mb-4 space-y-3`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="w-4 h-4 text-neutral-500" />
+                        <span className="text-xs text-neutral-600 font-medium">Issue Date</span>
+                      </div>
+                      <span className="text-sm font-semibold text-neutral-900">
+                        {format(new Date(certificate.issuedAt), "MMM dd, yyyy")}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Star className="w-4 h-4 text-neutral-500" />
+                        <span className="text-xs text-neutral-600 font-medium">Grade</span>
+                      </div>
+                      <span className="text-sm font-semibold text-neutral-900 bg-white px-3 py-1 rounded-full">
+                        {certificate.grade}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Award className="w-4 h-4 text-neutral-500" />
+                        <span className="text-xs text-neutral-600 font-medium">Type</span>
+                      </div>
+                      <span className="text-sm font-semibold text-neutral-900">{certificate.certificateType}</span>
+                    </div>
+
+                    {certificate.tokenId && (
+                      <div className="flex items-center justify-between pt-2 border-t border-neutral-200">
+                        <div className="flex items-center gap-2">
+                          <Hash className="w-4 h-4 text-neutral-500" />
+                          <span className="text-xs text-neutral-600 font-medium">Token ID</span>
+                        </div>
+                        <span className="text-xs font-mono text-neutral-700 bg-white px-2 py-1 rounded">
+                          #{certificate.tokenId.toString().slice(-6)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action buttons with hover reveal */}
+                  <div className="flex gap-2 opacity-100 group-hover:opacity-100 transition-all">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1 border-neutral-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300"
+                      onClick={() => window.open(`https://ipfs.io/ipfs/${certificate.ipfsHash}`, '_blank')}
+                    >
+                      <Eye className="w-4 h-4 mr-1" />
+                      View
                     </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1 border-neutral-200 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300"
+                    >
+                      <Edit className="w-4 h-4 mr-1" />
+                      Edit
+                    </Button>
+                    {certificate.isValid && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 

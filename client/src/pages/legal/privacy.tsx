@@ -218,9 +218,9 @@ export default function PrivacyPolicy() {
               </p>
               <div className="bg-neutral-50 p-4 rounded-lg">
                 <p className="text-neutral-700">
-                  <strong>Privacy Officer:</strong> privacy@educreds.com<br />
-                  <strong>Data Protection:</strong> dpo@educreds.com<br />
-                  <strong>General Inquiries:</strong> support@educreds.com<br />
+                  <strong>Privacy Officer:</strong> privacy@educreds.xyz<br />
+                  <strong>Data Protection:</strong> dpo@educreds.xyz<br />
+                  <strong>General Inquiries:</strong> support@educreds.xyz<br />
                   <strong>Address:</strong> EduCreds Privacy Department<br />
                   <strong>Response Time:</strong> We aim to respond within 30 days
                 </p>

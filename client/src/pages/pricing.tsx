@@ -7,25 +7,25 @@ import { Link } from "wouter";
 
 const tiers = [
   {
-    name: "Free",
-    price: "$0",
+    name: "Starter",
+    price: "$29/mo",
     features: [
-      "50 Certificate Issuances per year",
-      "Basic Certificate Templates",
-      "Student Self-Service Portal",
-      "Basic Analytics",
+      "Up to 200 certificates per month",
+      "Standard certificate templates",
+      "Standard EduCreds API access",
+      "Email support",
     ],
-    cta: "Get Started",
+    cta: "Choose Starter",
   },
   {
     name: "Pro",
-    price: "$99",
+    price: "$99/mo",
     features: [
-      "1000 Certificate Issuances per year",
-      "Premium Certificate Templates",
-      "Advanced Certificate Designer",
-      "Advanced Analytics",
-      "Priority Support",
+      "Up to 1,000 certificates per month",
+      "Advanced templates & designer",
+      "Full standard API + batch issuance",
+      "Advanced analytics & reporting",
+      "Priority support",
     ],
     cta: "Upgrade to Pro",
   },
@@ -33,13 +33,13 @@ const tiers = [
     name: "Enterprise",
     price: "Custom",
     features: [
-      "Unlimited Certificate Issuances",
-      "Custom Certificate Templates",
-      "Dedicated Account Manager",
-      "API Access",
-      "On-Premise Deployment Option",
+      "Unlimited certificates (fair use)",
+      "Custom integrations & SSO",
+      "Dedicated account & success team",
+      "Enterprise SLAs & compliance",
+      "Custom governance & reporting",
     ],
-    cta: "Contact Us",
+    cta: "Contact Sales",
   },
 ];
 

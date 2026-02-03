@@ -72,7 +72,7 @@ The admin dashboard includes comprehensive blockchain management capabilities fo
 - **Detailed Reports**: Individual institution blockchain status with transaction details
 
 ### Admin Access
-- **Login**: admin@Educreds.com / admin123
+- **Login**: admin@educreds.xyz / admin123
 - **Security**: Admin-only endpoints with email verification
 - **Dashboard**: Comprehensive blockchain management interface
 

@@ -118,7 +118,7 @@ const mockIssuedCertificates: CertificateIssued[] = [
     issuedDate: '2024-01-20',
     status: 'verified',
     blockchainTx: '0x1234...abcd',
-    verificationUrl: 'https://educreds.com/verify/cert-issued-1'
+    verificationUrl: 'https://educreds.xyz/verify/cert-issued-1'
   },
   {
     id: 'cert-issued-2',
@@ -127,7 +127,7 @@ const mockIssuedCertificates: CertificateIssued[] = [
     recipientEmail: 'jane.smith@email.com',
     issuedDate: '2024-01-19',
     status: 'issued',
-    verificationUrl: 'https://educreds.com/verify/cert-issued-2'
+    verificationUrl: 'https://educreds.xyz/verify/cert-issued-2'
   }
 ];
 

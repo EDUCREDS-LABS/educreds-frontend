@@ -145,10 +145,18 @@ export default function QuickIssuance() {
   });
 
   const templates = (templatesData as any)?.templates || [];
-  const certificateLimit = (subscription as any)?.subscription?.monthlyLimit || 50;
+  const planId = (subscription as any)?.subscription?.planId || 'starter';
+  const planCertificateLimit =
+    planId === 'pro'
+      ? 1000
+      : planId === 'enterprise'
+      ? -1
+      : 200;
   const certificatesUsed = (subscription as any)?.usage?.certificatesThisMonth || 0;
-  const certificatesRemaining = Math.max(0, certificateLimit - certificatesUsed);
-  const usagePercentage = (certificatesUsed / certificateLimit) * 100;
+  const certificateLimit = planCertificateLimit === -1 ? certificatesUsed : planCertificateLimit;
+  const certificatesRemaining = planCertificateLimit === -1 ? Infinity : Math.max(0, planCertificateLimit - certificatesUsed);
+  const usagePercentage =
+    planCertificateLimit === -1 ? 0 : (certificatesUsed / Math.max(planCertificateLimit, 1)) * 100;
   const isNearLimit = usagePercentage >= 80;
   const isLimitExceeded = certificatesUsed >= certificateLimit;
 
@@ -311,27 +319,40 @@ export default function QuickIssuance() {
                 <div>
                   <p className="text-sm font-medium text-neutral-600">Monthly Usage</p>
                   <p className="text-2xl font-bold text-neutral-900 mt-1">
-                    {certificatesUsed} / {certificateLimit}
+                    {certificatesUsed}{" "}
+                    {planCertificateLimit === -1 ? "" : <>/ {planCertificateLimit}</>}
+                  </p>
+                  <p className="text-xs text-neutral-500 mt-1 capitalize">
+                    Current plan: {planId}
                   </p>
                 </div>
-                {isNearLimit && (
+                {planCertificateLimit !== -1 && isNearLimit && (
                   <Badge className="bg-yellow-100 text-yellow-800">
                     {certificatesRemaining} Remaining
                   </Badge>
                 )}
-                {isLimitExceeded && (
+                {planCertificateLimit !== -1 && isLimitExceeded && (
                   <Badge className="bg-red-100 text-red-800">Limit Exceeded</Badge>
                 )}
               </div>
-              <Progress value={Math.min(usagePercentage, 100)} className="h-2" />
-              {isNearLimit && !isLimitExceeded && (
-                <p className="text-xs text-yellow-700">
-                  Approaching your monthly limit. Upgrade to continue issuing.
-                </p>
+              {planCertificateLimit !== -1 && (
+                <>
+                  <Progress value={Math.min(usagePercentage, 100)} className="h-2" />
+                  {isNearLimit && !isLimitExceeded && (
+                    <p className="text-xs text-yellow-700">
+                      Approaching your monthly limit. Upgrade to continue issuing.
+                    </p>
+                  )}
+                  {isLimitExceeded && (
+                    <p className="text-xs text-red-700">
+                      You've reached your monthly certificate limit. Upgrade your subscription.
+                    </p>
+                  )}
+                </>
               )}
-              {isLimitExceeded && (
-                <p className="text-xs text-red-700">
-                  You've reached your monthly certificate limit. Upgrade your subscription.
+              {planCertificateLimit === -1 && (
+                <p className="text-xs text-emerald-700">
+                  Enterprise plan: certificate issuance is effectively unlimited (fair use).
                 </p>
               )}
             </div>

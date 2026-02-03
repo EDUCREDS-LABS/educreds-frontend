@@ -22,7 +22,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
       
       if (authenticated) {
         // Normalize stored admin email to canonical to match backend
-        const canonicalEmail = 'admin@educreds.com';
+        const canonicalEmail = 'admin@educreds.xyz';
         const currentEmail = AdminAuth.getAdminEmail();
         if (currentEmail && currentEmail.toLowerCase() !== canonicalEmail) {
           localStorage.setItem('adminEmail', canonicalEmail);

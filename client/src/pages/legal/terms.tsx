@@ -150,9 +150,9 @@ export default function TermsOfService() {
               </p>
               <div className="bg-neutral-50 p-4 rounded-lg">
                 <p className="text-neutral-700">
-                  <strong>Email:</strong> legal@educreds.com<br />
+                  <strong>Email:</strong> legal@educreds.xyz<br />
                   <strong>Address:</strong> EduCreds Legal Department<br />
-                  <strong>Website:</strong> https://educreds.com
+                  <strong>Website:</strong> https://educreds.xyz
                 </p>
               </div>
             </section>

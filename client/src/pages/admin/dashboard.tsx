@@ -29,8 +29,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import BlockchainManagement from "@/components/BlockchainManagement";
 import UserManagement from "@/components/admin/UserManagement";
-import OracleManagement from "@/components/admin/OracleManagement";
-import OracleStats from "@/components/admin/OracleStats";
+import AdminGovernanceDashboard from "@/pages/admin/governance-dashboard";
 import { transformDocumentsForBackend } from "@/utils/documentTransform";
 import { testBackendConnection, testAdminConnection, type ConnectionStatus } from "@/utils/connectionTest";
 import { API_CONFIG } from "@/config/api";
@@ -84,7 +83,7 @@ function AdminDashboardContent() {
   const [selectedRequest, setSelectedRequest] = useState<VerificationRequest | null>(null);
   const [reviewModal, setReviewModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'oracle' | 'blockchain' | 'users' | 'audit'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'governance' | 'blockchain' | 'users' | 'audit'>('overview');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [previousRequestCount, setPreviousRequestCount] = useState(0);
@@ -547,12 +546,12 @@ function AdminDashboardContent() {
             Overview
           </Button>
           <Button
-            variant={activeTab === 'oracle' ? 'default' : 'ghost'}
-            onClick={() => setActiveTab('oracle')}
+            variant={activeTab === 'governance' ? 'default' : 'ghost'}
+            onClick={() => setActiveTab('governance')}
             size="sm"
-            className={activeTab === 'oracle' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:text-white hover:bg-gray-700'}
+            className={activeTab === 'governance' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:text-white hover:bg-gray-700'}
           >
-            Oracle
+            Governance
           </Button>
           <Button
             variant={activeTab === 'blockchain' ? 'default' : 'ghost'}
@@ -1045,9 +1044,9 @@ function AdminDashboardContent() {
           </>
         )}
 
-        {activeTab === 'oracle' && (
-          <div className="[&_*]:!bg-gray-800 [&_*]:!text-white [&_.border]:!border-gray-700">
-            <OracleManagement />
+        {activeTab === 'governance' && (
+          <div className="bg-white rounded-lg shadow-sm">
+            <AdminGovernanceDashboard />
           </div>
         )}
 

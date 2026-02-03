@@ -88,9 +88,9 @@ export function CertificateVerification() {
     const sample = {
       "@context": [
         "https://www.w3.org/2018/credentials/v1",
-        "https://educreds.com/contexts/v1"
+        "https://educreds.xyz/contexts/v1"
       ],
-      "id": "http://educreds.com/credentials/3732",
+      "id": "http://educreds.xyz/credentials/3732",
       "type": ["VerifiableCredential", "UniversityDegreeCredential"],
       "issuer": "did:educreds:inst_001",
       "issuanceDate": new Date().toISOString(),

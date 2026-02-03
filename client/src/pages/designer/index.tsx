@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useMarketplaceAuth } from '@/hooks/useMarketplaceAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { marketplaceService, TemplateListingItem, DesignerAnalytics } from '@/lib/marketplaceService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +15,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Eye, Edit, Trash2, TrendingUp, DollarSign, Package, Users } from 'lucide-react';
 import { TemplateEditor } from '@/components/marketplace/TemplateEditor';
 import { DesignerAnalyticsDashboard } from '@/components/dashboard/DesignerAnalyticsDashboard';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DesignerDashboard() {
   const { user } = useMarketplaceAuth();
@@ -160,8 +163,21 @@ export default function DesignerDashboard() {
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="space-y-6">
+          <Skeleton className="h-12 w-48" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="pb-3">
+                  <Skeleton className="h-4 w-24" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-12 mb-2" />
+                  <Skeleton className="h-3 w-20" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -287,14 +303,18 @@ export default function DesignerDashboard() {
       {/* Template Editor */}
       {showTemplateEditor && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg w-[95%] sm:max-w-6xl max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold">
                   {currentTemplate ? 'Edit Template' : 'Create New Template'}
                 </h2>
-                <Button variant="ghost" onClick={() => setShowTemplateEditor(false)}>
-                  Ã—
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setShowTemplateEditor(false)}
+                  aria-label="Close template editor"
+                >
+                   ×
                 </Button>
               </div>
               <TemplateEditor
@@ -394,10 +414,22 @@ function TemplatesGrid({
                 {template.isPublished ? "Published" : "Draft"}
               </Badge>
               <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={() => onEdit(template)}>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => onEdit(template)}
+                  aria-label={`Edit ${template.name} template`}
+                  title="Edit template"
+                >
                   <Edit className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => onDelete(template.id)}>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => onDelete(template.id)}
+                  aria-label={`Delete ${template.name} template`}
+                  title="Delete template"
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>

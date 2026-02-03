@@ -22,6 +22,7 @@
   --destructive-foreground: hsl(60, 9.1%, 97.8%);
   --ring: var(--primary);
   --radius: 0.5rem;
+  --dashboard-gradient-dark: linear-gradient(135deg, hsl(210, 20%, 8%) 0%, hsl(210, 18%, 12%) 50%, hsl(210, 15%, 10%) 100%);
 }
 
 .dark {
@@ -38,6 +39,7 @@
   --destructive: hsl(0, 62.8%, 30.6%);
   --destructive-foreground: hsl(0, 0%, 98%);
   --ring: var(--primary);
+  --dashboard-gradient-dark: linear-gradient(135deg, hsl(210, 20%, 8%) 0%, hsl(210, 18%, 12%) 50%, hsl(210, 15%, 10%) 100%);
 }
 
 @layer base {
@@ -63,6 +65,43 @@
     @apply bg-gradient-to-br from-blue-50 to-green-50 rounded-lg p-4 text-center border-2 border-dashed border-primary border-opacity-30;
   }
   
+  /* Professional Dark Dashboard Background */
+  .dashboard-container {
+    @apply min-h-screen transition-colors duration-300;
+    background: hsl(210, 20%, 98%);
+    background-attachment: fixed;
+  }
+  
+  .dark .dashboard-container {
+    @apply min-h-screen;
+    background: var(--dashboard-gradient-dark);
+    background-attachment: fixed;
+  }
+  
+  /* Enhanced Card Styles for Dashboard */
+  .dashboard-card {
+    @apply rounded-lg border backdrop-blur-sm transition-all duration-300;
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(229, 231, 235, 0.8);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 15px rgba(0, 0, 0, 0.03);
+  }
+  
+  .dark .dashboard-card {
+    background: rgba(31, 41, 55, 0.6);
+    border-color: rgba(75, 85, 99, 0.4);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15), 0 10px 15px rgba(0, 0, 0, 0.1);
+  }
+  
+  .dashboard-card:hover {
+    @apply shadow-lg;
+    border-color: rgba(229, 231, 235, 1);
+  }
+  
+  .dark .dashboard-card:hover {
+    border-color: rgba(107, 114, 128, 0.6);
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.25), 0 15px 25px rgba(0, 0, 0, 0.15);
+  }
+  
   /* Professional Button Styles */
   .btn-primary {
     @apply bg-primary text-primary-foreground shadow-sm hover:shadow-md transition-all hover:bg-primary hover:bg-opacity-90;
@@ -70,5 +109,32 @@
   
   .btn-secondary {
     @apply bg-secondary text-secondary-foreground shadow-sm hover:shadow-md transition-all hover:bg-secondary hover:bg-opacity-90;
+  }
+  
+  /* Chart Container Enhancement */
+  .chart-container {
+    @apply rounded-lg overflow-hidden;
+    background: rgba(248, 250, 252, 0.3);
+  }
+  
+  .dark .chart-container {
+    background: rgba(255, 255, 255, 0.04);
+  }
+  
+  /* Professional Text Colors: default dark text on light background */
+  .dashboard-text-primary {
+    @apply text-neutral-900 transition-colors duration-300;
+  }
+  
+  .dark .dashboard-text-primary {
+    @apply text-neutral-100;
+  }
+  
+  .dashboard-text-secondary {
+    @apply text-neutral-600 transition-colors duration-300;
+  }
+  
+  .dark .dashboard-text-secondary {
+    @apply text-neutral-400;
   }
 }

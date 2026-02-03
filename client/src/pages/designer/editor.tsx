@@ -22,7 +22,8 @@ import {
   ArrowLeft,
   FileText,
   Image,
-  Layers
+  Layers,
+  Send
 } from 'lucide-react';
 import { marketplaceService } from '@/lib/marketplaceService';
 
@@ -435,8 +436,17 @@ export default function DesignerEditor() {
                     </div>
                     <div className="flex flex-wrap gap-1">
                       {templateForm.tags.map((tag) => (
-                        <Badge key={tag} variant="secondary" className="text-xs cursor-pointer" onClick={() => removeTag(tag)}>
-                          {tag} Ã—
+                        <Badge 
+                          key={tag} 
+                          variant="secondary" 
+                          className="text-xs cursor-pointer" 
+                          onClick={() => removeTag(tag)}
+                          role="button"
+                          aria-label={`Remove ${tag} tag`}
+                          tabIndex={0}
+                          onKeyDown={(e) => e.key === 'Enter' && removeTag(tag)}
+                        >
+                          {tag} ×
                         </Badge>
                       ))}
                     </div>

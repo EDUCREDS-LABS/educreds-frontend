@@ -84,6 +84,28 @@ export const API_CONFIG = {
     VERIFICATION_DOCUMENTS: `${CERT_API_BASE}/api/institutions/verification-documents`,
     BLOCKCHAIN_STATUS: (institutionId: string) => `${CERT_API_BASE}/api/institutions/${institutionId}/blockchain-status`,
     VARIANTS: (institutionId: string) => `${MAIN_API_BASE}/api/institutions/${institutionId}/variants`
+  },
+
+  // Subscription endpoints
+  SUBSCRIPTION: {
+    BASE: `${CERT_API_BASE}/api/subscription`,
+    CURRENT: `${CERT_API_BASE}/api/subscription/current`,
+    PLANS: `${CERT_API_BASE}/api/subscription/plans`,
+    SUBSCRIBE: `${CERT_API_BASE}/api/subscription/subscribe`,
+    CANCEL: `${CERT_API_BASE}/api/subscription/cancel`,
+    USAGE: `${CERT_API_BASE}/api/subscription/usage`,
+    PAYMENTS: `${CERT_API_BASE}/api/subscription/payments`
+  },
+
+  // Payment endpoints
+  PAYMENTS: {
+    BASE: `${CERT_API_BASE}/api/payments`,
+    STRIPE_CREATE_INTENT: `${CERT_API_BASE}/api/payments/stripe/create-intent`,
+    STRIPE_CONFIRM: `${CERT_API_BASE}/api/payments/stripe/confirm`,
+    PAYPAL_CREATE_ORDER: `${CERT_API_BASE}/api/payments/paypal/create-order`,
+    PAYPAL_CAPTURE_ORDER: `${CERT_API_BASE}/api/payments/paypal/capture-order`,
+    CRYPTO_CREATE: `${CERT_API_BASE}/api/payments/crypto/create`,
+    CRYPTO_CONFIRM: `${CERT_API_BASE}/api/payments/crypto/confirm`
   }
 } as const;
 
