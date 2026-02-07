@@ -22,10 +22,10 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   const navigation = [
-    { name: 'Features', href: '#features' },
+    { name: 'Labs', href: '/' },
+    { name: 'Infrastructure', href: '/infra' },
     { name: 'Marketplace', href: '/marketplace' },
-    { name: 'Pricing', href: '/pricing' },
-    { name: 'Docs', href: '#docs' },
+    { name: 'Designer', href: '/designer' },
   ];
 
   return (

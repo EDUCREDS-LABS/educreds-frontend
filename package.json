@@ -20,6 +20,8 @@
   "dependencies": {
     "@ethersproject/contracts": "^5.8.0",
     "@ethersproject/providers": "^5.8.0",
+    "@fontsource/source-sans-3": "^5.2.9",
+    "@fontsource/space-grotesk": "^5.2.10",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@neondatabase/serverless": "^0.10.4",
@@ -185,7 +187,7 @@
     "postcss": "^8.4.47",
     "prettier": "^3.2.4",
     "prettier-plugin-tailwindcss": "^0.5.11",
-    "tailwindcss": "^3.4.17",
+    "tailwindcss": "^4.1.18",
     "tsx": "^4.19.1",
     "typescript": "^5.3.3",
     "vite": "^5.4.19",

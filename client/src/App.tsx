@@ -5,9 +5,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { CryptoPaymentProvider } from "@/components/payment/CryptoPaymentProvider";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import RegisterVerifyOtp from "@/pages/auth/register-verify-otp";
+import EduCredsLabsLanding from "@/pages/EduCredsLabsLanding";
 import Landing from "@/pages/landing";
 import Login from "@/pages/auth/login";
 import Register from "@/pages/auth/register";
@@ -61,7 +63,8 @@ import CertificateIssuanceDashboard from '@/pages/certificate-issuance';
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Landing} />
+      <Route path="/" component={EduCredsLabsLanding} />
+      <Route path="/infra" component={Landing} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/register/verify-otp" component={RegisterVerifyOtp} />
@@ -98,13 +101,9 @@ function Router() {
 
       {/* Admin Routes */}
       <Route path="/admin/login" component={AdminLogin} />
-      <Route path="/admin/governance">
-        <ProtectedRoute>
-          <Layout>
-            <AdminGovernanceDashboard />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
+      <Route path="/admin/dashboard" component={AdminDashboard} />
+      <Route path="/admin" component={AdminDashboard} />
+      <Route path="/admin/governance" component={AdminGovernanceDashboard} />
       <Route path="/dao" component={DAODashboard} />
 
       {/* Protected Institution Routes */}
@@ -271,10 +270,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Router />
-        <Analytics />
-        <SpeedInsights />
+        <CryptoPaymentProvider>
+          <Toaster />
+          <Router />
+          <Analytics />
+          <SpeedInsights />
+        </CryptoPaymentProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

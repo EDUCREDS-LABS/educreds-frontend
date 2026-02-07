@@ -202,7 +202,10 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, onSk
             <Progress value={progress} className="mb-4" />
             <CardTitle className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                <onboardingSteps[currentStep].icon className="w-5 h-5 text-blue-600" />
+                {(() => {
+                  const Icon = onboardingSteps[currentStep].icon;
+                  return <Icon className="w-5 h-5 text-blue-600" />;
+                })()}
               </div>
               <div>
                 <h2 className="text-xl">{onboardingSteps[currentStep].title}</h2>

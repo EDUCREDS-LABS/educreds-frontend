@@ -1,8 +1,18 @@
 @import "./theme.css";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Space Grotesk", sans-serif;
+  
+  --color-primary: #1560BD;
+  --color-secondary: #00416A;
+  --color-accent: #15BCA9;
+  
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+}
 
 :root {
   --background: var(--neutral-50);
@@ -44,11 +54,13 @@
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: var(--border);
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply font-sans antialiased;
+    background-color: var(--background);
+    color: var(--foreground);
   }
 }
 
@@ -62,7 +74,7 @@
   }
   
   .certificate-preview {
-    @apply bg-gradient-to-br from-blue-50 to-green-50 rounded-lg p-4 text-center border-2 border-dashed border-primary border-opacity-30;
+    @apply bg-gradient-to-br from-blue-50 to-green-50 rounded-lg p-4 text-center border-2 border-dashed border-primary;
   }
   
   /* Professional Dark Dashboard Background */
@@ -104,11 +116,13 @@
   
   /* Professional Button Styles */
   .btn-primary {
-    @apply bg-primary text-primary-foreground shadow-sm hover:shadow-md transition-all hover:bg-primary hover:bg-opacity-90;
+    @apply bg-primary shadow-sm hover:shadow-md transition-all hover:bg-primary;
+    color: var(--primary-foreground);
   }
   
   .btn-secondary {
-    @apply bg-secondary text-secondary-foreground shadow-sm hover:shadow-md transition-all hover:bg-secondary hover:bg-opacity-90;
+    @apply bg-secondary shadow-sm hover:shadow-md transition-all hover:bg-secondary;
+    color: var(--secondary-foreground);
   }
   
   /* Chart Container Enhancement */

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CreditCard, Wallet, Bitcoin, Landmark, Check, Shield, Lock } from 'lucide-react';
+import { CreditCard, Wallet, Bitcoin, Landmark, Check, Shield, Lock, ChevronDown, ChevronUp } from 'lucide-react';
 
 export type PaymentMethodType = 'stripe' | 'paypal' | 'crypto' | 'bank_transfer';
 
@@ -69,8 +69,31 @@ export function PaymentMethodSelector({
   showFees = true,
 }: PaymentMethodSelectorProps) {
   const [hoveredMethod, setHoveredMethod] = useState<PaymentMethodType | null>(null);
+  const availableMethods = paymentMethods.filter((m) => m.available);
 
   const selectedPaymentMethod = paymentMethods.find((m) => m.id === selectedMethod);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        const currentIndex = availableMethods.findIndex((m) => m.id === selectedMethod);
+        const nextIndex = (currentIndex + 1) % availableMethods.length;
+        onSelect(availableMethods[nextIndex].id);
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const currentIndex = availableMethods.findIndex((m) => m.id === selectedMethod);
+        const prevIndex = (currentIndex - 1 + availableMethods.length) % availableMethods.length;
+        onSelect(availableMethods[prevIndex].id);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedMethod, onSelect, availableMethods]);
+
+  const currentIndex = availableMethods.findIndex((m) => m.id === selectedMethod);
 
   return (
     <div className="space-y-4">
@@ -86,25 +109,36 @@ export function PaymentMethodSelector({
         <span className="text-xs text-green-600">256-bit SSL Encryption</span>
       </div>
 
+      {/* Navigation Info */}
+      <div className="text-xs text-gray-500 text-center px-2">
+        Use arrow keys ↑ ↓ to navigate, or click to select
+      </div>
+
       {/* Payment Method Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {paymentMethods.map((method) => (
+      <div className="grid grid-cols-1 gap-4">
+        {paymentMethods.map((method, index) => (
           <Card
             key={method.id}
             className={`relative cursor-pointer transition-all duration-200 ${
               selectedMethod === method.id
-                ? 'border-2 border-primary ring-2 ring-primary/20'
+                ? 'border-2 border-primary ring-2 ring-primary/20 shadow-lg'
                 : 'border border-gray-200 hover:border-gray-300 hover:shadow-md'
             } ${!method.available ? 'opacity-60 cursor-not-allowed' : ''} ${
               disabled ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
+            } ${hoveredMethod === method.id && method.available ? 'scale-105' : ''}`}
             onClick={() => {
               if (method.available && !disabled) {
                 onSelect(method.id);
               }
             }}
-            onMouseEnter={() => setHoveredMethod(method.id)}
+            onMouseEnter={() => {
+              if (method.available && !disabled) {
+                setHoveredMethod(method.id);
+              }
+            }}
             onMouseLeave={() => setHoveredMethod(null)}
+            role="button"
+            tabIndex={method.available && !disabled ? 0 : -1}
           >
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
@@ -162,13 +196,16 @@ export function PaymentMethodSelector({
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="text-primary">{selectedPaymentMethod.icon}</div>
-              <div>
+              <div className="flex-1">
                 <p className="font-medium text-sm">
                   Selected: {selectedPaymentMethod.name}
                 </p>
                 <p className="text-xs text-gray-600">
                   {selectedPaymentMethod.processingTime} · {selectedPaymentMethod.fees}
                 </p>
+              </div>
+              <div className="text-xs text-gray-500 bg-white rounded-full px-2 py-1">
+                {currentIndex + 1}/{availableMethods.length}
               </div>
             </div>
           </CardContent>

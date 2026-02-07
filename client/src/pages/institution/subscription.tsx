@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Check, 
   Download, 
@@ -56,6 +57,7 @@ export default function SubscriptionPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('stripe');
+  const [paymentStep, setPaymentStep] = useState<'method-selection' | 'payment-form'>('method-selection');
 
   const { data: subscriptionData, isLoading: subscriptionLoading } = useQuery({
     queryKey: ["/api/subscription/current"],
@@ -111,6 +113,8 @@ export default function SubscriptionPage() {
     const plan = plans.find(p => p.id === planId);
     if (plan) {
       setSelectedPlan(plan);
+      setPaymentStep('method-selection');
+      setPaymentMethod('stripe');
       setShowPaymentModal(true);
     }
   };
@@ -462,69 +466,113 @@ export default function SubscriptionPage() {
 
       {/* Payment Modal */}
       <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0 border-b">
             <DialogTitle className="flex items-center gap-2">
               <CreditCard className="w-5 h-5" />
-              Subscribe to {selectedPlan?.name}
+              {paymentStep === 'method-selection' 
+                ? `Choose Payment Method` 
+                : `Complete Payment for ${selectedPlan?.name}`}
             </DialogTitle>
           </DialogHeader>
           
           {selectedPlan && (
-            <div className="space-y-6">
-              {/* Amount Summary */}
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Monthly Subscription</span>
-                  <span className="text-2xl font-bold">
-                    ${selectedPlan.price}
-                    <span className="text-sm font-normal text-gray-500">/month</span>
-                  </span>
+            <>
+              {/* Scrollable Content */}
+              <ScrollArea className="flex-1 overflow-y-auto">
+                <div className="px-6 py-6 space-y-6">
+                  {/* Amount Summary */}
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Monthly Subscription</span>
+                      <span className="text-2xl font-bold">
+                        ${selectedPlan.price}
+                        <span className="text-sm font-normal text-gray-500">/month</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Step 1: Payment Method Selection */}
+                  {paymentStep === 'method-selection' && (
+                    <div className="w-full">
+                      <PaymentMethodSelector
+                        selectedMethod={paymentMethod}
+                        onSelect={(method) => setPaymentMethod(method)}
+                      />
+                    </div>
+                  )}
+
+                  {/* Step 2: Payment Form */}
+                  {paymentStep === 'payment-form' && (
+                    <div className="space-y-4 w-full">
+                      {/* Back Button */}
+                      <Button 
+                        variant="ghost" 
+                        className="w-full text-sm"
+                        onClick={() => setPaymentStep('method-selection')}
+                      >
+                        ← Back to Payment Methods
+                      </Button>
+
+                      {/* Payment Form */}
+                      {paymentMethod === 'stripe' && (
+                        <StripeProvider>
+                          <StripeCardPaymentForm
+                            planId={selectedPlan.id}
+                            planName={selectedPlan.name}
+                            amount={selectedPlan.price}
+                            onSuccess={handlePaymentSuccess}
+                            onError={handlePaymentError}
+                            onCancel={() => setShowPaymentModal(false)}
+                          />
+                        </StripeProvider>
+                      )}
+
+                      {paymentMethod === 'paypal' && (
+                        <PayPalPayment
+                          planId={selectedPlan.id}
+                          planName={selectedPlan.name}
+                          amount={selectedPlan.price}
+                          onSuccess={handlePaymentSuccess}
+                          onError={handlePaymentError}
+                          onCancel={() => setShowPaymentModal(false)}
+                        />
+                      )}
+
+                      {paymentMethod === 'crypto' && (
+                        <CryptoPayment
+                          planId={selectedPlan.id}
+                          planName={selectedPlan.name}
+                          amount={selectedPlan.price}
+                          onSuccess={handlePaymentSuccess}
+                          onError={handlePaymentError}
+                          onCancel={() => setShowPaymentModal(false)}
+                        />
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
+              </ScrollArea>
 
-              {/* Payment Method Selector */}
-              <PaymentMethodSelector
-                selectedMethod={paymentMethod}
-                onSelect={(method) => setPaymentMethod(method)}
-              />
-
-              {/* Payment Form */}
-              {paymentMethod === 'stripe' && (
-                <StripeProvider>
-                  <StripeCardPaymentForm
-                    planId={selectedPlan.id}
-                    planName={selectedPlan.name}
-                    amount={selectedPlan.price}
-                    onSuccess={handlePaymentSuccess}
-                    onError={handlePaymentError}
-                    onCancel={() => setShowPaymentModal(false)}
-                  />
-                </StripeProvider>
+              {/* Fixed Footer with Navigation Buttons */}
+              {paymentStep === 'method-selection' && (
+                <div className="px-6 py-4 flex-shrink-0 border-t bg-white flex gap-3">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1" 
+                    onClick={() => setShowPaymentModal(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    className="flex-1"
+                    onClick={() => setPaymentStep('payment-form')}
+                  >
+                    Continue to Payment
+                  </Button>
+                </div>
               )}
-
-              {paymentMethod === 'paypal' && (
-                <PayPalPayment
-                  planId={selectedPlan.id}
-                  planName={selectedPlan.name}
-                  amount={selectedPlan.price}
-                  onSuccess={handlePaymentSuccess}
-                  onError={handlePaymentError}
-                  onCancel={() => setShowPaymentModal(false)}
-                />
-              )}
-
-              {paymentMethod === 'crypto' && (
-                <CryptoPayment
-                  planId={selectedPlan.id}
-                  planName={selectedPlan.name}
-                  amount={selectedPlan.price}
-                  onSuccess={handlePaymentSuccess}
-                  onError={handlePaymentError}
-                  onCancel={() => setShowPaymentModal(false)}
-                />
-              )}
-            </div>
+            </>
           )}
         </DialogContent>
       </Dialog>

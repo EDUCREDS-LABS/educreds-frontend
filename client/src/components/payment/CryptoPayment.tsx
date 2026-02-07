@@ -49,8 +49,26 @@ export function CryptoPayment({
   onCancel,
 }: CryptoPaymentProps) {
   const { toast } = useToast();
-  const { open } = useAppKit();
-  const { isConnected, address } = useAppKitAccount();
+  
+  // Safely get AppKit hooks with fallback
+  let open: (() => void) | undefined;
+  let isConnected = false;
+  let address: string | undefined;
+  
+  try {
+    const appKit = useAppKit();
+    open = appKit.open;
+  } catch (error) {
+    console.warn('AppKit not initialized. Crypto payment will not be available.', error);
+  }
+  
+  try {
+    const account = useAppKitAccount();
+    isConnected = account.isConnected;
+    address = account.address;
+  } catch (error) {
+    console.warn('AppKit account hook failed', error);
+  }
   
   const [selectedCrypto, setSelectedCrypto] = useState<CryptoCurrency>('USDC');
   const [paymentAddress, setPaymentAddress] = useState<string>('');
@@ -87,6 +105,15 @@ export function CryptoPayment({
   }, [planId, selectedCrypto, address, isConnected]);
 
   const handleConnectWallet = async () => {
+    if (!open) {
+      toast({
+        title: 'Wallet Not Available',
+        description: 'Crypto payment provider is not initialized. Please refresh the page.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       await open();
     } catch (err) {

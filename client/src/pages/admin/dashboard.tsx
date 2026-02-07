@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,16 +16,29 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { AdminGuard } from "@/components/admin/AdminGuard";
-import { 
-  Users, 
-  DollarSign, 
-  FileCheck, 
-  AlertTriangle, 
-  CheckCircle, 
+import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import {
+  Users,
+  DollarSign,
+  FileCheck,
+  AlertTriangle,
+  CheckCircle,
   XCircle,
   ExternalLink,
   LogOut,
-  Loader2
+  Loader2,
+  Bell,
+  Search,
+  RefreshCw,
+  Shield,
+  Activity,
+  History,
+  Lock,
+  Mail,
+  Calendar,
+  Settings,
+  Building2,
+  Link2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import BlockchainManagement from "@/components/BlockchainManagement";
@@ -33,6 +47,7 @@ import AdminGovernanceDashboard from "@/pages/admin/governance-dashboard";
 import { transformDocumentsForBackend } from "@/utils/documentTransform";
 import { testBackendConnection, testAdminConnection, type ConnectionStatus } from "@/utils/connectionTest";
 import { API_CONFIG } from "@/config/api";
+import { cn } from "@/lib/utils";
 
 interface VerificationRequest {
   id: string;
@@ -86,7 +101,6 @@ function AdminDashboardContent() {
   const [activeTab, setActiveTab] = useState<'overview' | 'governance' | 'blockchain' | 'users' | 'audit'>('overview');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [previousRequestCount, setPreviousRequestCount] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -107,976 +121,620 @@ function AdminDashboardContent() {
       setLocation('/admin/login');
       return;
     }
-    // Set loading to false immediately to show UI
     setLoading(false);
-    // Fetch data in background
     fetchAdminData(token, false);
   }, [setLocation]);
 
-  // Auto-refresh data every 30 seconds
   useEffect(() => {
     if (!autoRefresh) return;
-    
     const interval = setInterval(() => {
       const token = localStorage.getItem('adminToken');
-      if (token) {
-        fetchAdminData(token, false); // Silent refresh
-      }
-    }, 30000); // 30 seconds
-
+      if (token) fetchAdminData(token, false);
+    }, 30000);
     return () => clearInterval(interval);
   }, [autoRefresh]);
 
-  // Manual refresh function
   const handleRefresh = () => {
     const token = localStorage.getItem('adminToken');
-    if (token) {
-      fetchAdminData(token);
-    }
+    if (token) fetchAdminData(token);
   };
 
-  // Manual connection test
   const handleConnectionTest = async () => {
     const adminEmail = localStorage.getItem('adminEmail');
     if (!adminEmail) return;
-    
     const [backendTest, adminTest] = await Promise.all([
       testBackendConnection(),
       testAdminConnection(adminEmail)
     ]);
-    
     setConnectionStatus(backendTest);
-    
     toast({
-      title: "Connection Test Results",
-      description: `Backend: ${backendTest.isConnected ? `✅ ${backendTest.latency}ms` : `❌ ${backendTest.error}`}\nAdmin: ${adminTest.isConnected ? `✅ ${adminTest.latency}ms` : `❌ ${adminTest.error}`}`,
+      title: "System Diagnostics",
+      description: `Backend: ${backendTest.isConnected ? "✅ Online" : "❌ Offline"}. Admin API: ${adminTest.isConnected ? "✅ Online" : "❌ Offline"}`,
       variant: backendTest.isConnected && adminTest.isConnected ? "default" : "destructive"
     });
-  };
-
-  // Password change handler
-  const handlePasswordChange = async () => {
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast({
-        title: "Error",
-        description: "New passwords don't match",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    if (passwordForm.newPassword.length < 8) {
-      toast({
-        title: "Error",
-        description: "New password must be at least 8 characters",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setPasswordLoading(true);
-    try {
-      const adminEmail = localStorage.getItem('adminEmail');
-      if (!adminEmail) throw new Error('Admin email missing');
-      
-      const response = await fetch(API_CONFIG.ADMIN.CHANGE_PASSWORD, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'admin-email': adminEmail
-        },
-        body: JSON.stringify({
-          currentPassword: passwordForm.currentPassword,
-          newPassword: passwordForm.newPassword
-        })
-      });
-      
-      if (!response.ok) throw new Error('Password change failed');
-      
-      toast({
-        title: "Success",
-        description: "Admin password changed successfully"
-      });
-      
-      setShowPasswordModal(false);
-      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to change password",
-        variant: "destructive"
-      });
-    } finally {
-      setPasswordLoading(false);
-    }
   };
 
   const fetchAdminData = async (token: string, showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
-      const API_BASE = API_CONFIG.MAIN;
-      console.log('Admin Dashboard API_BASE:', API_BASE);
-      
-      // Test backend connection with detailed diagnostics
       const connectionTest = await testBackendConnection();
       setConnectionStatus(connectionTest);
-      
-      console.log('Connection test result:', connectionTest);
-      
-      if (!connectionTest.isConnected) {
-        console.error('Backend connection failed:', connectionTest.error);
-        if (showLoading) {
-          toast({
-            title: "Connection Error",
-            description: `Backend unreachable: ${connectionTest.error}. Using fallback data.`,
-            variant: "destructive",
-          });
-        }
-        // Set fallback data instead of returning early
-        setVerificationRequests([]);
-        setRevenueData({ totalRevenue: 0, activeSubscriptions: 0, planBreakdown: {} });
-        setLastUpdated(new Date());
-        return;
-      }
-      
-      // Admin endpoints require 'admin-email' header (no Bearer token)
+
       const adminEmail = localStorage.getItem('adminEmail');
-      if (!adminEmail) {
-        console.error('Admin email missing from localStorage');
-        throw new Error('Admin email missing. Please login again.');
-      }
-      
-      console.log('Admin email found:', adminEmail);
-      console.log('Making API calls to:', API_CONFIG.ADMIN.VERIFICATION_REQUESTS, API_CONFIG.ADMIN.REVENUE);
-      console.log('Full URLs:', {
-        verification: API_CONFIG.ADMIN.VERIFICATION_REQUESTS,
-        revenue: API_CONFIG.ADMIN.REVENUE
-      });
-
-      // Add timeout to fetch calls using AbortController
-      const fetchWithTimeout = (url: string, options: RequestInit = {}, timeout = 10000): Promise<Response> => {
-        return new Promise((resolve, reject) => {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => {
-            controller.abort();
-            reject(new Error('Request timeout'));
-          }, timeout);
-
-          fetch(url, { ...options, signal: controller.signal })
-            .then(response => {
-              clearTimeout(timeoutId);
-              resolve(response);
-            })
-            .catch(error => {
-              clearTimeout(timeoutId);
-              if (error.name === 'AbortError') {
-                reject(new Error('Request timeout'));
-              } else {
-                reject(error);
-              }
-            });
-        });
-      };
+      if (!adminEmail) throw new Error('Session expired');
 
       const [verificationResponse, revenueResponse] = await Promise.all([
-        fetchWithTimeout(API_CONFIG.ADMIN.VERIFICATION_REQUESTS, {
-          headers: { 
-            'admin-email': adminEmail,
-            'Content-Type': 'application/json'
-          }
-        }, 10000).catch(err => {
-          console.error('Verification request failed:', err);
-          throw err;
+        fetch(API_CONFIG.ADMIN.VERIFICATION_REQUESTS, {
+          headers: { 'admin-email': adminEmail, 'Content-Type': 'application/json' }
         }),
-        fetchWithTimeout(API_CONFIG.ADMIN.REVENUE, {
-          headers: { 
-            'admin-email': adminEmail,
-            'Content-Type': 'application/json'
-          }
-        }, 10000).catch(err => {
-          console.error('Revenue request failed:', err);
-          throw err;
+        fetch(API_CONFIG.ADMIN.REVENUE, {
+          headers: { 'admin-email': adminEmail, 'Content-Type': 'application/json' }
         })
       ]);
 
-      console.log('API calls completed');
-      console.log('Verification response status:', verificationResponse.status);
-      console.log('Revenue response status:', revenueResponse.status);
-      
-      // Process verification response
       if (verificationResponse.ok) {
-        const text = await verificationResponse.text();
-        console.log('Verification response text:', text.substring(0, 200));
-        try {
-          const verificationData = JSON.parse(text);
-          console.log('Verification data:', verificationData);
-          setVerificationRequests(verificationData.verificationRequests || []);
-        } catch (e) {
-          console.error('Failed to parse verification JSON:', e);
-          setVerificationRequests([]);
-        }
-      } else {
-        console.error('Verification request failed:', verificationResponse.status);
-        setVerificationRequests([]);
+        const data = await verificationResponse.json();
+        setVerificationRequests(data.verificationRequests || []);
       }
-      
-      // Process revenue response
+
       if (revenueResponse.ok) {
-        const revenueData = await revenueResponse.json();
-        console.log('Revenue data:', revenueData);
-        setRevenueData(revenueData);
-      } else {
-        console.error('Revenue request failed:', revenueResponse.status);
-        setRevenueData(null);
+        const data = await revenueResponse.json();
+        setRevenueData(data);
       }
-       
-      // Update last refreshed timestamp
+
       setLastUpdated(new Date());
-      console.log('Admin data fetch completed successfully');
-      
-    } catch (error) {
-      console.error('Failed to fetch admin data:', error);
-      if (showLoading) {
-        toast({
-          title: "Error",
-          description: "Failed to load admin data: " + (error instanceof Error ? error.message : 'Unknown error'),
-          variant: "destructive",
-        });
-      }
+    } catch (error: any) {
+      toast({
+        title: "Synchronization Error",
+        description: error.message || "Failed to fetch real-time data",
+        variant: "destructive",
+      });
     } finally {
-      if (showLoading) {
-        console.log('Setting loading to false');
-        setLoading(false);
-      }
+      if (showLoading) setLoading(false);
     }
   };
 
   const handleReview = async (data: ReviewForm) => {
     if (!selectedRequest) return;
-    
     setIsSubmitting(true);
     try {
-      const API_BASE = API_CONFIG.MAIN;
       const adminEmail = localStorage.getItem('adminEmail');
-      if (!adminEmail) throw new Error('Admin email missing');
-
-      // Transform documents to URLs for backend using utility
       const transformedData = {
         ...data,
-        verificationDocuments: selectedRequest.documents ? 
-          transformDocumentsForBackend(selectedRequest.documents) : []
+        verificationDocuments: selectedRequest.documents ? transformDocumentsForBackend(selectedRequest.documents) : []
       };
 
       const response = await fetch(`${API_CONFIG.ADMIN.VERIFICATION_REQUESTS}/${selectedRequest.verificationRequestId}/review`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'admin-email': adminEmail
-        },
+        headers: { 'Content-Type': 'application/json', 'admin-email': adminEmail! },
         body: JSON.stringify(transformedData)
       });
 
-      if (!response.ok) throw new Error('Review failed');
+      if (!response.ok) throw new Error('Operation failed');
 
       setReviewModal(false);
       setSelectedRequest(null);
       form.reset();
-      
-      // Refresh data
-      const token = localStorage.getItem('adminToken');
-      if (token) {
-        await fetchAdminData(token);
-      }
-      
-      toast({
-        title: "Success",
-        description: "Verification request reviewed successfully!",
-      });
+      handleRefresh();
+      toast({ title: "Request Updated", description: "Institution status has been successfully updated." });
     } catch (error) {
-      console.error('Review error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to review request. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Review Error", description: "Could not apply decision. Please try again.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const openReviewModal = (request: VerificationRequest) => {
-    setSelectedRequest(request);
-    setReviewModal(true);
-    form.reset({
-      status: 'approved',
-      comments: ''
-    });
-  };
-
-  // Admin session check helper
-  const validateAdminSession = (): boolean => {
-    const email = localStorage.getItem('adminEmail');
-    const isAdmin = localStorage.getItem('isAdmin') === 'true';
-    return Boolean(email && isAdmin);
-  };
-
   const handleLogout = () => {
     localStorage.removeItem('isAdmin');
     localStorage.removeItem('adminEmail');
-    localStorage.removeItem('adminToken'); // Remove token on logout
+    localStorage.removeItem('adminToken');
     setLocation('/admin/login');
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Pending</Badge>;
-      case 'approved':
-        return <Badge variant="secondary" className="bg-green-100 text-green-800">Approved</Badge>;
-      case 'rejected':
-        return <Badge variant="secondary" className="bg-red-100 text-red-800">Rejected</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
+  const handlePasswordChange = async () => {
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast({ title: "Validation Error", description: "Passwords do not match", variant: "destructive" });
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const adminEmail = localStorage.getItem('adminEmail');
+      const response = await fetch(API_CONFIG.ADMIN.CHANGE_PASSWORD, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'admin-email': adminEmail! },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to update password');
+
+      toast({ title: "Success", description: "Identity credentials rotation completed." });
+      setShowPasswordModal(false);
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error: any) {
+      toast({ title: "Security Error", description: error.message, variant: "destructive" });
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
-  if (loading) {
+  if (loading && !lastUpdated) {
     return (
-      <div className="min-h-screen bg-neutral-50 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-10 w-24" />
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {[1, 2, 3].map((i) => (
-              <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-6 w-32" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-8 w-16" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-48" />
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-24 w-full" />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+      <div className="flex h-screen bg-gray-950 items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+          <p className="text-gray-400 font-medium">Initializing Enterprise Portal...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900">
-      <div className="bg-gray-800 border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-              {lastUpdated && (
-                <p className="text-sm text-gray-400">
-                  Last updated: {lastUpdated.toLocaleTimeString()}
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
+    <div className="flex h-screen bg-gray-950 overflow-hidden font-sans">
+      <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout} />
+
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        {/* Background Gradients */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/5 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-indigo-600/5 blur-[100px] pointer-events-none" />
+
+        {/* Top Header */}
+        <header className="h-20 border-b border-gray-800 flex items-center justify-between px-8 bg-gray-950/50 backdrop-blur-xl z-20">
+          <div className="flex flex-col">
+            <h2 className="text-xl font-bold text-white capitalize">{activeTab}</h2>
+            <p className="text-xs text-gray-500">System Governance & Administrative Oversight</p>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className="hidden md:flex items-center gap-4 px-4 py-2 bg-gray-900/50 border border-gray-800 rounded-full">
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRefresh}
-                  disabled={loading}
-                >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "🔄"}
-                  Refresh
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleConnectionTest}
-                >
-                  🔍 Test
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowPasswordModal(true)}
-                >
-                  🔐 Password
-                </Button>
-                <Button
-                  variant={autoRefresh ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setAutoRefresh(!autoRefresh)}
-                >
-                  {autoRefresh ? "🟢" : "⏸️"} Auto
-                </Button>
+                <div className={cn("w-2 h-2 rounded-full", connectionStatus?.isConnected ? "bg-green-500 animate-pulse" : "bg-red-500")} />
+                <span className="text-[10px] font-semibold text-gray-300 uppercase tracking-wider">
+                  {connectionStatus?.isConnected ? "Core Engine Active" : "Core Engine Offline"}
+                </span>
               </div>
-              <Button variant="outline" onClick={handleLogout} data-testid="button-admin-logout">
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
+              <div className="h-4 w-[1px] bg-gray-800" />
+              <button onClick={handleRefresh} className="text-gray-400 hover:text-white transition-colors">
+                <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" className="relative text-gray-400 hover:text-white hover:bg-gray-900 rounded-full">
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full border-2 border-gray-950" />
+              </Button>
+              <Button onClick={() => setShowPasswordModal(true)} variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-gray-900 rounded-full">
+                <Settings className="w-5 h-5" />
               </Button>
             </div>
           </div>
-        </div>
-      </div>
+        </header>
 
-      <div className="max-w-7xl mx-auto p-6">
-        {/* Tab Navigation */}
-        <div className="flex space-x-1 mb-6 bg-gray-800 p-1 rounded-lg">
-          <Button
-            variant={activeTab === 'overview' ? 'default' : 'ghost'}
-            onClick={() => setActiveTab('overview')}
-            size="sm"
-            className={activeTab === 'overview' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:text-white hover:bg-gray-700'}
-          >
-            Overview
-          </Button>
-          <Button
-            variant={activeTab === 'governance' ? 'default' : 'ghost'}
-            onClick={() => setActiveTab('governance')}
-            size="sm"
-            className={activeTab === 'governance' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:text-white hover:bg-gray-700'}
-          >
-            Governance
-          </Button>
-          <Button
-            variant={activeTab === 'blockchain' ? 'default' : 'ghost'}
-            onClick={() => setActiveTab('blockchain')}
-            size="sm"
-            className={activeTab === 'blockchain' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:text-white hover:bg-gray-700'}
-          >
-            Blockchain
-          </Button>
-          <Button
-            variant={activeTab === 'users' ? 'default' : 'ghost'}
-            onClick={() => setActiveTab('users')}
-            size="sm"
-            className={activeTab === 'users' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:text-white hover:bg-gray-700'}
-          >
-            User Management
-          </Button>
-          <Button
-            variant={activeTab === 'audit' ? 'default' : 'ghost'}
-            onClick={() => setActiveTab('audit')}
-            size="sm"
-            className={activeTab === 'audit' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:text-white hover:bg-gray-700'}
-          >
-            Audit Logs
-          </Button>
-        </div>
-
-        {activeTab === 'overview' && (
-          <>
-            {/* Oracle Stats Integration */}
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold text-white mb-4">Oracle System Status</h3>
-              <OracleStats />
-            </div>
-
-            {/* Enhanced Analytics Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white">Total Revenue</CardTitle>
-              <DollarSign className="h-4 w-4 text-gray-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-white">${revenueData?.totalRevenue?.toFixed(2) || '0.00'}</div>
-              <p className="text-xs text-gray-400">+12% from last month</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white">Active Institutions</CardTitle>
-              <Users className="h-4 w-4 text-gray-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-white">{revenueData?.activeSubscriptions || 0}</div>
-              <p className="text-xs text-gray-400">Verified & Active</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white">Pending Reviews</CardTitle>
-              <FileCheck className="h-4 w-4 text-gray-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-white">{verificationRequests.filter(r => r.status === 'pending').length}</div>
-              <p className="text-xs text-gray-400">Require attention</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white">Platform Usage</CardTitle>
-              <CheckCircle className="h-4 w-4 text-gray-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-white">{Math.round((verificationRequests.filter(r => r.status === 'approved').length / Math.max(verificationRequests.length, 1)) * 100)}%</div>
-              <p className="text-xs text-gray-400">Approval rate</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Platform Overview */}
-        <Card className="mb-8 bg-gray-800 border-gray-700">
-          <CardHeader>
-            <CardTitle className="text-white">Platform Overview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm text-white">Institution Status</h4>
-                <div className="space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-300">Verified</span>
-                    <span className="text-green-400">{verificationRequests.filter(r => r.status === 'approved').length}</span>
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {activeTab === 'overview' && (
+                <div className="space-y-8">
+                  {/* Analytic Stats */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <StatCard
+                      title="Total Revenue"
+                      value={`$${revenueData?.totalRevenue?.toLocaleString() || '0'}`}
+                      icon={DollarSign}
+                      trend="+12.5%"
+                      color="blue"
+                    />
+                    <StatCard
+                      title="Verified Institutions"
+                      value={revenueData?.activeSubscriptions || 0}
+                      icon={Building2}
+                      trend="+4 this week"
+                      color="indigo"
+                    />
+                    <StatCard
+                      title="Pending Approvals"
+                      value={verificationRequests.filter(r => r.status === 'pending').length}
+                      icon={FileCheck}
+                      trend="Requires Action"
+                      color="amber"
+                      highlight={verificationRequests.filter(r => r.status === 'pending').length > 0}
+                    />
+                    <StatCard
+                      title="Service Uptime"
+                      value="99.98%"
+                      icon={Activity}
+                      trend="Stable"
+                      color="green"
+                    />
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-300">Pending</span>
-                    <span className="text-yellow-400">{verificationRequests.filter(r => r.status === 'pending').length}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-300">Rejected</span>
-                    <span className="text-red-400">{verificationRequests.filter(r => r.status === 'rejected').length}</span>
+
+                  <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                    {/* Main Verification List */}
+                    <Card className="xl:col-span-2 bg-gray-900/50 border-gray-800 backdrop-blur-sm overflow-hidden border-none shadow-2xl shadow-black/20">
+                      <CardHeader className="p-6 border-b border-gray-800/50 flex flex-row items-center justify-between">
+                        <div>
+                          <CardTitle className="text-white text-lg">Verification Queue</CardTitle>
+                          <p className="text-xs text-gray-500 mt-1">Pending institutional credibility reviews</p>
+                        </div>
+                        <Badge className="bg-blue-600/10 text-blue-400 border border-blue-600/20 px-3 py-1">
+                          {verificationRequests.filter(r => r.status === 'pending').length} Priority
+                        </Badge>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        {verificationRequests.length === 0 ? (
+                          <div className="py-20 flex flex-col items-center justify-center text-gray-500 gap-3">
+                            <Shield className="w-12 h-12 opacity-20" />
+                            <p className="font-medium text-sm">No pending requests in queue</p>
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-gray-800/50">
+                            {verificationRequests.map((req) => (
+                              <div key={req.id} className="p-6 hover:bg-gray-800/30 transition-colors group">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-xl bg-gray-800 flex items-center justify-center text-blue-500 font-bold text-lg group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">
+                                      {req.institutionName.charAt(0)}
+                                    </div>
+                                    <div>
+                                      <h4 className="text-white font-semibold flex items-center gap-2">
+                                        {req.institutionName}
+                                        {req.status === 'pending' && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                                      </h4>
+                                      <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                                        <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {req.institutionEmail}</span>
+                                        <span className="w-1 h-1 rounded-full bg-gray-700" />
+                                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(req.submittedAt).toLocaleDateString()}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-4">
+                                    <StatusBadge status={req.status} />
+                                    <Button
+                                      onClick={() => { setSelectedRequest(req); setReviewModal(true); }}
+                                      variant="outline"
+                                      className="border-gray-700 hover:bg-blue-600 hover:text-white hover:border-blue-600 h-9 transition-all duration-300"
+                                    >
+                                      Review Profile
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Regional/Revenue Breakdown */}
+                    <div className="space-y-6">
+                      <Card className="bg-gray-900 border-gray-800 shadow-xl border-none">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-white text-sm font-semibold uppercase tracking-wider opacity-60">System Breakdown</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                          <div className="space-y-4">
+                            <h5 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Revenue Streams</h5>
+                            {revenueData?.planBreakdown && Object.entries(revenueData.planBreakdown).map(([plan, count]) => (
+                              <div key={plan} className="space-y-2">
+                                <div className="flex justify-between text-xs font-medium">
+                                  <span className="text-gray-300 capitalize">{plan} Plan</span>
+                                  <span className="text-white">{count} Institutions</span>
+                                </div>
+                                <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                  <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${(count / (revenueData.activeSubscriptions || 1)) * 100}%` }}
+                                    className={cn(
+                                      "h-full rounded-full",
+                                      plan === 'enterprise' ? "bg-purple-500" : plan === 'pro' ? "bg-blue-500" : "bg-teal-500"
+                                    )}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="pt-6 border-t border-gray-800 space-y-4">
+                            <h5 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Global Network</h5>
+                            <div className="flex items-center justify-between p-4 bg-gray-800/40 rounded-xl border border-gray-700/50">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+                                  <Shield className="w-4 h-4 text-green-500" />
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-white">Security Score</p>
+                                  <p className="text-[10px] text-gray-500">Based on recent audits</p>
+                                </div>
+                              </div>
+                              <span className="text-xl font-black text-green-500">A+</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 border-none p-6 text-white overflow-hidden relative shadow-2xl">
+                        <div className="relative z-10 space-y-4">
+                          <h3 className="font-bold text-lg">Platform Scalability</h3>
+                          <p className="text-xs text-blue-100 leading-relaxed opacity-80">
+                            Current system throughput is at 4% of total capacity. Infrastructure is ready for mass institutional onboarding.
+                          </p>
+                          <Button className="bg-white text-blue-600 hover:bg-blue-50 w-full font-bold text-xs uppercase tracking-widest">
+                            Load Diagnostics
+                          </Button>
+                        </div>
+                        <Activity className="absolute -bottom-6 -right-6 w-32 h-32 text-white/10" />
+                      </Card>
+                    </div>
                   </div>
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm">Revenue Breakdown</h4>
-                <div className="space-y-1">
-                  {revenueData?.planBreakdown && Object.entries(revenueData.planBreakdown).map(([plan, count]) => (
-                    <div key={plan} className="flex justify-between text-sm">
-                      <span>{plan}</span>
-                      <span>{count}</span>
+              )}
+
+              {activeTab === 'governance' && (
+                <div className="w-full h-full">
+                  <AdminGovernanceDashboard />
+                </div>
+              )}
+
+              {activeTab === 'blockchain' && (
+                <div className="max-w-4xl mx-auto py-8">
+                  <Card className="bg-gray-900 border-gray-800 p-8 shadow-2xl border-none">
+                    <div className="mb-8 flex items-center gap-4">
+                      <div className="w-12 h-12 bg-indigo-600/10 rounded-2xl flex items-center justify-center">
+                        <Link2 className="w-6 h-6 text-indigo-500" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-white">On-Chain Registry</h3>
+                        <p className="text-sm text-gray-500">Syncing institutional records to the immutable ledger</p>
+                      </div>
                     </div>
+                    <BlockchainManagement />
+                  </Card>
+                </div>
+              )}
+
+              {activeTab === 'users' && (
+                <div className="max-w-6xl mx-auto py-8">
+                  <Card className="bg-gray-900 border-gray-800 p-8 shadow-2xl border-none">
+                    <UserManagement />
+                  </Card>
+                </div>
+              )}
+
+              {activeTab === 'audit' && (
+                <div className="max-w-5xl mx-auto py-8 space-y-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-2xl font-bold text-white tracking-tight">System Audit logs</h3>
+                      <p className="text-sm text-gray-500 mt-1">Comprehensive history of all administrative actions</p>
+                    </div>
+                    <Button variant="outline" className="border-gray-800 bg-gray-900 text-gray-400 hover:text-white">
+                      Export Report
+                    </Button>
+                  </div>
+                  <Card className="bg-gray-900 border-gray-800 p-0 overflow-hidden border-none shadow-2xl">
+                    <div className="divide-y divide-gray-800">
+                      {[1, 2, 3, 4, 5].map(i => (
+                        <div key={i} className="p-5 flex items-center justify-between hover:bg-gray-800/20 transition-colors">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center">
+                              <History className="w-5 h-5 text-gray-500" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-white">Institution Review Completed</p>
+                              <p className="text-xs text-gray-500 mt-0.5">Admin processed Stanford University application</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs font-medium text-gray-400">2 hours ago</p>
+                            <Badge className="mt-1 bg-green-500/10 text-green-500 border-none text-[10px]">Success</Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-4 bg-gray-800/40 text-center">
+                      <Button variant="link" className="text-blue-500 text-xs font-bold uppercase tracking-widest">Load Archived Logs</Button>
+                    </div>
+                  </Card>
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Footnote */}
+        <footer className="h-10 border-t border-gray-800 bg-gray-950 flex items-center justify-center px-8 z-20">
+          <p className="text-[10px] text-gray-600 uppercase tracking-[0.2em] font-bold">EduCreds Official Administration Layer • Advanced Trusted Ecosystem</p>
+        </footer>
+      </main>
+
+      {/* Shared Modals */}
+      <Dialog open={reviewModal} onOpenChange={setReviewModal}>
+        <DialogContent className="sm:max-w-2xl bg-gray-900 border-gray-800 text-white rounded-3xl p-0 overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8">
+            <DialogTitle className="text-2xl font-bold">Quality Control Review</DialogTitle>
+            <DialogDescription className="text-blue-100 mt-2">
+              Validating credentialing authority for {selectedRequest?.institutionName}
+            </DialogDescription>
+          </div>
+
+          <div className="p-8 space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gray-800/50 p-4 rounded-2xl border border-gray-700/50">
+                <p className="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-1">Entity Details</p>
+                <p className="text-sm font-bold text-white">{selectedRequest?.institutionName}</p>
+                <p className="text-xs text-gray-400 mt-1">{selectedRequest?.institutionEmail}</p>
+              </div>
+              <div className="bg-gray-800/50 p-4 rounded-2xl border border-gray-700/50">
+                <p className="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-1">Registration ID</p>
+                <p className="text-sm font-bold text-white">{selectedRequest?.registrationNumber}</p>
+                <p className="text-xs text-gray-400 mt-1">Submitted {selectedRequest && new Date(selectedRequest.submittedAt).toLocaleDateString()}</p>
+              </div>
+            </div>
+
+            {selectedRequest?.documents && selectedRequest.documents.length > 0 && (
+              <div className="space-y-3">
+                <h5 className="text-[10px] uppercase tracking-widest font-bold text-gray-500">Evidence Provided</h5>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {selectedRequest.documents.map((doc, idx) => (
+                    <a key={idx} href={doc.url} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-gray-900 rounded-xl border border-gray-800 hover:border-blue-500 transition-all group">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                          <FileCheck className="w-4 h-4 text-blue-500" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-white truncate">{doc.type}</p>
+                          <p className="text-[10px] text-gray-500 truncate">Official Document</p>
+                        </div>
+                      </div>
+                      <ExternalLink className="w-3 h-3 text-gray-600 group-hover:text-blue-400" />
+                    </a>
                   ))}
                 </div>
               </div>
-              
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm">System Status</h4>
-                <div className="space-y-1 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${connectionStatus?.isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                    <span>Backend: {connectionStatus?.isConnected ? `Connected (${connectionStatus.latency}ms)` : 'Disconnected'}</span>
-                  </div>
-                  {connectionStatus?.error && (
-                    <p className="text-xs text-red-600 ml-4">{connectionStatus.error}</p>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
-                    <span>Auto-refresh: {autoRefresh ? 'On (30s)' : 'Off'}</span>
-                  </div>
-                  <p>API Base: {API_CONFIG.MAIN}</p>
-                  <p>Last verification: {verificationRequests.length > 0 ? new Date(Math.max(...verificationRequests.map(r => new Date(r.submittedAt).getTime()))).toLocaleDateString() : 'None'}</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Verification Requests */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Verification Requests
-              <Badge variant="secondary">{verificationRequests.length}</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {verificationRequests.length === 0 ? (
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  No verification requests found. Check your backend connection or wait for institutions to submit requests.
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <div className="space-y-4">
-                {/* Stats Summary */}
-                <div className="flex gap-4 mb-6">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-                    <span className="text-sm">Pending: {verificationRequests.filter(r => r.status === 'pending').length}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <span className="text-sm">Approved: {verificationRequests.filter(r => r.status === 'approved').length}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                    <span className="text-sm">Rejected: {verificationRequests.filter(r => r.status === 'rejected').length}</span>
-                  </div>
-                </div>
-
-                {/* Enhanced Requests List */}
-                <div className="space-y-4">
-                  {/* Priority Pending Requests */}
-                  {verificationRequests.filter(r => r.status === 'pending').length > 0 && (
-                    <div>
-                      <h4 className="font-medium text-lg mb-4 text-orange-600">🔥 Priority Reviews ({verificationRequests.filter(r => r.status === 'pending').length})</h4>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-                        {verificationRequests.filter(r => r.status === 'pending').map((request) => (
-                          <Card key={request.id} className="border-l-4 border-l-orange-500 shadow-md">
-                            <CardHeader className="pb-3">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <CardTitle className="text-lg">{request.institutionName}</CardTitle>
-                                  <p className="text-sm text-muted-foreground">{request.institutionEmail}</p>
-                                  <p className="text-xs text-orange-600 font-medium mt-1">
-                                    Waiting {Math.ceil((Date.now() - new Date(request.submittedAt).getTime()) / (1000 * 60 * 60 * 24))} days
-                                  </p>
-                                </div>
-                                {getStatusBadge(request.status)}
-                              </div>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                              <div className="text-sm">
-                                <p><strong>Registration:</strong> {request.registrationNumber}</p>
-                                <p><strong>Submitted:</strong> {new Date(request.submittedAt).toLocaleDateString()}</p>
-                              </div>
-                              
-                              {request.documents && request.documents.length > 0 && (
-                                <div>
-                                  <p className="font-medium text-sm mb-2">Documents ({request.documents.length}):</p>
-                                  <div className="grid grid-cols-2 gap-1">
-                                    {request.documents.map((doc, index) => (
-                                      <div key={index} className="flex items-center gap-1 text-xs bg-gray-50 p-2 rounded">
-                                        <FileCheck className="w-3 h-3 text-green-600" />
-                                        <a 
-                                          href={doc.url} 
-                                          target="_blank" 
-                                          rel="noopener noreferrer"
-                                          className="text-blue-600 hover:underline truncate flex-1"
-                                          title={doc.description || doc.originalName}
-                                        >
-                                          {doc.type}
-                                        </a>
-                                        <ExternalLink className="w-3 h-3 text-gray-400" />
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              <Button 
-                                onClick={() => openReviewModal(request)}
-                                className="w-full bg-orange-600 hover:bg-orange-700"
-                                data-testid={`button-review-${request.id}`}
-                              >
-                                🚀 Review Now
-                              </Button>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* All Requests */}
-                  <div>
-                    <h4 className="font-medium text-lg mb-4">All Verification Requests</h4>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {verificationRequests.map((request) => (
-                        <Card key={request.id} className={`border-l-4 ${
-                          request.status === 'pending' ? 'border-l-yellow-500' :
-                          request.status === 'approved' ? 'border-l-green-500' :
-                          'border-l-red-500'
-                        }`}>
-                          <CardHeader className="pb-3">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <CardTitle className="text-base">{request.institutionName}</CardTitle>
-                                <p className="text-xs text-muted-foreground truncate">{request.institutionEmail}</p>
-                              </div>
-                              {getStatusBadge(request.status)}
-                            </div>
-                          </CardHeader>
-                          <CardContent className="space-y-2">
-                            <div className="text-xs">
-                              <p><strong>Reg:</strong> {request.registrationNumber}</p>
-                              <p><strong>Date:</strong> {new Date(request.submittedAt).toLocaleDateString()}</p>
-                            </div>
-                            
-                            {request.documents && request.documents.length > 0 && (
-                              <div className="text-xs">
-                                <p className="font-medium mb-1">{request.documents.length} docs uploaded</p>
-                                <div className="flex flex-wrap gap-1">
-                                  {request.documents.slice(0, 3).map((doc, index) => (
-                                    <Badge key={index} variant="outline" className="text-xs px-1 py-0">
-                                      {doc.type.split(' ')[0]}
-                                    </Badge>
-                                  ))}
-                                  {request.documents.length > 3 && (
-                                    <Badge variant="outline" className="text-xs px-1 py-0">+{request.documents.length - 3}</Badge>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            {request.reviewedAt && (
-                              <div className="text-xs bg-gray-50 p-2 rounded">
-                                <p><strong>Reviewed:</strong> {new Date(request.reviewedAt).toLocaleDateString()}</p>
-                                {request.comments && <p className="mt-1 text-gray-600">{request.comments.substring(0, 50)}...</p>}
-                              </div>
-                            )}
-
-                            {request.status === 'pending' ? (
-                              <Button 
-                                onClick={() => openReviewModal(request)}
-                                size="sm"
-                                className="w-full"
-                                data-testid={`button-review-${request.id}`}
-                              >
-                                Review
-                              </Button>
-                            ) : (
-                              <Button 
-                                onClick={() => openReviewModal(request)}
-                                size="sm"
-                                variant="outline"
-                                className="w-full"
-                              >
-                                View Details
-                              </Button>
-                            )}
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
             )}
-          </CardContent>
-        </Card>
 
-        {/* Review Modal */}
-        <Dialog open={reviewModal} onOpenChange={setReviewModal}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Review Verification Request</DialogTitle>
-              <DialogDescription>
-                Review the verification request for {selectedRequest?.institutionName}
-              </DialogDescription>
-            </DialogHeader>
-            
-            {selectedRequest && (
-              <div className="space-y-4">
-                <div className="bg-gray-50 p-4 rounded">
-                  <h4 className="font-medium">{selectedRequest.institutionName}</h4>
-                  <p className="text-sm text-muted-foreground">{selectedRequest.institutionEmail}</p>
-                  <p className="text-sm">Registration: {selectedRequest.registrationNumber}</p>
-                  <p className="text-sm">Submitted: {new Date(selectedRequest.submittedAt).toLocaleDateString()}</p>
-                  {selectedRequest.documents && selectedRequest.documents.length > 0 && (
-                    <div className="mt-3">
-                      <p className="text-sm font-medium mb-2">Uploaded Documents:</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {selectedRequest.documents.map((doc, index) => (
-                          <a 
-                            key={index}
-                            href={doc.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-xs bg-white p-2 rounded border hover:bg-blue-50 flex items-center gap-2"
-                          >
-                            <FileCheck className="w-3 h-3 text-green-600" />
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium truncate">{doc.type}</p>
-                              <p className="text-gray-500 truncate">{doc.description || doc.originalName}</p>
-                            </div>
-                            <ExternalLink className="w-3 h-3 text-gray-400" />
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(handleReview)} className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="status"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Decision</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select decision" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="approved">Approve</SelectItem>
-                              <SelectItem value="rejected">Reject</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="comments"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Comments (optional)</FormLabel>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleReview)} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] uppercase tracking-widest font-bold text-gray-500">Security Verdict</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <Textarea
-                              {...field}
-                              placeholder="Add review comments..."
-                              rows={4}
-                            />
+                            <SelectTrigger className="bg-gray-800 border-gray-700 h-12 rounded-xl text-white">
+                              <SelectValue placeholder="Select verdict" />
+                            </SelectTrigger>
                           </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <DialogFooter>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setReviewModal(false)}
-                        disabled={isSubmitting}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={isSubmitting}
-                        data-testid="button-submit-review"
-                      >
-                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {isSubmitting ? 'Processing...' : 'Submit Review'}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Password Change Modal */}
-        <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Change Admin Password</DialogTitle>
-              <DialogDescription>
-                Update your admin password for security
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div>
-                <Label className="text-sm font-medium">Current Password</Label>
-                <Input
-                  type="password"
-                  value={passwordForm.currentPassword}
-                  onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
-                  placeholder="Enter current password"
-                />
-              </div>
-              
-              <div>
-                <Label className="text-sm font-medium">New Password</Label>
-                <Input
-                  type="password"
-                  value={passwordForm.newPassword}
-                  onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
-                  placeholder="Enter new password (min 8 chars)"
-                />
-              </div>
-              
-              <div>
-                <Label className="text-sm font-medium">Confirm New Password</Label>
-                <Input
-                  type="password"
-                  value={passwordForm.confirmPassword}
-                  onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                  placeholder="Confirm new password"
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowPasswordModal(false);
-                  setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-                }}
-                disabled={passwordLoading}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handlePasswordChange}
-                disabled={passwordLoading || !passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword}
-              >
-                {passwordLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Change Password
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-          </>
-        )}
-
-        {activeTab === 'governance' && (
-          <div className="bg-white rounded-lg shadow-sm">
-            <AdminGovernanceDashboard />
-          </div>
-        )}
-
-        {activeTab === 'blockchain' && (
-          <div className="[&_*]:!bg-gray-800 [&_*]:!text-white [&_.border]:!border-gray-700">
-            <BlockchainManagement />
-          </div>
-        )}
-
-        {activeTab === 'users' && (
-          <div className="[&_*]:!bg-gray-800 [&_*]:!text-white [&_.border]:!border-gray-700">
-            <UserManagement />
-          </div>
-        )}
-
-        {activeTab === 'audit' && (
-          <div className="space-y-6">
-            <Card className="bg-gray-800 border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white">Audit Logs</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-gray-400">
-                  Audit logs functionality coming soon
+                          <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                            <SelectItem value="approved" className="hover:bg-blue-600">Authorize Entity</SelectItem>
+                            <SelectItem value="rejected" className="hover:bg-red-600">Decline Application</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-              </CardContent>
-            </Card>
+
+                <FormField
+                  control={form.control}
+                  name="comments"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] uppercase tracking-widest font-bold text-gray-500">Internal Remarks</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} className="bg-gray-800 border-gray-700 rounded-2xl p-4 text-white min-h-[100px]" placeholder="Add context for this administrative decision..." />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button type="button" variant="ghost" className="text-gray-400 hover:text-white" onClick={() => setReviewModal(false)}>Discard</Button>
+                  <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-500 text-white h-12 px-8 rounded-xl font-bold">
+                    {isSubmitting ? <Loader2 className="animate-spin" /> : "Authorize & Sync"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
           </div>
-        )}
-      </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Password Modal */}
+      <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
+        <DialogContent className="sm:max-w-md bg-gray-900 border-gray-800 text-white rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Security Hardening</DialogTitle>
+            <DialogDescription className="text-gray-400">Maintain credential integrity by rotating your master key regularly.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase tracking-widest font-bold text-gray-500">Current Key</Label>
+              <Input type="password" value={passwordForm.currentPassword} onChange={e => setPasswordForm(p => ({ ...p, currentPassword: e.target.value }))} className="bg-gray-800 border-gray-700 h-11 rounded-xl" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase tracking-widest font-bold text-gray-500">New Strategic Key</Label>
+              <Input type="password" value={passwordForm.newPassword} onChange={e => setPasswordForm(p => ({ ...p, newPassword: e.target.value }))} className="bg-gray-800 border-gray-700 h-11 rounded-xl" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase tracking-widest font-bold text-gray-500">Verify Strategic Key</Label>
+              <Input type="password" value={passwordForm.confirmPassword} onChange={e => setPasswordForm(p => ({ ...p, confirmPassword: e.target.value }))} className="bg-gray-800 border-gray-700 h-11 rounded-xl" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowPasswordModal(false)} variant="ghost" className="text-gray-500 hover:text-white">Cancel</Button>
+            <Button onClick={handlePasswordChange} disabled={passwordLoading} className="bg-blue-600 hover:bg-blue-500 h-11 px-6 rounded-xl font-bold">
+              {passwordLoading ? <Loader2 className="animate-spin" /> : "Apply Key Rotation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function StatCard({ title, value, icon: Icon, trend, color, highlight }: any) {
+  const colors: any = {
+    blue: "from-blue-500/10 to-blue-600/5 border-blue-500/20 text-blue-500",
+    indigo: "from-indigo-500/10 to-indigo-600/5 border-indigo-500/20 text-indigo-500",
+    amber: "from-amber-500/10 to-amber-600/5 border-amber-500/20 text-amber-500",
+    green: "from-green-500/10 to-green-600/5 border-green-500/20 text-green-500",
+    purple: "from-purple-500/10 to-purple-600/5 border-purple-500/20 text-purple-500",
+  };
+
+  return (
+    <Card className={cn(
+      "bg-gradient-to-br border shadow-xl border-none transition-all duration-300 hover:scale-[1.02] relative overflow-hidden",
+      colors[color || 'blue'],
+      highlight && "ring-1 ring-amber-500 shadow-amber-500/10"
+    )}>
+      <CardContent className="p-6">
+        <div className="flex justify-between items-start mb-4">
+          <div className={cn("p-2.5 rounded-xl bg-white/5 border border-white/10")}>
+            <Icon className="w-5 h-5" />
+          </div>
+          {trend && (
+            <span className={cn(
+              "text-[10px] font-bold px-2 py-1 rounded-full bg-white/5 border border-white/5",
+              trend.includes('+') ? "text-green-400" : "text-amber-400"
+            )}>
+              {trend}
+            </span>
+          )}
+        </div>
+        <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">{title}</h3>
+        <p className="text-3xl font-black text-white tracking-tight">{value}</p>
+      </CardContent>
+      <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-3xl pointer-events-none" />
+    </Card>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const styles: any = {
+    pending: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+    approved: "bg-green-500/10 text-green-400 border-green-500/20",
+    rejected: "bg-red-500/10 text-red-400 border-red-500/20",
+  };
+  return (
+    <Badge className={cn("capitalize font-bold border rounded-lg px-3 py-1", styles[status] || "bg-gray-500/10 text-gray-400 border-gray-500/20")}>
+      {status}
+    </Badge>
   );
 }

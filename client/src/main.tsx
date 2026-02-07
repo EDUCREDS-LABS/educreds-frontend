@@ -1,5 +1,9 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import "@fontsource/space-grotesk/400.css";
+import "@fontsource/space-grotesk/700.css";
+import "@fontsource/source-sans-3/400.css";
+import "@fontsource/source-sans-3/600.css";
 import "./index.css";
 
 // Display EDUCREDS banner

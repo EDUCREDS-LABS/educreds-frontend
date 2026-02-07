@@ -335,72 +335,75 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
               />
             )}
 
-            {/* Field Overlays */}
-            {fields.map(field => (
-              // Render layers (fields are represented as 'field' layers)
-              {layers.map(layer => (
-                <div
-                  key={layer.id}
-                  className={`absolute ${layer.type === 'text' ? '' : ''} border-2 ${selectedLayer === layer.id ? 'border-blue-500 bg-blue-50' : 'border-transparent'} ${layer.locked ? 'opacity-80' : ''}`}
-                  style={{
-                    left: layer.x,
-                    top: layer.y,
-                    width: layer.width,
-                    height: layer.height,
-                    fontSize: layer.fontSize,
-                    fontFamily: layer.fontFamily,
-                    fontWeight: layer.fontWeight as any,
-                    color: layer.color
-                  }}
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                    setDraggedLayer(layer.id);
-                    setSelectedLayer(layer.id);
-                    // if it's a field layer select corresponding field
-                    if (layer.type === 'field') setSelectedField(layer.fieldId || null);
-                    else setSelectedField(null);
-                  }}
-                >
-                  <div className="p-1 text-xs truncate">
-                    {layer.type === 'text' && (showPreview ? (layer.content || 'Text') : 'Text Layer')}
-                    {layer.type === 'image' && (
-                      <img src={layer.src} alt="img" className="w-full h-full object-cover" />
-                    )}
-                    {layer.type === 'shape' && (
-                      <div className="w-full h-full" style={{ background: layer.color }} />
-                    )}
-                    {layer.type === 'field' && (
-                      <div className="text-xs truncate">{showPreview ? (fields.find(f => f.id === layer.fieldId)?.placeholder || layer.fieldId) : `Field: ${layer.fieldId}`}</div>
-                    )}
-                  </div>
-
-                  {selectedLayer === layer.id && !layer.locked && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        className="absolute -top-2 -right-2 h-6 w-6 p-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeLayer(layer.id);
-                        }}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-
-                      {/* Resize handle (bottom-right) */}
-                      <div
-                        className="absolute -right-2 -bottom-2 w-4 h-4 bg-white border rounded cursor-se-resize"
-                        onMouseDown={(e) => {
-                          e.stopPropagation();
-                          setIsResizing(true);
-                          resizingRef.current = { id: layer.id, corner: 'br' };
-                        }}
-                      />
-                    </>
+            {/* Field Overlays - render each layer; field layers reference entries in `fields` */}
+            {layers.map((layer) => (
+              <div
+                key={layer.id}
+                className={`absolute ${layer.type === 'text' ? '' : ''} border-2 ${
+                  selectedLayer === layer.id ? 'border-blue-500 bg-blue-50' : 'border-transparent'
+                } ${layer.locked ? 'opacity-80' : ''}`}
+                style={{
+                  left: layer.x,
+                  top: layer.y,
+                  width: layer.width,
+                  height: layer.height,
+                  fontSize: layer.fontSize,
+                  fontFamily: layer.fontFamily,
+                  fontWeight: layer.fontWeight as any,
+                  color: layer.color,
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  setDraggedLayer(layer.id);
+                  setSelectedLayer(layer.id);
+                  // if it's a field layer select corresponding field
+                  if (layer.type === 'field') setSelectedField(layer.fieldId || null);
+                  else setSelectedField(null);
+                }}
+              >
+                <div className="p-1 text-xs truncate">
+                  {layer.type === 'text' && (showPreview ? (layer.content || 'Text') : 'Text Layer')}
+                  {layer.type === 'image' && (
+                    <img src={layer.src} alt="img" className="w-full h-full object-cover" />
+                  )}
+                  {layer.type === 'shape' && (
+                    <div className="w-full h-full" style={{ background: layer.color }} />
+                  )}
+                  {layer.type === 'field' && (
+                    <div className="text-xs truncate">
+                      {showPreview
+                        ? fields.find((f) => f.id === layer.fieldId)?.placeholder || layer.fieldId
+                        : `Field: ${layer.fieldId}`}
+                    </div>
                   )}
                 </div>
-              ))}
+
+                {selectedLayer === layer.id && !layer.locked && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="absolute -top-2 -right-2 h-6 w-6 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeLayer(layer.id);
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+
+                    {/* Resize handle (bottom-right) */}
+                    <div
+                      className="absolute -right-2 -bottom-2 w-4 h-4 bg-white border rounded cursor-se-resize"
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        setIsResizing(true);
+                        resizingRef.current = { id: layer.id, corner: 'br' };
+                      }}
+                    />
+                  </>
+                )}
+              </div>
             ))}
           </div>
         </CardContent>
