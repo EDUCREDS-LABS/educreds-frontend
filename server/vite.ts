@@ -44,9 +44,19 @@ export async function setupVite(app: Express, server: Server) {
     appType: "custom",
   });
 
-  app.use(vite.middlewares);
+  // Skip Vite middleware for /Api routes (developer portal)
+  app.use((req, res, next) => {
+    if (req.url.startsWith('/Api')) {
+      return next();
+    }
+    return vite.middlewares(req, res, next);
+  });
+
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
+    if (url.startsWith("/Api")) {
+      return next();
+    }
 
     try {
       const clientTemplate = path.resolve(

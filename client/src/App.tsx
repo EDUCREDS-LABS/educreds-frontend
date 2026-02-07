@@ -58,6 +58,7 @@ import VerificationPortalPage from "@/pages/verification-portal";
 import SystemTest from "@/pages/system-test";
 import ManageSpecs from "@/components/institution/ManageSpecs";
 import CertificateIssuanceDashboard from '@/pages/certificate-issuance';
+import DeveloperPortalPage from "@/pages/developer-portal";
 // import MarketplaceProtectedRoute from "@/components/MarketplaceProtectedRoute";
 
 function Router() {
@@ -95,6 +96,15 @@ function Router() {
       <Route path="/press" component={PressKitPage} />
       <Route path="/documentation" component={DocumentationPage} />
       <Route path="/api-reference" component={ApiReferencePage} />
+
+      {/* Developer Portal - Protected */}
+      <Route path="/developer-portal">
+        <ProtectedRoute>
+          <Layout>
+            <DeveloperPortalPage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
 
       {/* Public Pricing Page */}
       <Route path="/pricing" component={PricingPage} />

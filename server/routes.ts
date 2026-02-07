@@ -5,10 +5,11 @@ import { rateLimits, requireSecureContext, validateBlockchainOperation } from '.
 import { verifyToken, requireRole, bruteForceProtection, recordLoginAttempt, AuthenticatedRequest } from './lib/auth-security';
 import { certificateValidation, authValidation, handleValidationErrors } from './lib/validation';
 import marketplaceRouter from './routes/marketplace';
+import developerPortalRouter from './routes/developer-portal';
 
 // Secure multer setup for file uploads
 const storage = multer.memoryStorage();
-const upload = multer({ 
+const upload = multer({
   storage,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
@@ -18,11 +19,11 @@ const upload = multer({
     // Allow only specific file types
     const allowedMimes = [
       'image/jpeg',
-      'image/png', 
+      'image/png',
       'image/webp',
       'application/pdf'
     ];
-    
+
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -35,10 +36,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Marketplace routes
   app.use('/api/marketplace', marketplaceRouter);
 
+  // Developer Portal routes
+  app.use('/api/developer-portal', developerPortalRouter);
+
   // Health check endpoint for this frontend server
   app.get('/api/health', (req, res) => {
-    res.json({ 
-      status: 'ok', 
+    res.json({
+      status: 'ok',
       timestamp: new Date().toISOString(),
       message: 'Educreds Frontend Server'
     });
@@ -61,35 +65,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const templateServiceBase = process.env.TEMPLATE_SERVICE_URL || 'http://localhost:4000';
 
   // Secure certificate issuance endpoint
-  app.post('/api/certificates/issue', 
+  app.post('/api/certificates/issue',
     rateLimits.certificates,
     verifyToken,
     requireRole(['institution', 'admin']),
-    upload.single('certificateFile'), 
+    upload.single('certificateFile'),
     certificateValidation.issue,
     requireSecureContext,
     validateBlockchainOperation,
     async (req: AuthenticatedRequest, res) => {
-    try {
-      const { studentName, studentEmail, studentWalletAddress, templateId, placeholders } = req.body;
-      const response = await fetch(`${templateServiceBase}/issuance/single`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recipientName: studentName,
-          recipientEmail: studentEmail,
-          recipientWalletAddress: studentWalletAddress,
-          templateId,
-          placeholders: placeholders ? JSON.parse(placeholders) : {},
-        }),
-      });
-      const data = await response.json();
-      return res.status(response.status).json(data);
-    } catch (error) {
-      console.error('Proxy single issuance error:', error);
-      return res.status(500).json({ error: 'Failed to proxy issuance request' });
-    }
-  });
+      try {
+        const { studentName, studentEmail, studentWalletAddress, templateId, placeholders } = req.body;
+        const response = await fetch(`${templateServiceBase}/issuance/single`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recipientName: studentName,
+            recipientEmail: studentEmail,
+            recipientWalletAddress: studentWalletAddress,
+            templateId,
+            placeholders: placeholders ? JSON.parse(placeholders) : {},
+          }),
+        });
+        const data = await response.json();
+        return res.status(response.status).json(data);
+      } catch (error) {
+        console.error('Proxy single issuance error:', error);
+        return res.status(500).json({ error: 'Failed to proxy issuance request' });
+      }
+    });
 
   // Secure bulk certificate issuance
   app.post('/api/certificates/issue-bulk',
@@ -99,20 +103,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     certificateValidation.bulkIssue,
     requireSecureContext,
     async (req: AuthenticatedRequest, res) => {
-    try {
-      const entries = req.body?.entries || [];
-      const response = await fetch(`${templateServiceBase}/issuance/bulk`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(entries),
-      });
-      const data = await response.json();
-      return res.status(response.status).json(data);
-    } catch (error) {
-      console.error('Proxy bulk issuance error:', error);
-      return res.status(500).json({ error: 'Failed to proxy bulk issuance' });
-    }
-  });
+      try {
+        const entries = req.body?.entries || [];
+        const response = await fetch(`${templateServiceBase}/issuance/bulk`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(entries),
+        });
+        const data = await response.json();
+        return res.status(response.status).json(data);
+      } catch (error) {
+        console.error('Proxy bulk issuance error:', error);
+        return res.status(500).json({ error: 'Failed to proxy bulk issuance' });
+      }
+    });
 
   app.get('/api/certificates/issuance-jobs/:id', async (req, res) => {
     try {
@@ -127,34 +131,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/verify',
     async (req, res) => {
-    try {
-      const certId = req.query.certId;
-      const response = await fetch(`${templateServiceBase}/verification/${certId}`);
-      const data = await response.json();
-      return res.status(response.status).json(data);
-    } catch (error) {
-      console.error('Proxy verify error:', error);
-      return res.status(500).json({ error: 'Failed to proxy verification request' });
-    }
-  });
+      try {
+        const certId = req.query.certId;
+        const response = await fetch(`${templateServiceBase}/verification/${certId}`);
+        const data = await response.json();
+        return res.status(response.status).json(data);
+      } catch (error) {
+        console.error('Proxy verify error:', error);
+        return res.status(500).json({ error: 'Failed to proxy verification request' });
+      }
+    });
 
   // Secure institution certificates endpoint
   app.get('/api/certificates/institution',
     verifyToken,
     requireRole(['institution', 'admin']),
     async (req: AuthenticatedRequest, res) => {
-    try {
-      console.log('=== Fetching Institution Certificates ===');
-      console.log('Total certificates in memory:', certificates.length);
-      console.log('Certificates:', certificates);
-      res.json({ certificates });
-    } catch (error) {
-      console.error('Get certificates error:', error);
-      res.status(500).json({
-        error: 'Internal server error while fetching certificates'
-      });
-    }
-  });
+      try {
+        console.log('=== Fetching Institution Certificates ===');
+        console.log('Total certificates in memory:', certificates.length);
+        console.log('Certificates:', certificates);
+        res.json({ certificates });
+      } catch (error) {
+        console.error('Get certificates error:', error);
+        res.status(500).json({
+          error: 'Internal server error while fetching certificates'
+        });
+      }
+    });
 
   // Get dashboard stats endpoint
   app.get('/api/stats', async (req, res) => {
@@ -187,7 +191,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subscription: {
           planId: 'basic',
           status: 'active',
-          currentPeriodEnd: new Date(Date.now() + 30*24*60*60*1000).toISOString()
+          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
         },
         usage: {
           certificatesThisMonth: certificates.length,

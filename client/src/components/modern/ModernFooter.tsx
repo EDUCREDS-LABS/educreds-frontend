@@ -104,6 +104,13 @@ export default function ModernFooter() {
                   </Button>
                 </Link>
               </li>
+              <li>
+                <Link href="/developer-portal">
+                  <Button variant="link" className="p-0 h-auto text-neutral-400 hover:text-white">
+                    Developer Portal
+                  </Button>
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -152,7 +159,7 @@ export default function ModernFooter() {
                 </Button>
               </li>
               <li>
-                <Link href="/documentation">
+                <Link href="https://docs.educreds.xyz/">
                   <Button variant="link" className="p-0 h-auto text-neutral-400 hover:text-white">
                     Documentation
                   </Button>

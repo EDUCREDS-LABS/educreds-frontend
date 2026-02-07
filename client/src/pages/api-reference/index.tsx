@@ -17,7 +17,7 @@ const ApiReferencePage: FC = () => {
           <div className="flex justify-center space-x-4">
             <Button
               className="bg-white text-blue-600 hover:bg-gray-100"
-              onClick={() => window.open("/developer-portal/index.html", "_blank")}
+              onClick={() => window.open("/developer-portal", "_blank")}
             >
               <ExternalLink className="h-4 w-4 mr-2" />
               Developer Portal
@@ -116,7 +116,7 @@ const ApiReferencePage: FC = () => {
                 <Button
                   className="mt-3"
                   variant="outline"
-                  onClick={() => window.open("/developer-portal/index.html", "_blank")}
+                  onClick={() => window.open("/developer-portal", "_blank")}
                 >
                   Open Developer Portal
                 </Button>
@@ -164,7 +164,7 @@ const ApiReferencePage: FC = () => {
                 <div>
                   <h4 className="font-semibold mb-2">Request Body:</h4>
                   <pre className="bg-gray-100 p-4 rounded text-sm overflow-x-auto">
-{`{
+                    {`{
   "student": {
     "id": "student_123",
     "name": "John Doe"
@@ -185,7 +185,7 @@ const ApiReferencePage: FC = () => {
                 <div>
                   <h4 className="font-semibold mb-2">Response:</h4>
                   <pre className="bg-gray-100 p-4 rounded text-sm overflow-x-auto">
-{`{
+                    {`{
   "success": true,
   "data": {
     "certificateId": "cert_789",
@@ -222,7 +222,7 @@ const ApiReferencePage: FC = () => {
                 <div>
                   <h4 className="font-semibold mb-2">Request Body (W3C VC):</h4>
                   <pre className="bg-gray-100 p-4 rounded text-sm overflow-x-auto">
-{`{
+                    {`{
   "w3cCredential": {
     "@context": ["https://www.w3.org/2018/credentials/v1"],
     "id": "urn:uuid:12345",
@@ -237,7 +237,7 @@ const ApiReferencePage: FC = () => {
                 <div>
                   <h4 className="font-semibold mb-2">Request Body (Legacy):</h4>
                   <pre className="bg-gray-100 p-4 rounded text-sm overflow-x-auto">
-{`{
+                    {`{
   "credentialId": "cert_789"
   // OR
   "ipfsHash": "QmX7Y8Z9..."
@@ -267,7 +267,7 @@ const ApiReferencePage: FC = () => {
                 <div>
                   <h4 className="font-semibold mb-2">Response:</h4>
                   <pre className="bg-gray-100 p-4 rounded text-sm overflow-x-auto">
-{`{
+                    {`{
   "success": true,
   "data": {
     "certificates": [
@@ -326,7 +326,7 @@ const ApiReferencePage: FC = () => {
               <div>
                 <h4 className="font-semibold mb-2">Error Response Format:</h4>
                 <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
-{`{
+                  {`{
   "success": false,
   "error": {
     "code": "INVALID_REQUEST",
@@ -351,7 +351,7 @@ const ApiReferencePage: FC = () => {
                 <ul className="space-y-2 text-sm">
                   <li>
                     <a
-                      href="/developer-portal/index.html"
+                      href="/developer-portal"
                       target="_blank"
                       className="text-blue-600 hover:underline flex items-center"
                     >

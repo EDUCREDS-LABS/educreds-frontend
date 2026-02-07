@@ -51,6 +51,13 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
         secure: false
+      },
+      // Ensure /Api is NOT proxied and NOT handled by Vite
+      '/Api': {
+        target: 'http://localhost:5002',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path
       }
     },
     fs: {

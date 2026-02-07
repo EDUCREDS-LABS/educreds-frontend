@@ -1,4 +1,7 @@
+import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
+import path from "path";
+import { fileURLToPath } from "url";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import {
@@ -13,6 +16,10 @@ import session from 'express-session';
 import { sessionConfig } from './lib/auth-security';
 
 const app = express();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 
 // Security middleware
 app.use(securityHeaders);
@@ -64,6 +71,9 @@ app.use((req, res, next) => {
 
 (async () => {
   const server = await registerRoutes(app);
+
+  // Serve Developer Portal at /Api (must be after API routes but before Vite)
+  app.use('/Api', express.static(path.join(__dirname, '../../developer-portal')));
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
