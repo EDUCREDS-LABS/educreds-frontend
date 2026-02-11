@@ -54,7 +54,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
               <div className="flex-shrink-0">
-                <Link href="/dashboard">
+                <Link href="/institution/dashboard">
                   <div className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
                     <div className="h-9 w-9 bg-primary rounded-lg flex items-center justify-center">
                       <Award className="h-5 w-5 text-white" />
@@ -177,8 +177,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>
-
-
     </div>
   );
 }

@@ -56,6 +56,7 @@ export const securityHeaders = helmet({
     },
   },
   crossOriginEmbedderPolicy: false, // Disable for blockchain wallet compatibility
+  crossOriginOpenerPolicy: { policy: "unsafe-none" }, // Required for WalletConnect
   hsts: process.env.NODE_ENV === 'production' ? {
     maxAge: 31536000,
     includeSubDomains: true,

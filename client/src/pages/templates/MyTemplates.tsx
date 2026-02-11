@@ -58,7 +58,7 @@ const MyTemplatesPage = () => {
             <p className="text-neutral-500 mt-2 text-lg">Manage and deploy your custom credential designs</p>
           </div>
           <Button
-            onClick={() => setLocation("/template-designer")}
+            onClick={() => setLocation("/institution/templates/designer")}
             className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 rounded-xl"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -101,7 +101,7 @@ const MyTemplatesPage = () => {
               <Button variant="outline" onClick={() => setLocation("/institution/templates/browse")} className="rounded-xl">
                 Browse Marketplace
               </Button>
-              <Button onClick={() => setLocation("/template-designer")} className="rounded-xl">
+              <Button onClick={() => setLocation("/institution/templates/designer")} className="rounded-xl">
                 Open Studio
               </Button>
             </div>

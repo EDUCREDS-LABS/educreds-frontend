@@ -21,7 +21,7 @@ const BrowseTemplatesPage = () => {
   const [, setLocation] = useLocation();
 
   const handleUseTemplate = (id: string) => {
-    setLocation(`/template-designer?templateId=${id}`);
+    setLocation(`/institution/templates/designer?templateId=${id}`);
   };
 
   return (

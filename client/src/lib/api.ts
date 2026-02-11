@@ -149,42 +149,30 @@ export const api = {
     return handleResponse(response);
   },
 
-  // Oracle endpoints
+  // Oracle endpoints - DEPRECATED (replaced by AI Intelligence Layer)
+  // These endpoints are kept for backwards compatibility but may be removed in future versions
   getInstitutionOracleStatus: async (walletAddress?: string) => {
-    const user = auth.getUser();
-    const address = walletAddress || user?.walletAddress;
-    if (!address) throw new Error('Wallet address required');
-
-    const response = await fetch(API_CONFIG.ORACLE.INSTITUTION(address), {
-      method: "GET",
-      headers: { "Content-Type": "application/json" }
-    });
-    return handleResponse(response);
+    // Feature deprecated - return mock data
+    console.warn('Oracle endpoints are deprecated. Please use AI Intelligence Layer instead.');
+    return {
+      status: 'deprecated',
+      message: 'Oracle feature has been replaced by AI Intelligence Layer'
+    };
   },
 
   submitOracleDocuments: async (walletAddress: string, formData: FormData) => {
-    const token = localStorage.getItem('institution_token');
-
-    if (!token) {
-      throw new Error('User not authenticated');
-    }
-
-    const response = await fetch(API_CONFIG.ORACLE.SUBMIT_DOCUMENTS(walletAddress), {
-      method: "POST",
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
-      body: formData,
-    });
-    return handleResponse(response);
+    // Feature deprecated
+    console.warn('Oracle endpoints are deprecated. Please use AI Intelligence Layer instead.');
+    throw new Error('Oracle feature has been deprecated');
   },
 
   getOracleSnapshot: async () => {
-    const response = await fetch(API_CONFIG.ORACLE.SNAPSHOT_LATEST, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" }
-    });
-    return handleResponse(response);
+    // Feature deprecated
+    console.warn('Oracle endpoints are deprecated. Please use AI Intelligence Layer instead.');
+    return {
+      status: 'deprecated',
+      message: 'Oracle feature has been replaced by AI Intelligence Layer'
+    };
   },
 
   // Certificate endpoints
@@ -206,7 +194,8 @@ export const api = {
   // 4. Store only DIDs and IPFS hashes in database
   issueCertificatePrivacyFirst: async (formData: FormData) => {
     const authHeaders = getAuthHeaders();
-    const response = await fetch(API_CONFIG.CERTIFICATES.ISSUE_PRIVACY_FIRST || '/api/v1/privacy-first/certificates/issue', {
+    // Use standard issue endpoint with privacy flag
+    const response = await fetch(`${API_CONFIG.CERTIFICATES.ISSUE}?privacy=true`, {
       method: "POST",
       headers: authHeaders,
       body: formData,

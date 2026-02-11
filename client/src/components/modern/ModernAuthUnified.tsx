@@ -180,7 +180,7 @@ export default function ModernAuthUnified() {
       });
 
       // Redirect to dashboard
-      window.location.href = '/dashboard';
+      window.location.href = '/institution/dashboard';
     } catch (err: any) {
       setError(err.message || "Wallet login failed. Please try again.");
     } finally {
@@ -239,7 +239,7 @@ export default function ModernAuthUnified() {
       });
 
       // Redirect to dashboard
-      window.location.href = '/dashboard';
+      window.location.href = '/institution/dashboard';
     } catch (err: any) {
       setError(err.message || "Login failed. Please try again.");
     } finally {

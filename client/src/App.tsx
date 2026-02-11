@@ -8,6 +8,7 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { CryptoPaymentProvider } from "@/components/payment/CryptoPaymentProvider";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { ChatWidget } from "@/components/ChatWidget";
 import RegisterVerifyOtp from "@/pages/auth/register-verify-otp";
 import EduCredsLabsLanding from "@/pages/EduCredsLabsLanding";
 import Landing from "@/pages/landing";
@@ -40,6 +41,7 @@ import BrowseTemplatesPage from "@/pages/templates/Browse";
 import MyTemplatesPage from "@/pages/templates/MyTemplates";
 import CreateTemplatePage from "@/pages/templates/Create";
 import TemplateDesignerPage from "@/pages/templates/Designer";
+import SmartAIPage from "@/pages/templates/SmartAI";
 import AnalyticsPage from "@/pages/institution/analytics";
 import NotFound from "@/pages/not-found";
 import verify from "@/pages/employer/verify";
@@ -58,6 +60,7 @@ import VerificationPortalPage from "@/pages/verification-portal";
 import SystemTest from "@/pages/system-test";
 import ManageSpecs from "@/components/institution/ManageSpecs";
 import CertificateIssuanceDashboard from '@/pages/certificate-issuance';
+import InstitutionIssuePage from "@/pages/institution/issue";
 import DeveloperPortalPage from "@/pages/developer-portal";
 // import MarketplaceProtectedRoute from "@/components/MarketplaceProtectedRoute";
 
@@ -209,7 +212,7 @@ function Router() {
       <Route path="/institution/issue">
         <ProtectedRoute>
           <Layout>
-            <CertificateIssuanceDashboard />
+            <InstitutionIssuePage />
           </Layout>
         </ProtectedRoute>
       </Route>
@@ -262,6 +265,14 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
+      <Route path="/institution/templates/smart-ai">
+        <ProtectedRoute>
+          <Layout>
+            <SmartAIPage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/system-test">
         <ProtectedRoute>
           <Layout>
@@ -285,6 +296,7 @@ function App() {
           <Router />
           <Analytics />
           <SpeedInsights />
+          <ChatWidget />
         </CryptoPaymentProvider>
       </TooltipProvider>
     </QueryClientProvider>

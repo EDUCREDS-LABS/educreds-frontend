@@ -47,8 +47,8 @@ export default function RegisterVerifyOtp() {
     try {
       // Complete registration with OTP
       const { confirmPassword, otpToken: _, ...registrationData } = pendingData;
-      const payload = { 
-        ...registrationData, 
+      const payload = {
+        ...registrationData,
         role: "institution",
         otp,
         otpToken
@@ -56,16 +56,16 @@ export default function RegisterVerifyOtp() {
 
       const response = await api.register(payload);
       auth.setToken(response.token);
-      
+
       // Clear pending data
       sessionStorage.removeItem('pendingRegistration');
-      
+
       toast({
         title: "Registration successful!",
         description: "Your institution has been registered. Verification request submitted.",
       });
-      
-      setLocation("/dashboard");
+
+      setLocation("/institution/dashboard");
     } catch (err: any) {
       setError(err.message || "Invalid OTP. Please try again.");
     } finally {
@@ -83,20 +83,20 @@ export default function RegisterVerifyOtp() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email })
     });
-    
+
     if (!response.ok) {
       throw new Error('Failed to resend OTP');
     }
-    
+
     const { otpToken } = await response.json();
-    
+
     // Update pending data with new token
     if (pendingData) {
       const updatedData = { ...pendingData, otpToken };
       setPendingData(updatedData);
       sessionStorage.setItem('pendingRegistration', JSON.stringify(updatedData));
     }
-    
+
     return { otpToken };
   };
 
@@ -134,7 +134,7 @@ export default function RegisterVerifyOtp() {
             <div className="flex items-center justify-center space-x-2 mb-4">
               <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="16" cy="16" r="16" fill="url(#otp-logo-gradient)" />
-                <path d="M10 22L16 10L22 22" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M10 22L16 10L22 22" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 <defs>
                   <linearGradient id="otp-logo-gradient" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
                     <stop stopColor="#6366F1" />
@@ -146,7 +146,7 @@ export default function RegisterVerifyOtp() {
                 EduCreds
               </h1>
             </div>
-            
+
             <CardTitle className="text-2xl font-bold text-neutral-900">
               Verify Your Email
             </CardTitle>
@@ -154,7 +154,7 @@ export default function RegisterVerifyOtp() {
               Enter the verification code sent to {email}
             </p>
           </CardHeader>
-          
+
           <CardContent>
             {error && (
               <Alert variant="destructive" className="mb-4">
@@ -174,7 +174,7 @@ export default function RegisterVerifyOtp() {
             <div className="mt-6 text-center">
               <p className="text-sm text-neutral-600">
                 Didn't receive the code?{" "}
-                <button 
+                <button
                   onClick={() => handleResendOtp().then(() => toast({ title: "OTP Resent", description: "Check your email for the new code" }))}
                   className="text-primary hover:underline font-medium"
                   disabled={isLoading}

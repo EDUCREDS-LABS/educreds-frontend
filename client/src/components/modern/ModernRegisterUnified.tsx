@@ -23,12 +23,34 @@ import {
   EyeOff,
   ArrowRight
 } from "lucide-react";
-import { insertInstitutionSchema, type InsertInstitution } from "@shared/schema";
+import { type InsertInstitution } from "@shared/schema";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useWallet } from "@/hooks/useWallet";
+import { z } from "zod";
 
 const CERT_API_BASE = (import.meta.env.VITE_CERT_API_BASE ?? "http://localhost:3001").replace(/\/$/, "");
+
+// Custom form schema with password fields for registration
+const registrationFormSchema = z.object({
+  name: z.string().min(1, "Institution name is required"),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string().min(8, "Please confirm your password"),
+  walletAddress: z.string().min(1, "Wallet address is required"),
+  registrationNumber: z.string().min(1, "Registration number is required"),
+  contactInfo: z.object({
+    phone: z.string().optional(),
+    address: z.string().optional(),
+    website: z.string().optional(),
+  }).optional(),
+  plan: z.string().optional(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+type RegistrationFormData = z.infer<typeof registrationFormSchema>;
 
 export default function ModernRegisterUnified() {
   const [, setLocation] = useLocation();
@@ -44,8 +66,8 @@ export default function ModernRegisterUnified() {
   const [userEmail, setUserEmail] = useState("");
   const [formData, setFormData] = useState<any>(null);
 
-  const form = useForm<InsertInstitution>({
-    resolver: zodResolver(insertInstitutionSchema),
+  const form = useForm<RegistrationFormData>({
+    resolver: zodResolver(registrationFormSchema),
     defaultValues: {
       name: "",
       email: "",
@@ -68,7 +90,7 @@ export default function ModernRegisterUnified() {
     }
   }, [walletAddress, form]);
 
-  const onSubmit = async (data: InsertInstitution) => {
+  const onSubmit = async (data: RegistrationFormData) => {
     if (showOtp) {
       return;
     }
@@ -100,11 +122,20 @@ export default function ModernRegisterUnified() {
       setFormData(data);
       setUserEmail(data.email);
 
-      // Send OTP
-      const otpResponse = await fetch(`${CERT_API_BASE}/auth/institution/send-registration-otp`, {
+      // Send OTP via Unified Flow Step 1
+      const payload = {
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        registrationNumber: data.registrationNumber,
+        contactInfo: data.contactInfo,
+        address: data.contactInfo?.address || "Not Provided"
+      };
+
+      const otpResponse = await fetch(`${CERT_API_BASE}/auth/institution/register/step1`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: data.email })
+        body: JSON.stringify(payload)
       });
 
       if (!otpResponse.ok) {
@@ -132,30 +163,39 @@ export default function ModernRegisterUnified() {
     setError("");
 
     try {
-      // Prepare registration payload for backend
-      // Backend expects: name, email, walletAddress, registrationNumber, contactInfo
-      const registrationPayload = {
-        name: formData.name,
-        email: formData.email,
-        walletAddress: walletAddress,
-        registrationNumber: formData.registrationNumber,
-        contactInfo: formData.contactInfo || {},
-        password: formData.password, // Include password for DID wrapping
-      };
-
-      // Call backend register endpoint
-      const response = await fetch(`${CERT_API_BASE}/auth/institution/register`, {
+      // Step 2: Verify OTP
+      const verifyResponse = await fetch(`${CERT_API_BASE}/auth/institution/register/step2`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(registrationPayload),
+        body: JSON.stringify({
+          email: formData.email,
+          otp,
+          otpToken
+        }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (!verifyResponse.ok) {
+        const errorData = await verifyResponse.json();
+        throw new Error(errorData.message || 'OTP verification failed');
+      }
+
+      // Step 3: Complete Registration (Connect Wallet)
+      const completeResponse = await fetch(`${CERT_API_BASE}/auth/institution/register/step3`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          walletAddress: walletAddress,
+          otpToken
+        }),
+      });
+
+      if (!completeResponse.ok) {
+        const errorData = await completeResponse.json();
         throw new Error(errorData.message || 'Registration failed');
       }
 
-      const result = await response.json();
+      const result = await completeResponse.json();
 
       // Store authentication data
       localStorage.setItem('institution_token', result.token);
@@ -181,7 +221,7 @@ export default function ModernRegisterUnified() {
       });
 
       // Redirect to dashboard
-      window.location.href = '/dashboard';
+      window.location.href = '/institution/dashboard';
     } catch (err: any) {
       setError(err.message || "Registration failed. Please try again.");
     } finally {
@@ -297,11 +337,10 @@ export default function ModernRegisterUnified() {
             <div className="flex justify-center space-x-4 mt-4">
               {[1, 2].map((step) => (
                 <div key={step} className="flex items-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    step <= currentStep
-                      ? 'bg-primary text-white'
-                      : 'bg-neutral-200 text-neutral-500'
-                  }`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step <= currentStep
+                    ? 'bg-primary text-white'
+                    : 'bg-neutral-200 text-neutral-500'
+                    }`}>
                     {step < currentStep ? <CheckCircle className="w-4 h-4" /> : step}
                   </div>
                   {step < 2 && (
@@ -517,10 +556,9 @@ export default function ModernRegisterUnified() {
                                     type={showPassword ? "text" : "password"}
                                     placeholder="Confirm your password"
                                     {...field}
-                                    className={`h-11 pr-10 ${
-                                      showMismatch ? 'border-red-500 focus:border-red-500' :
+                                    className={`h-11 pr-10 ${showMismatch ? 'border-red-500 focus:border-red-500' :
                                       passwordsMatch ? 'border-green-500 focus:border-green-500' : ''
-                                    }`}
+                                      }`}
                                   />
                                   <button
                                     type="button"
@@ -590,6 +628,35 @@ export default function ModernRegisterUnified() {
                           </FormItem>
                         )}
                       />
+
+                      {/* Button Validation Feedback */}
+                      {!isConnected && (
+                        <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 mt-4">
+                          <p className="text-sm text-amber-800 flex items-start">
+                            <AlertCircle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+                            <span><strong>Wallet Required:</strong> Please connect your wallet using the "Connect Wallet" button above to continue.</span>
+                          </p>
+                        </div>
+                      )}
+
+                      {isConnected && (!form.watch("password") || !form.watch("confirmPassword")) && (
+                        <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 mt-4">
+                          <p className="text-sm text-amber-800 flex items-start">
+                            <AlertCircle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+                            <span><strong>Password Required:</strong> Please fill in both password fields to continue.</span>
+                          </p>
+                        </div>
+                      )}
+
+                      {isConnected && form.watch("password") && form.watch("confirmPassword") &&
+                        form.watch("password") !== form.watch("confirmPassword") && (
+                          <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 mt-4">
+                            <p className="text-sm text-amber-800 flex items-start">
+                              <AlertCircle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+                              <span><strong>Passwords Don't Match:</strong> Make sure both password fields contain the same password.</span>
+                            </p>
+                          </div>
+                        )}
 
                       <div className="flex gap-3 pt-6">
                         <Button

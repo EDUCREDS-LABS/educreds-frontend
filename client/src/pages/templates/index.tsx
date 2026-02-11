@@ -33,14 +33,14 @@ const TemplatesPage = () => {
       description: "Create a masterpiece from scratch",
       icon: Palette,
       gradient: "from-indigo-500 to-purple-600",
-      link: "/template-designer"
+      link: "/institution/templates/designer"
     },
     {
       title: "Smart Templates",
       description: "Browse AI-optimized designs",
       icon: Sparkles,
       gradient: "from-amber-400 to-orange-500",
-      link: "/institution/templates/browse"
+      link: "/institution/templates/smart-ai"
     },
     {
       title: "Legacy Import",
@@ -61,7 +61,7 @@ const TemplatesPage = () => {
         </div>
         <div className="flex items-center gap-3">
           <Button
-            onClick={() => setLocation("/template-designer")}
+            onClick={() => setLocation("/institution/templates/designer")}
             className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -110,8 +110,8 @@ const TemplatesPage = () => {
                 <button
                   key={cat.id}
                   className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${cat.id === 'all'
-                      ? 'bg-neutral-900 text-white shadow-md'
-                      : 'text-neutral-600 hover:bg-neutral-100'
+                    ? 'bg-neutral-900 text-white shadow-md'
+                    : 'text-neutral-600 hover:bg-neutral-100'
                     }`}
                 >
                   {cat.name}
@@ -153,7 +153,7 @@ const TemplatesPage = () => {
                 variant="outline"
                 size="sm"
                 className="mt-6 rounded-full px-6"
-                onClick={() => setLocation("/template-designer")}
+                onClick={() => setLocation("/institution/templates/designer")}
               >
                 Launch Designer
               </Button>
@@ -166,7 +166,7 @@ const TemplatesPage = () => {
                   <LayoutIcon className="w-12 h-12" />
                 </div>
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => setLocation("/template-designer")}>
+                  <Button size="sm" variant="secondary" onClick={() => setLocation("/institution/templates/designer")}>
                     Edit Design
                   </Button>
                 </div>
