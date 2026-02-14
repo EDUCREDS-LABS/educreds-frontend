@@ -16,10 +16,14 @@ export interface AuthUser {
 }
 
 export class DualAuth {
+  private static getCertApiBase(): string {
+    return (import.meta.env.VITE_CERT_API_BASE ?? 'http://localhost:3001').replace(/\/$/, '');
+  }
+
   // Institution Authentication (Original System)
   static async institutionLogin(email: string, password: string) {
     try {
-      const response = await fetch(`${process.env.VITE_CERT_API_BASE || 'http://localhost:3001'}/auth/institution/login`, {
+      const response = await fetch(`${this.getCertApiBase()}/auth/institution/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -69,7 +73,7 @@ export class DualAuth {
     registrationNumber: string;
   }) {
     try {
-      const response = await fetch(`${process.env.VITE_CERT_API_BASE || 'http://localhost:3001'}/auth/institution/register`, {
+      const response = await fetch(`${this.getCertApiBase()}/auth/institution/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -117,7 +121,7 @@ export class DualAuth {
       const result = await FirebaseAuth.login(email, password);
       
       // Send Firebase ID token to backend for marketplace authentication
-      const backendResponse = await fetch(`${process.env.VITE_CERT_API_BASE || 'http://localhost:3001'}/marketplace-auth/login`, {
+      const backendResponse = await fetch(`${this.getCertApiBase()}/marketplace-auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken: result.token }),
@@ -168,7 +172,7 @@ export class DualAuth {
       const result = await FirebaseAuth.register(email, password);
       
       // Send Firebase ID token to backend for marketplace authentication
-      const backendResponse = await fetch(`${process.env.VITE_CERT_API_BASE || 'http://localhost:3001'}/marketplace-auth/login`, {
+      const backendResponse = await fetch(`${this.getCertApiBase()}/marketplace-auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken: result.token }),

@@ -36,7 +36,8 @@ export function useProposalSubscription(
   const heartbeatIntervalRef = useRef<NodeJS.Timeout>();
 
   const connect = useCallback(() => {
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const apiBase = (import.meta.env.VITE_API_BASE || 'http://localhost:3001').replace(/\/$/, '');
+    const backendUrl = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
     
     const newSocket = io(backendUrl, {
       transports: ['websocket', 'polling'],

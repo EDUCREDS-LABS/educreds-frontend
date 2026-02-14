@@ -5,6 +5,9 @@ import { MessageCircle, X, Send, Bot, User, Loader2, ExternalLink } from "lucide
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
 
+const TRUST_AGENT_BASE =
+    (import.meta.env.VITE_TRUST_AGENT_BASE ?? "").replace(/\/$/, "");
+
 interface Message {
     id: string;
     role: "user" | "assistant";
@@ -48,19 +51,7 @@ export function ChatWidget() {
         setIsLoading(true);
 
         try {
-            // Assuming layout or proxy sets up the correct base URL, 
-            // otherwise we might need an environment variable or config.
-            // For now, we'll try hitting the trust agent direct if on same domain or proxy.
-            // If run locally, trust agent is on port 3010. 
-            // In production/docker, it might be routed differently.
-            // We will try to use the relative path if proxy is set up or absolute if not.
-            // Since frontend is usually 5173 and backend 3010, we likely need a full URL locally.
-
-            // Proxy via custom server is failing, using direct absolute path.
-            // In a real deployed env, this should be env var.
-            const API_URL = "http://localhost:3010";
-
-            const response = await axios.post(`${API_URL}/api/trust-agent/chat`, {
+            const response = await axios.post(`${TRUST_AGENT_BASE}/api/trust-agent/chat`, {
                 message: userMessage.content
             });
 

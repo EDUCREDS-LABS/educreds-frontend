@@ -10,7 +10,7 @@ interface DevContextType {
 const DevContext = createContext<DevContextType | undefined>(undefined);
 
 export const DevProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isDev, setIsDev] = useState(process.env.NODE_ENV === 'development');
+  const [isDev, setIsDev] = useState(import.meta.env.DEV);
   const [mockUser, setMockUser] = useState({
     id: 'dev-user-123',
     email: 'dev@test.com',

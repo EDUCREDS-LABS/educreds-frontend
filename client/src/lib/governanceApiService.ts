@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 
-// API Base URL - will be configured based on environment
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
+const rawApiBase = (import.meta.env.VITE_API_BASE ?? 'http://localhost:3001').replace(/\/$/, '');
+const API_BASE_URL = rawApiBase.endsWith('/api') ? rawApiBase : `${rawApiBase}/api`;
 
 // Types for governance API responses
 export interface ProposalResponse {
