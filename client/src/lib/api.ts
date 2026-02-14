@@ -194,12 +194,20 @@ export const api = {
   // 4. Store only DIDs and IPFS hashes in database
   issueCertificatePrivacyFirst: async (formData: FormData) => {
     const authHeaders = getAuthHeaders();
+    console.log('[API] issueCertificatePrivacyFirst called');
+    console.log('[API] Auth headers present:', Object.keys(authHeaders).length > 0);
+
     // Use standard issue endpoint with privacy flag
-    const response = await fetch(`${API_CONFIG.CERTIFICATES.ISSUE}?privacy=true`, {
+    const url = `${API_CONFIG.CERTIFICATES.ISSUE}?privacy=true`;
+    console.log('[API] Fetching from URL:', url);
+
+    const response = await fetch(url, {
       method: "POST",
       headers: authHeaders,
       body: formData,
     });
+
+    console.log('[API] Response status:', response.status);
     return handleResponse(response);
   },
 

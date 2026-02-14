@@ -2,15 +2,15 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { 
-  ArrowRight, 
-  Shield, 
-  Palette, 
-  ShoppingBag, 
-  CheckCircle, 
-  Mail, 
-  Phone, 
-  MapPin, 
+import {
+  ArrowRight,
+  Shield,
+  Palette,
+  ShoppingBag,
+  CheckCircle,
+  Mail,
+  Phone,
+  MapPin,
   Globe,
   Zap,
   Lock,
@@ -86,7 +86,7 @@ export default function EduCredsLabsLanding() {
               </span>
             </h1>
             <p className="text-xl text-neutral-600 max-w-3xl mx-auto mb-10 leading-relaxed">
-              EduCreds provides a secure, tamper-proof, and globally verifiable digital credential infrastructure. 
+              EduCreds provides a secure, tamper-proof, and globally verifiable digital credential infrastructure.
               We empower institutions to issue certificates as verifiable digital assets while ensuring instant trust for employers.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -128,9 +128,9 @@ export default function EduCredsLabsLanding() {
               >
                 <Card className="h-full overflow-hidden border-0 shadow-lg bg-white/80 backdrop-blur-sm group transition-all">
                   <div className={`h-48 bg-gradient-to-br ${product.color} relative overflow-hidden p-6`}>
-                    <img 
-                      src={product.image} 
-                      alt={product.title} 
+                    <img
+                      src={product.image}
+                      alt={product.title}
                       className="absolute bottom-[-20%] right-[-10%] w-48 opacity-20 group-hover:scale-110 transition-transform duration-500"
                     />
                     <product.icon className="w-12 h-12 text-white relative z-10" />
@@ -189,15 +189,15 @@ export default function EduCredsLabsLanding() {
             </div>
             <div className="relative">
               <div className="aspect-square rounded-3xl bg-neutral-100 overflow-hidden relative border-8 border-white shadow-2xl">
-                 <img 
-                    src="https://pixabay.com/get/gf7d32a0671a23133472c72cbc3658192983b6823b044a974aec1f55423addbe7bb5e6cec6171485627864b7c8f5573bd.svg" 
-                    alt="Futuristic Grid Perspective" 
-                    className="w-full h-full object-cover opacity-80"
-                 />
-                 <div className="absolute inset-0 bg-gradient-to-t from-primary/40 to-transparent" />
-                 <div className="absolute bottom-8 left-8 right-8 bg-white/90 backdrop-blur p-6 rounded-2xl shadow-xl">
-                    <p className="text-neutral-900 font-medium italic">"To become the global standard for academic credential verification, where every qualification is trustless, portable, and owned by the learner."</p>
-                 </div>
+                <img
+                  src="https://freepngimg.com/svg/164839-improved-perspective-grid"
+                  alt="Futuristic Grid Perspective"
+                  className="w-full h-full object-cover opacity-80"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-primary/40 to-transparent" />
+                <div className="absolute bottom-8 left-8 right-8 bg-white/90 backdrop-blur p-6 rounded-2xl shadow-xl">
+                  <p className="text-neutral-900 font-medium italic">"To become the global standard for academic credential verification, where every qualification is trustless, portable, and owned by the learner."</p>
+                </div>
               </div>
             </div>
           </div>

@@ -74,13 +74,19 @@ export default function CreateCertificateModal({ open, onOpenChange }: CreateCer
 
   const createCertificateMutation = useMutation({
     mutationFn: async (data: CreateCertificateForm) => {
+      console.log('[CreateCertificateModal] Starting certificate issuance with data:', {
+        studentWalletAddress: data.studentWalletAddress,
+        studentName: data.studentName,
+        courseName: data.courseName
+      });
+
       // Privacy-First Flow (Backend auto-generates DID):
       // 1. Backend generates Student DID from wallet: did:educreds:student:hash(walletAddress)
       // 2. Wraps personal data in DID document
       // 3. Stores DID document on IPFS
       // 4. Creates W3C credential on IPFS
       // 5. Stores only DIDs and IPFS hashes in database
-      
+
       const privacyFirstRequest: PrivacyFirstCertificateIssueRequest = {
         studentWalletAddress: data.studentWalletAddress,
         studentName: data.studentName,
@@ -93,27 +99,41 @@ export default function CreateCertificateModal({ open, onOpenChange }: CreateCer
         certificatePDF: uploadedFile || undefined,
       };
 
-      // Use privacy-first service (backend handles DID generation)
-      const certificateResponse = await certificateService.issueCertificatePrivacyFirst(privacyFirstRequest);
-      
-      return certificateResponse;
+      try {
+        console.log('[CreateCertificateModal] Calling certificateService.issueCertificatePrivacyFirst');
+        // Use privacy-first service (backend handles DID generation)
+        const certificateResponse = await certificateService.issueCertificatePrivacyFirst(privacyFirstRequest);
+        console.log('[CreateCertificateModal] Certificate issued successfully:', certificateResponse);
+
+        return certificateResponse;
+      } catch (error: any) {
+        console.error('[CreateCertificateModal] Certificate issuance failed:', error);
+        console.error('[CreateCertificateModal] Error details:', {
+          message: error.message,
+          status: error.status,
+          response: error.response
+        });
+        throw error;
+      }
     },
     onSuccess: (data) => {
+      console.log('[CreateCertificateModal] onSuccess callback triggered');
       toast({
         title: "Certificate issued successfully!",
         description: `Student DID auto-generated from wallet. Data stored securely on IPFS.`,
       });
-      
+
       // Invalidate queries to refresh lists and stats
       queryClient.invalidateQueries({ queryKey: ["/api/certificates/institution"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-      
+
       // Reset form and close modal
       form.reset();
       setUploadedFile(null);
       onOpenChange(false);
     },
     onError: (error: any) => {
+      console.error('[CreateCertificateModal] onError callback triggered:', error);
       toast({
         title: "Failed to issue certificate",
         description: error.message || "An error occurred while issuing the certificate.",

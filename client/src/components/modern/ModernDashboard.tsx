@@ -77,6 +77,20 @@ export default function ModernDashboard() {
     refetchOnMount: true,
   });
 
+  const { data: issuanceTrendData, isLoading: trendLoading } = useQuery({
+    queryKey: ["/api/stats/trend"],
+    queryFn: () => api.getIssuanceTrend(6),
+    enabled: !!user,
+    refetchOnMount: true,
+  });
+
+  const { data: distributionData, isLoading: distributionLoading } = useQuery({
+    queryKey: ["/api/stats/distribution"],
+    queryFn: api.getCertificateDistribution,
+    enabled: !!user,
+    refetchOnMount: true,
+  });
+
   const certificates = certificatesData?.certificates || [];
   const recentCertificates = certificates.slice(0, 5);
 
@@ -134,22 +148,35 @@ export default function ModernDashboard() {
     return Math.min((usage / limit) * 100, 100);
   };
 
-  // Mock data for charts - replace with API calls
-  const issuanceTrendData = [
-    { month: "Jan", issued: 12, revoked: 1 },
-    { month: "Feb", issued: 19, revoked: 1 },
-    { month: "Mar", issued: 24, revoked: 2 },
-    { month: "Apr", issued: 35, revoked: 2 },
-    { month: "May", issued: 42, revoked: 3 },
-    { month: "Jun", issued: 58, revoked: 2 },
-  ];
+  // Use API data with fallback to mock data
+  const trendChartData = Array.isArray(issuanceTrendData) 
+    ? issuanceTrendData 
+    : [
+        { month: "Jan", issued: 12, revoked: 1 },
+        { month: "Feb", issued: 19, revoked: 1 },
+        { month: "Mar", issued: 24, revoked: 2 },
+        { month: "Apr", issued: 35, revoked: 2 },
+        { month: "May", issued: 42, revoked: 3 },
+        { month: "Jun", issued: 58, revoked: 2 },
+      ];
 
-  const certificateDistribution = [
-    { name: "Course Completion", value: 45, color: "hsl(var(--primary))" },
-    { name: "Degree", value: 25, color: "hsl(var(--success))" },
-    { name: "Certification", value: 20, color: "hsl(var(--accent))" },
-    { name: "Achievement", value: 10, color: "hsl(var(--warning))" },
-  ];
+  const certificateDistribution = Array.isArray(distributionData) && distributionData.length > 0
+    ? distributionData.map((item: any, index: number) => ({
+        name: item.name || `Type ${index + 1}`,
+        value: item.value || 0,
+        color: [
+          "hsl(var(--primary))",
+          "hsl(var(--success))",
+          "hsl(var(--accent))",
+          "hsl(var(--warning))"
+        ][index % 4]
+      }))
+    : [
+        { name: "Course Completion", value: 45, color: "hsl(var(--primary))" },
+        { name: "Degree", value: 25, color: "hsl(var(--success))" },
+        { name: "Certification", value: 20, color: "hsl(var(--accent))" },
+        { name: "Achievement", value: 10, color: "hsl(var(--warning))" },
+      ];
 
   const certificateLimit = (subscription as any)?.subscription?.monthlyLimit || 50;
   const certificatesUsed = (subscription as any)?.usage?.certificatesThisMonth || 0;
@@ -383,7 +410,7 @@ export default function ModernDashboard() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height="100%" minHeight={300}>
-              <LineChart data={issuanceTrendData}>
+              <LineChart data={trendChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(229, 231, 235, 0.3)" />
                 <XAxis dataKey="month" stroke="currentColor" className="dashboard-text-secondary" />
                 <YAxis stroke="currentColor" className="dashboard-text-secondary" />

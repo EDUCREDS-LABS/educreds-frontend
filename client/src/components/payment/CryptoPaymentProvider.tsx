@@ -1,7 +1,7 @@
 import React, { ReactNode } from 'react';
 import { createAppKit } from '@reown/appkit';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
-import { mainnet, polygon, arbitrum } from '@reown/appkit/networks';
+import { mainnet, polygon, arbitrum, base, baseSepolia } from '@reown/appkit/networks';
 
 // Metadata for the application
 const metadata = {
@@ -11,9 +11,9 @@ const metadata = {
   icons: ['https://avatars.githubusercontent.com/u/179229932'],
 };
 
-// Initialize Wagmi adapter with supported networks
+// Initialize Wagmi adapter with supported networks (including Sepolia Base testnet)
 const wagmiAdapter = new WagmiAdapter({
-  networks: [mainnet, polygon, arbitrum],
+  networks: [mainnet, polygon, arbitrum, base, baseSepolia],
   projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '',
   ssr: false,
 });
@@ -34,8 +34,8 @@ function initializeAppKit() {
   try {
     createAppKit({
       adapters: [wagmiAdapter],
-      networks: [mainnet, polygon, arbitrum],
-      defaultNetwork: mainnet,
+      networks: [mainnet, polygon, arbitrum, base, baseSepolia],
+      defaultNetwork: baseSepolia,
       projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,
       metadata,
       features: {

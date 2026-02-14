@@ -27,8 +27,8 @@ export function StudentDashboard() {
         
         // Load certificates
         loadCertificates(address);
-      } catch (error) {
-        console.error('Failed to connect wallet:', error);
+      } catch (error: any) {
+        console.error('Failed to connect wallet:', error.message || 'Unknown error');
       }
     } else {
       alert('Please install MetaMask to connect your wallet');
@@ -40,8 +40,8 @@ export function StudentDashboard() {
     try {
       const result = await api.getCertificatesByWallet(address);
       setCertificates(result.certificates || []);
-    } catch (error) {
-      console.error('Failed to load certificates:', error);
+    } catch (error: any) {
+      console.error('Failed to load certificates:', error.message || 'Unknown error');
     } finally {
       setLoading(false);
     }

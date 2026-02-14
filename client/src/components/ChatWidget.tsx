@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageCircle, X, Send, Bot, User, Loader2, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
@@ -100,20 +99,25 @@ export function ChatWidget() {
     };
 
     return (
-        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end space-y-4 font-sans">
+        <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end space-y-4 font-sans">
             {/* Chat Window */}
             {isOpen && (
-                <div className="w-[380px] h-[500px] bg-white rounded-xl shadow-2xl border border-neutral-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 fade-in duration-300">
+                <div className="w-screen sm:w-[420px] md:w-[500px] max-h-[90vh] sm:max-h-[600px] bg-white rounded-2xl sm:rounded-xl shadow-2xl border border-neutral-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 fade-in duration-300 mx-4 sm:mx-0">
                     {/* Header */}
-                    <div className="bg-primary p-4 flex justify-between items-center text-white">
-                        <div className="flex items-center space-x-2">
-                            <Bot className="h-5 w-5" />
-                            <span className="font-semibold">EduCreds Assistant</span>
+                    <div className="bg-gradient-to-r from-primary to-primary/90 px-4 sm:px-6 py-4 flex justify-between items-center text-white shadow-sm">
+                        <div className="flex items-center space-x-3">
+                            <div className="bg-white/20 p-2 rounded-lg">
+                                <Bot className="h-5 w-5 text-white" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-base sm:text-lg">EduCreds Assistant</h3>
+                                <p className="text-xs text-white/80">Online & Ready to Help</p>
+                            </div>
                         </div>
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="text-white hover:bg-primary-foreground/20 h-8 w-8"
+                            className="text-white hover:bg-white/20 h-8 w-8 flex-shrink-0"
                             onClick={() => setIsOpen(false)}
                         >
                             <X className="h-5 w-5" />
@@ -121,70 +125,100 @@ export function ChatWidget() {
                     </div>
 
                     {/* Messages Area */}
-                    <ScrollArea className="flex-1 p-4 bg-slate-50">
+                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 sm:p-5 bg-neutral-50/50 scroll-smooth">
                         <div className="space-y-4">
                             {messages.map((msg) => (
                                 <div
                                     key={msg.id}
-                                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}
                                 >
                                     <div
-                                        className={`max-w-[85%] rounded-lg p-3 text-sm shadow-sm ${msg.role === "user"
-                                            ? "bg-primary text-primary-foreground rounded-tr-none"
-                                            : "bg-white text-slate-800 border border-slate-200 rounded-tl-none"
-                                            }`}
+                                        className={`flex items-start gap-2 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
                                     >
-                                        <div className="whitespace-pre-wrap">{msg.content}</div>
+                                        {/* Avatar */}
+                                        <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.role === "user"
+                                            ? "bg-primary/20"
+                                            : "bg-slate-200"
+                                            }`}>
+                                            {msg.role === "user" ? (
+                                                <User className="h-4 w-4 text-primary" />
+                                            ) : (
+                                                <Bot className="h-4 w-4 text-slate-600" />
+                                            )}
+                                        </div>
 
-                                        {/* Sources */}
-                                        {msg.sources && msg.sources.length > 0 && (
-                                            <div className="mt-3 pt-2 border-t border-slate-100">
-                                                <p className="text-xs font-semibold text-slate-500 mb-1">Sources:</p>
-                                                <div className="flex flex-col space-y-1">
-                                                    {msg.sources.map((source, idx) => (
-                                                        <a
-                                                            key={idx}
-                                                            href={source.url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-xs text-blue-600 hover:underline flex items-center truncate"
-                                                        >
-                                                            <ExternalLink className="h-3 w-3 mr-1 flex-shrink-0" />
-                                                            <span className="truncate">{source.title || source.url}</span>
-                                                        </a>
-                                                    ))}
-                                                </div>
+                                        {/* Message Bubble */}
+                                        <div
+                                            className={`max-w-xs sm:max-w-sm md:max-w-md rounded-2xl px-4 py-3 shadow-sm transition-all ${msg.role === "user"
+                                                ? "bg-primary text-primary-foreground rounded-tr-sm"
+                                                : "bg-white text-slate-900 border border-slate-200 rounded-tl-sm"
+                                                }`}
+                                        >
+                                            <div className="break-words text-sm leading-relaxed mb-2 whitespace-pre-wrap">
+                                                {msg.content}
                                             </div>
-                                        )}
+
+                                            {/* Sources */}
+                                            {msg.sources && msg.sources.length > 0 && (
+                                                <div className="mt-3 pt-3 border-t border-slate-100/50">
+                                                    <p className="text-xs font-semibold text-slate-500 mb-2">📚 Sources:</p>
+                                                    <div className="flex flex-col space-y-1.5">
+                                                        {msg.sources.map((source, idx) => (
+                                                            <a
+                                                                key={idx}
+                                                                href={source.url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className={`text-xs font-medium flex items-center gap-1.5 group ${msg.role === "user"
+                                                                    ? "text-white/90 hover:text-white"
+                                                                    : "text-blue-600 hover:text-blue-700"
+                                                                    } transition-colors`}
+                                                                title={source.title || source.url}
+                                                            >
+                                                                <ExternalLink className="h-3.5 w-3.5 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                                                                <span className="line-clamp-1 break-all">
+                                                                    {source.title || source.url}
+                                                                </span>
+                                                            </a>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             ))}
                             {isLoading && (
-                                <div className="flex justify-start">
-                                    <div className="bg-white text-slate-800 border border-slate-200 rounded-lg p-3 rounded-tl-none shadow-sm flex items-center space-x-2">
-                                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                                        <span className="text-sm text-slate-500">Thinking...</span>
+                                <div className="flex justify-start animate-in fade-in duration-300">
+                                    <div className="flex items-start gap-2">
+                                        <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
+                                            <Bot className="h-4 w-4 text-slate-600" />
+                                        </div>
+                                        <div className="bg-white text-slate-800 border border-slate-200 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm flex items-center space-x-2">
+                                            <Loader2 className="h-4 w-4 animate-spin text-primary flex-shrink-0" />
+                                            <span className="text-sm text-slate-600">Thinking...</span>
+                                        </div>
                                     </div>
                                 </div>
                             )}
                             <div ref={scrollRef} />
                         </div>
-                    </ScrollArea>
+                    </div>
 
                     {/* Input Area */}
-                    <div className="p-3 bg-white border-t border-slate-200">
-                        <form onSubmit={handleSubmit} className="flex space-x-2">
+                    <div className="p-3 sm:p-4 bg-white border-t border-slate-200">
+                        <form onSubmit={handleSubmit} className="flex gap-2">
                             <Input
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
-                                placeholder="Ask about EduCreds..."
-                                className="flex-1 focus-visible:ring-primary"
+                                placeholder="Ask anything..."
+                                className="flex-1 text-sm placeholder:text-slate-400 focus-visible:ring-primary rounded-lg border-slate-300"
                                 disabled={isLoading}
                             />
                             <Button
                                 type="submit"
                                 size="icon"
-                                className="bg-primary hover:bg-primary/90"
+                                className="bg-primary hover:bg-primary/90 text-white flex-shrink-0 rounded-lg transition-all duration-200"
                                 disabled={isLoading || !input.trim()}
                             >
                                 <Send className="h-4 w-4" />
@@ -198,7 +232,7 @@ export function ChatWidget() {
             <Button
                 onClick={() => setIsOpen(!isOpen)}
                 size="lg"
-                className="rounded-full h-14 w-14 shadow-lg bg-primary hover:bg-primary/90 transition-all duration-300 hover:scale-105"
+                className="rounded-full h-14 w-14 shadow-lg bg-gradient-to-br from-primary to-primary/90 hover:bg-primary/85 text-white transition-all duration-300 hover:scale-110 flex-shrink-0"
             >
                 {isOpen ? (
                     <X className="h-6 w-6" />
