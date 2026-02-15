@@ -18,7 +18,8 @@ export default function Verification() {
   const [showGovernanceSections, setShowGovernanceSections] = useState(false);
 
   const { data: verificationStatus, isLoading } = useQuery({
-    queryKey: ["/api/institutions/verification-status"],
+    queryKey: ["institution-verification-status", user?.id],
+    queryFn: () => api.getVerificationStatus(),
     enabled: !!user,
   });
 
@@ -82,12 +83,6 @@ export default function Verification() {
     };
   }, [governanceInstitution]);
 
-  // Institution can access governance/analytics if governance verification is effectively complete
-  const isGovernanceVerified = Boolean(
-    verificationStatusFromGovernance?.isVerified &&
-      (verificationStatusFromGovernance.poicScore ?? 0) >= 60
-  );
-
   if (isLoading || governanceLoading) {
     return (
       <div className="space-y-6">
@@ -101,8 +96,18 @@ export default function Verification() {
     );
   }
 
-  const isOnboardingVerified = (verificationStatus as any)?.isVerified;
+  const isOnboardingVerified = Boolean((verificationStatus as any)?.isVerified);
   const onboardingStatus = (verificationStatus as any)?.verificationStatus || 'not_submitted';
+  const isOnboardingApproved = onboardingStatus === "approved";
+
+  // Institution can access governance/analytics if either onboarding is approved
+  // or governance PoIC verification indicates eligibility.
+  const isGovernanceVerified = Boolean(
+    isOnboardingVerified ||
+      isOnboardingApproved ||
+      (verificationStatusFromGovernance?.isVerified &&
+        (verificationStatusFromGovernance.poicScore ?? 0) >= 60)
+  );
 
   const governanceStatusLabel = isGovernanceVerified
     ? "Governance Verified"

@@ -105,7 +105,10 @@ class GovernanceApiService {
 
     // Add auth token to requests if available
     this.client.interceptors.request.use((config) => {
-      const token = localStorage.getItem('authToken');
+      const token =
+        localStorage.getItem('institution_token') ||
+        localStorage.getItem('marketplace_token') ||
+        localStorage.getItem('authToken');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -203,6 +206,33 @@ class GovernanceApiService {
     const response = await this.client.get('/governance/admin/institutions', {
       params: { page, limit },
     });
+    return response.data;
+  }
+
+  async getAdminProposals(
+    page: number = 1,
+    limit: number = 20,
+    state: string = 'active'
+  ): Promise<PaginatedResponse<ProposalResponse>> {
+    const adminEmail = localStorage.getItem('adminEmail') || 'admin@educreds.xyz';
+    const response = await this.client.get('/governance/admin/proposals', {
+      params: { page, limit, state },
+      headers: { 'admin-email': adminEmail },
+    });
+    return response.data;
+  }
+
+  async castAdminVote(
+    proposalId: string,
+    support: 0 | 1 | 2,
+    reason?: string
+  ): Promise<VoteResponse> {
+    const adminEmail = localStorage.getItem('adminEmail') || 'admin@educreds.xyz';
+    const response = await this.client.post(
+      `/governance/admin/proposals/${proposalId}/vote`,
+      { support, reason },
+      { headers: { 'admin-email': adminEmail } }
+    );
     return response.data;
   }
 

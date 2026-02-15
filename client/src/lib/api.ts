@@ -32,7 +32,7 @@ async function handleResponse(response: Response) {
 
     try {
       const errorData = JSON.parse(text);
-      errorMessage = errorData.error || errorData.message || errorData.details || errorMessage;
+      errorMessage = errorData.message || errorData.error || errorData.details || errorMessage;
     } catch {
       // If response is HTML (like error page), extract meaningful error
       if (text.includes("<!DOCTYPE") || text.includes("<html")) {
@@ -63,6 +63,122 @@ export const api = {
   // Test admin endpoint
   testAdmin: async () => {
     const response = await fetch(API_CONFIG.ADMIN.TEST, {
+      headers: getAdminHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  // Admin blockchain management
+  getBlockchainSummary: async () => {
+    const response = await fetch(API_CONFIG.ADMIN.BLOCKCHAIN_SUMMARY, {
+      headers: getAdminHeaders(),
+    });
+    const data = await handleResponse(response);
+    return {
+      summary: {
+        totalInstitutions: data.totalInstitutions ?? 0,
+        verifiedInstitutions: data.totalInstitutions ?? 0,
+        blockchainRegistered: data.registeredOnChain ?? 0,
+        blockchainAuthorized: data.registeredOnChain ?? 0,
+        pendingBlockchainRegistration: data.pendingRegistration ?? 0,
+        pendingBlockchainAuthorization: 0,
+      },
+    };
+  },
+
+  getBlockchainStatusAll: async () => {
+    const response = await fetch(API_CONFIG.ADMIN.BLOCKCHAIN_STATUS, {
+      headers: getAdminHeaders(),
+    });
+    const data = await handleResponse(response);
+    const statusReport = (data.institutions || []).map((inst: any) => ({
+      id: inst.id,
+      name: inst.name,
+      email: inst.email,
+      walletAddress: inst.walletAddress || '',
+      backendVerified: inst.verificationStatus === 'approved',
+      blockchainRegistered: inst.blockchainStatus === 'registered' || inst.blockchainStatus === 'authorized',
+      blockchainAuthorized: inst.blockchainStatus === 'authorized',
+      blockchainStats: null,
+      blockchainError: null,
+      blockchainTxHash: inst.registrationTxHash,
+      blockchainAuthTxHash: inst.authorizationTxHash,
+    }));
+    return { statusReport };
+  },
+
+  registerInstitutionOnBlockchain: async (institutionId: string) => {
+    const response = await fetch(`${API_CONFIG.ADMIN.BASE}/institutions/${institutionId}/blockchain-register`, {
+      method: "POST",
+      headers: getAdminHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  authorizeInstitutionOnBlockchain: async (institutionId: string) => {
+    const response = await fetch(`${API_CONFIG.ADMIN.BASE}/institutions/${institutionId}/blockchain-authorize`, {
+      method: "POST",
+      headers: getAdminHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  bulkRegisterInstitutionsOnBlockchain: async () => {
+    const response = await fetch(`${API_CONFIG.ADMIN.BASE}/blockchain-register-all`, {
+      method: "POST",
+      headers: getAdminHeaders(),
+    });
+    const data = await handleResponse(response);
+    return {
+      ...data,
+      summary: {
+        successful: data.count ?? 0,
+      },
+    };
+  },
+
+  getBlockchainStatus: async (institutionId: string) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(API_CONFIG.INSTITUTIONS.BLOCKCHAIN_STATUS(institutionId), {
+      headers: authHeaders,
+    });
+    return handleResponse(response);
+  },
+
+  getAdminUsers: async () => {
+    const response = await fetch(API_CONFIG.ADMIN.USERS, {
+      headers: getAdminHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  createAdminUser: async (userData: { email: string; name: string; role: string; password: string }) => {
+    const response = await fetch(API_CONFIG.ADMIN.USERS, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAdminHeaders(),
+      },
+      body: JSON.stringify(userData),
+    });
+    return handleResponse(response);
+  },
+
+  updateAdminUser: async (userId: string, updates: { name?: string; role?: string; isActive?: boolean }) => {
+    const response = await fetch(`${API_CONFIG.ADMIN.USERS}/${userId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAdminHeaders(),
+      },
+      body: JSON.stringify(updates),
+    });
+    return handleResponse(response);
+  },
+
+  deleteAdminUser: async (userId: string) => {
+    const response = await fetch(`${API_CONFIG.ADMIN.USERS}/${userId}`, {
+      method: "DELETE",
       headers: getAdminHeaders(),
     });
     return handleResponse(response);
@@ -123,11 +239,12 @@ export const api = {
   },
 
   getVerificationStatus: async () => {
-    const user = auth.getUser();
     const response = await fetch(API_CONFIG.INSTITUTIONS.VERIFICATION_STATUS, {
       method: "GET",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ institutionId: user?.sub })
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
     });
     return handleResponse(response);
   },

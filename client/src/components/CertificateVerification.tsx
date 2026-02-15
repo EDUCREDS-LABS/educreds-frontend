@@ -17,6 +17,8 @@ export function CertificateVerification() {
   const [loading, setLoading] = useState(false);
   const [disclaimerChecked, setDisclaimerChecked] = useState(false);
 
+  const clearResult = () => setResult(null);
+
   const verifyW3CCredential = async () => {
     if (!disclaimerChecked) {
       alert("Please agree to the verification disclaimer before proceeding.");
@@ -79,6 +81,7 @@ export function CertificateVerification() {
       const reader = new FileReader();
       reader.onload = (e) => {
         setW3cCredential(e.target?.result as string);
+        clearResult();
       };
       reader.readAsText(file);
     }
@@ -110,6 +113,7 @@ export function CertificateVerification() {
       }
     };
     setW3cCredential(JSON.stringify(sample, null, 2));
+    clearResult();
   };
 
   return (
@@ -123,13 +127,19 @@ export function CertificateVerification() {
       <div className="flex gap-4 justify-center">
         <Button
           variant={verificationMethod === 'w3c' ? 'default' : 'outline'}
-          onClick={() => setVerificationMethod('w3c')}
+          onClick={() => {
+            setVerificationMethod('w3c');
+            clearResult();
+          }}
         >
           W3C Verifiable Credential
         </Button>
         <Button
           variant={verificationMethod === 'legacy' ? 'default' : 'outline'}
-          onClick={() => setVerificationMethod('legacy')}
+          onClick={() => {
+            setVerificationMethod('legacy');
+            clearResult();
+          }}
         >
           Traditional Methods
         </Button>
@@ -147,11 +157,11 @@ export function CertificateVerification() {
                 Upload or Paste W3C Credential JSON
               </label>
               <div className="flex gap-2 mb-2">
-                <Input
-                  type="file"
-                  accept=".json"
-                  onChange={handleFileUpload}
-                  className="flex-1"
+              <Input
+                type="file"
+                accept=".json"
+                onChange={handleFileUpload}
+                className="flex-1"
                 />
                 <Button variant="outline" size="icon">
                   <Upload className="h-4 w-4" />
@@ -166,7 +176,10 @@ export function CertificateVerification() {
               <Textarea
                 placeholder='{ "@context": [...], "id": "...", "type": [...], ... }'
                 value={w3cCredential}
-                onChange={(e) => setW3cCredential(e.target.value)}
+                onChange={(e) => {
+                  setW3cCredential(e.target.value);
+                  clearResult();
+                }}
                 rows={10}
                 className="font-mono text-xs"
               />
@@ -179,7 +192,10 @@ export function CertificateVerification() {
               <Input
                 placeholder="e.g., 12345 (for cross-chain verification)"
                 value={tokenId}
-                onChange={(e) => setTokenId(e.target.value)}
+                onChange={(e) => {
+                  setTokenId(e.target.value);
+                  clearResult();
+                }}
               />
               <p className="text-[10px] text-gray-500 mt-1">
                 If provided, we will verify the W3C credential against the on-chain record for token ID {tokenId}.
@@ -210,7 +226,10 @@ export function CertificateVerification() {
               <Input
                 placeholder="e.g., CERT-2024-001"
                 value={certificateId}
-                onChange={(e) => setCertificateId(e.target.value)}
+                onChange={(e) => {
+                  setCertificateId(e.target.value);
+                  clearResult();
+                }}
               />
             </div>
 
@@ -219,7 +238,10 @@ export function CertificateVerification() {
               <Input
                 placeholder="e.g., QmX7Y8Z9..."
                 value={ipfsHash}
-                onChange={(e) => setIpfsHash(e.target.value)}
+                onChange={(e) => {
+                  setIpfsHash(e.target.value);
+                  clearResult();
+                }}
               />
             </div>
 
@@ -228,7 +250,10 @@ export function CertificateVerification() {
               <Input
                 placeholder="e.g., 12345"
                 value={tokenId}
-                onChange={(e) => setTokenId(e.target.value)}
+                onChange={(e) => {
+                  setTokenId(e.target.value);
+                  clearResult();
+                }}
               />
             </div>
 
@@ -312,6 +337,13 @@ export function CertificateVerification() {
                 <Badge variant="destructive">
                   ✗ Certificate is Invalid
                 </Badge>
+                {Array.isArray(result.reasons) && result.reasons.length > 0 && (
+                  <ul className="text-sm text-red-600 list-disc pl-5 space-y-1">
+                    {result.reasons.map((reason: string, index: number) => (
+                      <li key={`${reason}-${index}`}>{reason}</li>
+                    ))}
+                  </ul>
+                )}
                 {result.error && (
                   <p className="text-sm text-red-600">{result.error}</p>
                 )}
@@ -326,7 +358,10 @@ export function CertificateVerification() {
           type="checkbox"
           id="disclaimer"
           checked={disclaimerChecked}
-          onChange={(e) => setDisclaimerChecked(e.target.checked)}
+          onChange={(e) => {
+            setDisclaimerChecked(e.target.checked);
+            clearResult();
+          }}
           className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
         />
         <label htmlFor="disclaimer" className="text-sm text-amber-900">

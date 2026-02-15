@@ -1,4 +1,5 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
+import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -65,6 +66,16 @@ import DeveloperPortalPage from "@/pages/developer-portal";
 // import MarketplaceProtectedRoute from "@/components/MarketplaceProtectedRoute";
 
 function Router() {
+  function LegacyStudentRedirect() {
+    const [, setLocation] = useLocation();
+
+    useEffect(() => {
+      setLocation("/student-portal");
+    }, [setLocation]);
+
+    return null;
+  }
+
   return (
     <Switch>
       <Route path="/" component={EduCredsLabsLanding} />
@@ -72,6 +83,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/register/verify-otp" component={RegisterVerifyOtp} />
+      <Route path="/student" component={LegacyStudentRedirect} />
       <Route path="/student-portal" component={StudentPortalPage} />
       <Route path="/verification-portal" component={VerificationPortalPage} />
       <Route path="/w3c-test" component={W3CTestPage} />

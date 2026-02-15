@@ -3,7 +3,7 @@ import ModernHeader from '../components/modern/ModernHeader';
 import HeroSection from '../components/modern/HeroSection';
 import FeaturesSection from '../components/modern/FeaturesSection';
 import ModernFooter from '../components/modern/ModernFooter';
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import StudentPortalModal from '../components/StudentPortalModal';
 
 export default function Landing() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -23,7 +22,7 @@ export default function Landing() {
   const [documentationOpen, setDocumentationOpen] = useState(false);
   const [featuresOpen, setFeaturesOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
-  const [studentPortalOpen, setStudentPortalOpen] = useState(false);
+  const [, setLocation] = useLocation();
   
   const images = [
     {
@@ -69,7 +68,7 @@ const roadmapText = `EDUCREDS PROJECT ROADMAP: A DETAILED BREAKDOWN\n\nEducreds 
   return (
     <div className="min-h-screen bg-white">
       {/* Modern Header */}
-      <ModernHeader onStudentPortalClick={() => setStudentPortalOpen(true)} />
+      <ModernHeader onStudentPortalClick={() => setLocation("/student-portal")} />
 
       {/* Modern Hero Section */}
       <HeroSection />
@@ -613,7 +612,6 @@ const roadmapText = `EDUCREDS PROJECT ROADMAP: A DETAILED BREAKDOWN\n\nEducreds 
   </DialogContent>
 </Dialog>
 
-      <StudentPortalModal open={studentPortalOpen} onOpenChange={setStudentPortalOpen} />
     </div>
   );
 }

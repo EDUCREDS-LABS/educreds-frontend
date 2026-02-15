@@ -89,6 +89,12 @@ export default function GovernanceVerification() {
     },
   });
 
+  const { data: verificationStatus, isLoading: verificationStatusLoading } = useQuery({
+    queryKey: ["institution-verification-status", user?.id],
+    enabled: !!user?.id,
+    queryFn: () => api.getVerificationStatus(),
+  });
+
   const uploadMutation = useMutation({
     mutationFn: async (formData: FormData) => {
       return api.uploadVerificationDocuments(formData);
@@ -211,8 +217,41 @@ export default function GovernanceVerification() {
     return Math.round((fields.filter(Boolean).length / fields.length) * 100);
   };
 
-  if (proposalLoading) {
+  if (proposalLoading || verificationStatusLoading) {
     return <div className="flex items-center justify-center p-8"><Loader2 className="w-6 h-6 animate-spin" /></div>;
+  }
+
+  const isAlreadyVerified = Boolean((verificationStatus as any)?.isVerified) ||
+    (verificationStatus as any)?.verificationStatus === "approved";
+
+  if (isAlreadyVerified) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+              Institution Already Verified
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                Your institution is already approved. Governance verification resubmission is not required.
+              </AlertDescription>
+            </Alert>
+            <div className="flex justify-between">
+              <span className="text-sm font-medium">Status:</span>
+              <Badge className="bg-green-100 text-green-800">Approved</Badge>
+            </div>
+            <Button onClick={() => window.location.href = "/institution/governance-workspace"} className="w-full">
+              Open Governance Workspace
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   if (existingProposal) {
@@ -258,7 +297,7 @@ export default function GovernanceVerification() {
                 </div>
               )}
             </div>
-            <Button onClick={() => window.location.href = "/institution/governance"} className="w-full">
+            <Button onClick={() => window.location.href = "/institution/governance-workspace"} className="w-full">
               View Governance Dashboard
             </Button>
           </CardContent>

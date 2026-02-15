@@ -22,7 +22,6 @@ export async function testBackendConnection(): Promise<ConnectionStatus> {
   try {
     const response = await fetch(`${API_BASE}/api/health`, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
       signal: AbortSignal.timeout(10000) // 10 second timeout
     });
     

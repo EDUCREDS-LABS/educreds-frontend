@@ -561,7 +561,7 @@ export default function ModernAuthUnified() {
                   <div className="mt-4 text-center">
                     <p className="text-sm text-neutral-600">
                       Are you a student?{" "}
-                      <Link href="/student">
+                      <Link href="/student-portal">
                         <button className="text-secondary hover:underline font-medium">
                           Access Student Portal
                         </button>

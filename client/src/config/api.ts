@@ -77,8 +77,8 @@ export const API_CONFIG = {
   // Institution endpoints (use CERT backend)
   INSTITUTIONS: {
     BASE: `${CERT_API_BASE}/api/institutions`,
-    LOGIN: `${CERT_API_BASE}/api/institutions/login`,
-    REGISTER: `${CERT_API_BASE}/api/institutions/register`,
+    LOGIN: `${CERT_API_BASE}/auth/institution/login`,
+    REGISTER: `${CERT_API_BASE}/auth/institution/register`,
     PROFILE: `${CERT_API_BASE}/api/institutions/profile`,
     VERIFICATION_STATUS: `${CERT_API_BASE}/api/institutions/verification-status`,
     VERIFICATION_DOCUMENTS: `${CERT_API_BASE}/api/institutions/verification-documents`,

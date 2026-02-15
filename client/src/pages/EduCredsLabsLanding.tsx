@@ -1,4 +1,4 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,11 +21,9 @@ import {
 import { motion } from "framer-motion";
 import ModernHeader from "@/components/modern/ModernHeader";
 import ModernFooter from "@/components/modern/ModernFooter";
-import { useState } from "react";
-import StudentPortalModal from "@/components/StudentPortalModal";
 
 export default function EduCredsLabsLanding() {
-  const [studentPortalOpen, setStudentPortalOpen] = useState(false);
+  const [, setLocation] = useLocation();
 
   const products = [
     {
@@ -59,7 +57,7 @@ export default function EduCredsLabsLanding() {
 
   return (
     <div className="min-h-screen bg-white font-sans selection:bg-primary/20">
-      <ModernHeader onStudentPortalClick={() => setStudentPortalOpen(true)} />
+      <ModernHeader onStudentPortalClick={() => setLocation("/student-portal")} />
 
       {/* Hero Section */}
       <section className="relative pt-20 pb-32 overflow-hidden">
@@ -279,7 +277,6 @@ export default function EduCredsLabsLanding() {
       </section>
 
       <ModernFooter />
-      <StudentPortalModal open={studentPortalOpen} onOpenChange={setStudentPortalOpen} />
     </div>
   );
 }

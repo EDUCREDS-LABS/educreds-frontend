@@ -58,6 +58,7 @@ import {
   Database,
   Search,
   RefreshCw,
+  Loader2,
   MoreVertical,
   ChevronRight,
   Key,
@@ -73,6 +74,7 @@ import {
   useSystemStatus,
   useInstitutionRegistry,
 } from '@/hooks/useGovernance';
+import { governanceApiService, type ProposalResponse } from '@/lib/governanceApiService';
 import { AdminGuard } from '@/components/admin/AdminGuard';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from "@/lib/utils";
@@ -94,12 +96,53 @@ function AdminGovernanceDashboardContent() {
   const [selectedInstitution, setSelectedInstitution] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('oversight');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [activeProposals, setActiveProposals] = useState<ProposalResponse[]>([]);
+  const [proposalActionLoading, setProposalActionLoading] = useState<string | null>(null);
 
   // Fetch data using react-query hooks
   const { data: metrics, isLoading: metricsLoading } = useSystemMetrics();
   const { data: auditData, isLoading: auditLoading } = useAuditLog(1, 15);
   const { data: statusData, isLoading: statusLoading } = useSystemStatus();
   const { data: registryData, isLoading: registryLoading } = useInstitutionRegistry(1, 10);
+
+  useEffect(() => {
+    loadAdminProposals();
+  }, []);
+
+  const loadAdminProposals = async () => {
+    try {
+      const proposalsResponse = await governanceApiService.getAdminProposals(1, 6, 'active');
+      setActiveProposals(proposalsResponse.data || []);
+    } catch (error) {
+      setActiveProposals([]);
+    }
+  };
+
+  const handleAdminVote = async (proposalId: string, support: 0 | 1 | 2) => {
+    try {
+      setProposalActionLoading(`${proposalId}-${support}`);
+      await governanceApiService.castAdminVote(
+        proposalId,
+        support,
+        'Bootstrap-stage admin vote to unblock DAO governance before full institution onboarding.',
+      );
+
+      toast({
+        title: 'Admin Vote Recorded',
+        description: 'Bootstrap-stage vote submitted to DAO governance.',
+      });
+
+      await loadAdminProposals();
+    } catch (error: any) {
+      toast({
+        title: 'Vote Failed',
+        description: error?.message || 'Could not submit admin vote for this proposal.',
+        variant: 'destructive',
+      });
+    } finally {
+      setProposalActionLoading(null);
+    }
+  };
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -343,6 +386,74 @@ function AdminGovernanceDashboardContent() {
               </CardContent>
             </Card>
           </motion.div>
+
+          <Card className="bg-gray-900/40 border-gray-800/50 border-none shadow-2xl rounded-[2.5rem] backdrop-blur-md overflow-hidden">
+            <CardHeader className="p-10 border-b border-gray-800/30">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-2xl font-black text-white italic tracking-tighter">BOOTSTRAP DAO VOTING</CardTitle>
+                  <CardDescription className="text-gray-500 font-bold uppercase tracking-widest text-[9px] mt-1">
+                    Admin fallback voting for pre-onboarding governance approvals
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={loadAdminProposals}
+                  className="border-gray-800 bg-gray-900 text-gray-400 hover:text-white rounded-xl"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              {activeProposals.length === 0 ? (
+                <div className="py-8 text-center text-xs font-black uppercase tracking-[0.2em] text-gray-600">
+                  No active proposals requiring bootstrap vote.
+                </div>
+              ) : activeProposals.map((proposal) => (
+                <div key={proposal.id} className="p-4 rounded-2xl border border-gray-800 bg-gray-950/70 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black text-white">{proposal.title}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mt-1">{proposal.state}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-500 text-white"
+                      disabled={proposalActionLoading !== null}
+                      onClick={() => handleAdminVote(proposal.id, 1)}
+                    >
+                      {proposalActionLoading === `${proposal.id}-1` ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
+                      Vote For
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-red-500/30 text-red-400 hover:bg-red-600 hover:text-white"
+                      disabled={proposalActionLoading !== null}
+                      onClick={() => handleAdminVote(proposal.id, 0)}
+                    >
+                      {proposalActionLoading === `${proposal.id}-0` ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
+                      Vote Against
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                      disabled={proposalActionLoading !== null}
+                      onClick={() => handleAdminVote(proposal.id, 2)}
+                    >
+                      {proposalActionLoading === `${proposal.id}-2` ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
+                      Abstain
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
 
           <TacticalRiskMonitor registryData={registryData} />
         </TabsContent>
@@ -647,10 +758,10 @@ function TacticalMetric({ title, value, trend, icon: Icon, color, subtext, suffi
           <p className="text-5xl font-black text-white tracking-tighter italic">{value}</p>
           {suffix && <span className="text-2xl font-black text-gray-700 tracking-tighter">{suffix}</span>}
         </div>
-        <p className="text-[10px] font-black text-gray-600 mt-6 uppercase tracking-widest opacity-60 flex items-center gap-2">
-           <div className="w-1 h-3 bg-gray-800 rounded-full" />
-           {subtext}
-        </p>
+        <div className="text-[10px] font-black text-gray-600 mt-6 uppercase tracking-widest opacity-60 flex items-center gap-2">
+           <span className="w-1 h-3 bg-gray-800 rounded-full" />
+           <span>{subtext}</span>
+        </div>
       </CardContent>
       <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 blur-[80px] pointer-events-none group-hover:bg-white/10 transition-all duration-1000" />
     </Card>

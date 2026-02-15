@@ -126,7 +126,20 @@ export const auth = {
 };
 
 export const getAuthHeaders = (): Record<string, string> => {
-  const token = localStorage.getItem('institution_token') || localStorage.getItem('marketplace_token');
-  console.log('Getting auth headers, token:', token ? 'present' : 'missing');
+  const authType = localStorage.getItem('auth_type');
+  let token: string | null = null;
+
+  if (authType === AuthType.INSTITUTION) {
+    token = localStorage.getItem('institution_token');
+  } else if (authType === AuthType.MARKETPLACE) {
+    token = localStorage.getItem('marketplace_token');
+  }
+
+  // Backward-compatible fallback for older sessions without auth_type.
+  if (!token) {
+    token = localStorage.getItem('institution_token') || localStorage.getItem('marketplace_token');
+  }
+
+  console.log('Getting auth headers, authType:', authType || 'unknown', 'token:', token ? 'present' : 'missing');
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
