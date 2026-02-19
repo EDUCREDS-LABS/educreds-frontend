@@ -1,7 +1,9 @@
 import { ethers, JsonRpcProvider } from 'ethers';
 
 // Get environment variables from server
-const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
+const CONTRACT_ADDRESS =
+  process.env.VITE_CREDENTIAL_ISSUER_ADDRESS ||
+  process.env.CONTRACT_ADDRESS;
 const CONTRACT_ABI = process.env.CONTRACT_ABI;
 const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL;
 

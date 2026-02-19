@@ -21,6 +21,7 @@ import {
 import { motion } from "framer-motion";
 import ModernHeader from "@/components/modern/ModernHeader";
 import ModernFooter from "@/components/modern/ModernFooter";
+import SystemArchitecture from "@/components/SystemArchitecture";
 
 export default function EduCredsLabsLanding() {
   const [, setLocation] = useLocation();
@@ -101,6 +102,37 @@ export default function EduCredsLabsLanding() {
               </Link>
             </div>
           </motion.div>
+        </div>
+      </section>
+
+      {/* DAO Participant Voting Entry */}
+      <section className="py-10">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Card className="border border-primary/20 bg-gradient-to-r from-blue-50 to-cyan-50 shadow-sm">
+            <CardContent className="p-6 sm:p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+              <div>
+                <div className="inline-flex items-center gap-2 mb-3 text-sm font-semibold text-primary">
+                  <Flag className="w-4 h-4" />
+                  DAO Participant Voting
+                </div>
+                <h3 className="text-2xl font-bold font-heading text-neutral-900 mb-2">
+                  Auditor and Verifier Voting Workspace
+                </h3>
+                <p className="text-neutral-600">
+                  For eligible non-institution participants. Connect wallet and vote on sponsored proposals.
+                  Voting is allowed only for wallets that hold a valid IIN.
+                </p>
+              </div>
+              <div className="flex-shrink-0">
+                <Link href="/governance/public-vote">
+                  <Button size="lg" className="rounded-full px-7">
+                    Open Voting Page
+                    <ArrowRight className="ml-2 w-4 h-4" />
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
@@ -231,6 +263,9 @@ export default function EduCredsLabsLanding() {
           </div>
         </div>
       </section>
+
+      {/* System Architecture */}
+      <SystemArchitecture />
 
       {/* Contact & Location Strip */}
       <section className="py-12 bg-white border-y border-neutral-100">

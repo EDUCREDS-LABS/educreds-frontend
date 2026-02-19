@@ -240,9 +240,12 @@ export function EnterpriseCertificateIssuance() {
       return api.issueCertificate(formData);
     },
     onSuccess: (data) => {
+      const fallbackNote = data?.issuanceMode === 'backend_fallback' && data?.walletDirectFailureReason
+        ? ` Wallet-direct skipped: ${data.walletDirectFailureReason}`
+        : '';
       toast({
         title: '✓ Certificate Issued Successfully',
-        description: `Blockchain status: ${data.onChainStatus}. Transaction processing...`,
+        description: `Blockchain status: ${data.onChainStatus}. Transaction processing...${fallbackNote}`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/certificates/institution'] });
       queryClient.invalidateQueries({ queryKey: ['/api/subscription/current'] });

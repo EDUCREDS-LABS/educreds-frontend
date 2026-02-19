@@ -2,6 +2,7 @@ import { API_CONFIG } from "@/config/api";
 import { auth, getAuthHeaders } from "./auth";
 import { AdminAuth } from "./admin-auth";
 import { transformDocumentsForBackend } from "@/utils/documentTransform";
+import { ethers } from "ethers";
 
 console.log("Using API configuration:", {
   MAIN: API_CONFIG.MAIN,
@@ -51,6 +52,81 @@ async function handleResponse(response: Response) {
   }
 
   return await response.text();
+}
+
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
+
+const CREDENTIAL_ISSUER_ABI = [
+  "function issueCredential(uint256 institutionId, address recipient, string credentialURI) external returns (uint256 credentialId)",
+];
+
+const isPlaceholderAddress = (address?: string): boolean => {
+  if (!address) return true;
+  const normalized = address.trim().toLowerCase();
+  return (
+    normalized === "0x1234567890123456789012345678901234567890" ||
+    normalized === "0x0000000000000000000000000000000000000000"
+  );
+};
+
+async function tryWalletDirectIssuance(formData: FormData, authHeaders: Record<string, string>) {
+  if (typeof window === "undefined" || typeof window.ethereum === "undefined") {
+    throw new Error("No Web3 wallet detected");
+  }
+
+  const prepareResponse = await fetch(`${API_CONFIG.CERT}/api/certificates/issue/wallet-direct/prepare`, {
+    method: "POST",
+    headers: authHeaders,
+    body: formData,
+  });
+  const prepared = await handleResponse(prepareResponse);
+
+  const contractAddress =
+    import.meta.env.VITE_CREDENTIAL_ISSUER_ADDRESS ||
+    prepared?.credentialIssuerAddress ||
+    import.meta.env.VITE_CONTRACT_ADDRESS;
+  if (!contractAddress || isPlaceholderAddress(contractAddress)) {
+    throw new Error(
+      "Wallet-direct issuance is enabled but CredentialIssuer address is missing/placeholder. Set VITE_CREDENTIAL_ISSUER_ADDRESS to your deployed contract address.",
+    );
+  }
+
+  const provider = new ethers.BrowserProvider(window.ethereum);
+  const signer = await provider.getSigner();
+  const contract = new ethers.Contract(contractAddress, CREDENTIAL_ISSUER_ABI, signer);
+
+  const tx = await contract.issueCredential(
+    Number(prepared.institutionTokenId),
+    prepared.recipientWallet,
+    prepared.credentialURI,
+  );
+  const receipt = await tx.wait();
+  if (!receipt?.hash) {
+    throw new Error("Wallet transaction mined but tx hash is missing");
+  }
+
+  const confirmResponse = await fetch(`${API_CONFIG.CERT}/api/certificates/issue/wallet-direct/confirm`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders,
+    },
+    body: JSON.stringify({
+      issuanceRequestId: prepared.issuanceRequestId,
+      txHash: receipt.hash,
+    }),
+  });
+  const confirmed = await handleResponse(confirmResponse);
+
+  return {
+    ...confirmed,
+    onChainStatus: "minted_wallet_direct",
+    issuanceMode: "wallet_direct",
+  };
 }
 
 export const api = {
@@ -295,12 +371,31 @@ export const api = {
   // Certificate endpoints
   issueCertificate: async (formData: FormData) => {
     const authHeaders = getAuthHeaders();
+    const walletDirectEnabled = String(import.meta.env.VITE_ENABLE_WALLET_DIRECT_ISSUANCE ?? "true").toLowerCase() !== "false";
+    let walletDirectFailureReason: string | undefined;
+
+    if (walletDirectEnabled && typeof window !== "undefined" && typeof window.ethereum !== "undefined") {
+      try {
+        return await tryWalletDirectIssuance(formData, authHeaders);
+      } catch (error) {
+        walletDirectFailureReason = error instanceof Error ? error.message : String(error);
+        console.warn("[API] Wallet-direct issuance failed, falling back to backend signer mode:", error);
+      }
+    }
+
     const response = await fetch(API_CONFIG.CERTIFICATES.ISSUE, {
       method: "POST",
       headers: authHeaders,
       body: formData,
     });
-    return handleResponse(response);
+    const fallback = await handleResponse(response);
+    return {
+      ...fallback,
+      onChainStatus: fallback?.onChainStatus || "minted_backend_fallback",
+      issuanceMode: "backend_fallback",
+      walletDirectAttempted: walletDirectEnabled && typeof window !== "undefined" && typeof window.ethereum !== "undefined",
+      walletDirectFailureReason,
+    };
   },
 
   // Privacy-First Certificate Issuance

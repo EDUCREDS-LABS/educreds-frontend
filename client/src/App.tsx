@@ -29,6 +29,7 @@ import AdminLogin from "@/pages/admin/login";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminGovernanceDashboard from "@/pages/admin/governance-dashboard";
 import DAODashboard from "@/pages/DAODashboard";
+import PublicWalletVotingPage from "@/pages/governance/public-wallet-voting";
 import MarketplacePage from "@/pages/marketplace/index";
 import MarketplaceLogin from "@/pages/marketplace/login";
 import MarketplaceRegister from "@/pages/marketplace/register";
@@ -130,6 +131,11 @@ function Router() {
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/governance" component={AdminGovernanceDashboard} />
       <Route path="/dao" component={DAODashboard} />
+      <Route path="/governance/public-vote">
+        <Layout>
+          <PublicWalletVotingPage />
+        </Layout>
+      </Route>
 
       {/* Protected Institution Routes */}
       <Route path="/institution/dashboard">

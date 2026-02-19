@@ -34,6 +34,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { governanceApiService } from "@/lib/governanceApiService";
+import { castDirectWalletVote } from "@/lib/governanceWalletVoting";
+import { api } from "@/lib/api";
 import {
   useProposals,
   useInstitutionDetail,
@@ -52,6 +54,7 @@ export default function GovernanceWorkspace() {
   const [activeTab, setActiveTab] = useState("overview");
   const [proposalPage, setProposalPage] = useState(1);
   const [showAccessAlert, setShowAccessAlert] = useState(true);
+  const [votingOnProposal, setVotingOnProposal] = useState<string | null>(null);
 
   // Check governance verification status
   const { data: governanceInstitution, isLoading: governanceLoading } = useQuery({
@@ -66,11 +69,32 @@ export default function GovernanceWorkspace() {
     },
   });
 
+  const { data: verificationStatus, isLoading: verificationLoading } = useQuery({
+    queryKey: ["institution-verification-status", user?.id],
+    enabled: !!user?.id,
+    queryFn: () => api.getVerificationStatus(),
+  });
+
   const isGovernanceVerified = useMemo(() => {
-    if (!governanceInstitution) return false;
-    const poicScore = (governanceInstitution as any).poicScore ?? 0;
-    return poicScore >= 60;
-  }, [governanceInstitution]);
+    const governanceEligibleStatuses = ["pending", "under_governance_review", "approved"];
+    const statusFromVerification =
+      (verificationStatus as any)?.verificationStatus?.toLowerCase?.() || "";
+    const statusFromGovernanceInstitution =
+      (governanceInstitution as any)?.institution?.verificationStatus?.toLowerCase?.() ||
+      (governanceInstitution as any)?.verificationStatus?.toLowerCase?.() ||
+      "";
+
+    const isVerified =
+      Boolean((verificationStatus as any)?.isVerified) ||
+      Boolean((governanceInstitution as any)?.institution?.isVerified) ||
+      Boolean((governanceInstitution as any)?.isVerified);
+
+    return (
+      isVerified ||
+      governanceEligibleStatuses.includes(statusFromVerification) ||
+      governanceEligibleStatuses.includes(statusFromGovernanceInstitution)
+    );
+  }, [governanceInstitution, verificationStatus]);
 
   // Fetch governance data
   const {
@@ -97,8 +121,55 @@ export default function GovernanceWorkspace() {
     averagePoICScore: 0,
   };
 
+  const castVoteMutation = useMutation({
+    mutationFn: async ({
+      proposalId,
+      support,
+    }: {
+      proposalId: string;
+      support: 0 | 1 | 2;
+    }) => {
+      const proposal = proposals.find((p: any) => p.id === proposalId || p.proposalId === proposalId);
+      if (!proposal) {
+        throw new Error("Proposal not found for voting");
+      }
+      return castDirectWalletVote(proposal as any, support);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Vote submitted",
+        description: "Your wallet vote has been recorded on-chain.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["governance"] });
+      queryClient.invalidateQueries({ queryKey: ["/governance/proposals", user?.id] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Vote failed",
+        description: error?.message || "Failed to submit vote.",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      setVotingOnProposal(null);
+    },
+  });
+
+  const handleVote = async (proposalId: string, support: 0 | 1 | 2) => {
+    if (!user?.walletAddress) {
+      toast({
+        title: "Wallet missing",
+        description: "Reconnect institution wallet to vote.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setVotingOnProposal(`${proposalId}-${support}`);
+    castVoteMutation.mutate({ proposalId, support });
+  };
+
   // Show access denied if not verified
-  if (!governanceLoading && !isGovernanceVerified) {
+  if (!governanceLoading && !verificationLoading && !isGovernanceVerified) {
     return (
       <div className="space-y-6">
         {showAccessAlert && (
@@ -109,7 +180,7 @@ export default function GovernanceWorkspace() {
                 <div className="space-y-2 flex-1">
                   <p className="font-semibold">Governance Access Restricted</p>
                   <p>
-                    Your institution must complete governance verification (PoIC score ≥ 60) to access
+                    Your institution must complete governance verification to access
                     the Governance Workspace. Complete verification on the{" "}
                     <Link href="/institution/verification" className="underline">
                       Verification page
@@ -152,7 +223,7 @@ export default function GovernanceWorkspace() {
     );
   }
 
-  if (governanceLoading) {
+  if (governanceLoading || verificationLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-64" />
@@ -354,25 +425,59 @@ export default function GovernanceWorkspace() {
                     .filter((p: any) => p.state === "ACTIVE")
                     .slice(0, 3)
                     .map((proposal: any) => (
-                      <Link
+                      <div
                         key={proposal.id}
-                        href={`/institution/governance/proposals/${proposal.id}`}
-                        className="flex items-center justify-between rounded-lg border p-4 hover:bg-slate-50 cursor-pointer transition"
+                        className="rounded-lg border p-4 hover:bg-slate-50 transition"
                       >
-                        <div className="flex-1">
-                          <h3 className="font-semibold">{proposal.title || "Institution Verification"}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Legitimacy Score: {Math.round(proposal.legitimacyScore || 0)}
-                          </p>
+                        <div className="flex items-center justify-between gap-4">
+                          <Link
+                            href={`/institution/governance/proposals/${proposal.id}`}
+                            className="flex-1 cursor-pointer"
+                          >
+                            <h3 className="font-semibold">{proposal.title || "Institution Verification"}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              Legitimacy Score: {Math.round(proposal.legitimacyScore || 0)}
+                            </p>
+                          </Link>
+                          <div className="flex items-center gap-3">
+                            <Badge variant="default">
+                              <Zap className="w-3 h-3 mr-1" />
+                              Active
+                            </Badge>
+                            <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <Badge variant="default">
-                            <Zap className="w-3 h-3 mr-1" />
-                            Active
-                          </Badge>
-                          <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                        <div className="mt-3 flex gap-2">
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-500 text-white"
+                            disabled={castVoteMutation.isPending}
+                            onClick={() => handleVote(proposal.id, 1)}
+                          >
+                            {votingOnProposal === `${proposal.id}-1` ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
+                            Vote For
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-red-500/30 text-red-500 hover:bg-red-600 hover:text-white"
+                            disabled={castVoteMutation.isPending}
+                            onClick={() => handleVote(proposal.id, 0)}
+                          >
+                            {votingOnProposal === `${proposal.id}-0` ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
+                            Vote Against
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={castVoteMutation.isPending}
+                            onClick={() => handleVote(proposal.id, 2)}
+                          >
+                            {votingOnProposal === `${proposal.id}-2` ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
+                            Abstain
+                          </Button>
                         </div>
-                      </Link>
+                      </div>
                     ))}
                 </div>
               )}
@@ -448,48 +553,84 @@ export default function GovernanceWorkspace() {
                 ) : (
                   <div className="space-y-4">
                     {proposals.map((proposal: any) => (
-                      <Link
+                      <div
                         key={proposal.id}
-                        href={`/institution/governance/proposals/${proposal.id}`}
-                        className="flex items-center justify-between rounded-lg border p-4 hover:bg-slate-50 cursor-pointer transition"
+                        className="rounded-lg border p-4 hover:bg-slate-50 transition"
                       >
-                        <div className="flex-1">
-                          <h3 className="font-semibold">
-                            {proposal.title || proposal.institution_name || "Institution Verification"}
-                          </h3>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Legitimacy Score: {Math.round(proposal.legitimacyScore || 0)}/100
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <div className="text-sm font-semibold">
-                              {proposal.state === "ACTIVE" && "Voting Open"}
-                              {proposal.state === "PENDING" && "Pending Review"}
-                              {proposal.state === "EXECUTED" && "Executed"}
-                              {proposal.state === "REJECTED" && "Rejected"}
-                            </div>
-                          </div>
-                          <Badge
-                            variant={
-                              proposal.state === "ACTIVE"
-                                ? "default"
-                                : proposal.state === "PENDING"
-                                ? "secondary"
-                                : proposal.state === "EXECUTED"
-                                ? "outline"
-                                : "destructive"
-                            }
+                        <div className="flex items-center justify-between gap-4">
+                          <Link
+                            href={`/institution/governance/proposals/${proposal.id}`}
+                            className="flex-1 cursor-pointer"
                           >
-                            {proposal.state === "ACTIVE" && <Zap className="w-3 h-3 mr-1" />}
-                            {proposal.state === "PENDING" && <Clock className="w-3 h-3 mr-1" />}
-                            {proposal.state === "EXECUTED" && <CheckCircle className="w-3 h-3 mr-1" />}
-                            {proposal.state === "REJECTED" && <XCircle className="w-3 h-3 mr-1" />}
-                            {proposal.state}
-                          </Badge>
-                          <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                            <h3 className="font-semibold">
+                              {proposal.title || proposal.institution_name || "Institution Verification"}
+                            </h3>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Legitimacy Score: {Math.round(proposal.legitimacyScore || 0)}/100
+                            </p>
+                          </Link>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <div className="text-sm font-semibold">
+                                {proposal.state === "ACTIVE" && "Voting Open"}
+                                {proposal.state === "PENDING" && "Pending Review"}
+                                {proposal.state === "EXECUTED" && "Executed"}
+                                {proposal.state === "REJECTED" && "Rejected"}
+                              </div>
+                            </div>
+                            <Badge
+                              variant={
+                                proposal.state === "ACTIVE"
+                                  ? "default"
+                                  : proposal.state === "PENDING"
+                                  ? "secondary"
+                                  : proposal.state === "EXECUTED"
+                                  ? "outline"
+                                  : "destructive"
+                              }
+                            >
+                              {proposal.state === "ACTIVE" && <Zap className="w-3 h-3 mr-1" />}
+                              {proposal.state === "PENDING" && <Clock className="w-3 h-3 mr-1" />}
+                              {proposal.state === "EXECUTED" && <CheckCircle className="w-3 h-3 mr-1" />}
+                              {proposal.state === "REJECTED" && <XCircle className="w-3 h-3 mr-1" />}
+                              {proposal.state}
+                            </Badge>
+                            <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                          </div>
                         </div>
-                      </Link>
+                        {proposal.state === "ACTIVE" && (
+                          <div className="mt-3 flex gap-2">
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-500 text-white"
+                              disabled={castVoteMutation.isPending}
+                              onClick={() => handleVote(proposal.id, 1)}
+                            >
+                              {votingOnProposal === `${proposal.id}-1` ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
+                              Vote For
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-red-500/30 text-red-500 hover:bg-red-600 hover:text-white"
+                              disabled={castVoteMutation.isPending}
+                              onClick={() => handleVote(proposal.id, 0)}
+                            >
+                              {votingOnProposal === `${proposal.id}-0` ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
+                              Vote Against
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={castVoteMutation.isPending}
+                              onClick={() => handleVote(proposal.id, 2)}
+                            >
+                              {votingOnProposal === `${proposal.id}-2` ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
+                              Abstain
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}

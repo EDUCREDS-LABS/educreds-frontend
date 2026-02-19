@@ -5,6 +5,8 @@ interface ImportMetaEnv {
     readonly VITE_CERT_API_BASE: string
     readonly VITE_MARKETPLACE_API_BASE: string
     readonly VITE_TRUST_AGENT_BASE: string
+    readonly VITE_CREDENTIAL_ISSUER_ADDRESS: string
+    readonly VITE_ENABLE_WALLET_DIRECT_ISSUANCE: string
     readonly VITE_CONTRACT_ADDRESS: string
     readonly VITE_ETHEREUM_RPC_URL: string
     readonly VITE_DEV_MODE: string

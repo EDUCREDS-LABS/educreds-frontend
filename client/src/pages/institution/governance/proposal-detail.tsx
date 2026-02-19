@@ -18,7 +18,8 @@ import {
   FileText,
   Shield
 } from "lucide-react";
-import { api } from "@/lib/api";
+import { governanceApiService } from "@/lib/governanceApiService";
+import { castDirectWalletVote } from "@/lib/governanceWalletVoting";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
@@ -33,27 +34,23 @@ export default function ProposalDetail() {
   const { data: proposal, isLoading } = useQuery({
     queryKey: ["/governance/proposal", params?.id],
     enabled: !!params?.id,
-    queryFn: () => api.governance.getProposal(params?.id || ""),
+    queryFn: () => governanceApiService.getProposalDetail(params?.id || ""),
   });
 
   const { data: votingPower } = useQuery({
     queryKey: ["/governance/voting-power", user?.id],
-    enabled: !!user?.id,
-    queryFn: () => api.governance.getVotingPower(user?.id),
+    enabled: !!user?.id && !!params?.id,
+    queryFn: () => governanceApiService.getVotingPower(params?.id || "", user?.walletAddress),
   });
 
   const voteMutation = useMutation({
     mutationFn: async (vote: number) => {
-      return api.governance.voteOnProposal(
-        parseInt(proposal?.proposal_id?.split('_')[1] || "0"),
-        vote,
-        user?.id
-      );
+      return castDirectWalletVote(proposal as any, vote as 0 | 1 | 2);
     },
     onSuccess: () => {
       toast({
         title: "Vote cast successfully",
-        description: "Your vote has been recorded.",
+        description: "Your wallet vote has been recorded on-chain.",
       });
       queryClient.invalidateQueries({ queryKey: ["/governance/proposal", params?.id] });
       queryClient.invalidateQueries({ queryKey: ["/governance/proposals"] });
@@ -68,7 +65,7 @@ export default function ProposalDetail() {
   });
 
   const handleVote = (vote: number) => {
-    if (!votingPower || votingPower.power === 0) {
+    if (!votingPower || votingPower.votingPower === 0) {
       toast({
         title: "No voting power",
         description: "You don't have voting power. You need an active Institution Identity NFT.",
@@ -119,7 +116,7 @@ export default function ProposalDetail() {
         </Button>
         <div className="flex-1">
           <h1 className="text-3xl font-bold text-neutral-900">Proposal Details</h1>
-          <p className="text-neutral-600 mt-1">Proposal ID: {proposal.proposal_id}</p>
+          <p className="text-neutral-600 mt-1">Proposal ID: {proposal.proposalId || proposal.id}</p>
         </div>
       </div>
 
@@ -127,17 +124,17 @@ export default function ProposalDetail() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>{proposal.institution_name || "Institution Verification"}</CardTitle>
+            <CardTitle>{proposal.title || "Institution Verification"}</CardTitle>
             <div className="flex gap-2">
               <Badge variant={
-                proposal.recommended_action === 'approve' ? 'default' :
-                proposal.recommended_action === 'approve_with_limits' ? 'secondary' :
-                proposal.recommended_action === 'reject' ? 'destructive' : 'outline'
+                proposal.recommendedAction === 'approve' ? 'default' :
+                proposal.recommendedAction === 'approve_with_limits' ? 'secondary' :
+                proposal.recommendedAction === 'reject' ? 'destructive' : 'outline'
               }>
-                {proposal.recommended_action}
+                {proposal.recommendedAction || proposal.state}
               </Badge>
               <Badge variant="outline">
-                Score: {proposal.legitimacy_score}/100
+                Score: {proposal.legitimacyScore}/100
               </Badge>
             </div>
           </div>
@@ -147,36 +144,36 @@ export default function ProposalDetail() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium">Legitimacy Score</span>
-              <span className="text-sm text-neutral-600">{proposal.legitimacy_score}/100</span>
+              <span className="text-sm text-neutral-600">{proposal.legitimacyScore}/100</span>
             </div>
             <div className="h-3 bg-neutral-200 rounded-full overflow-hidden">
               <div 
                 className={`h-full transition-all ${
-                  proposal.legitimacy_score >= 80 ? 'bg-green-600' :
-                  proposal.legitimacy_score >= 60 ? 'bg-yellow-600' : 'bg-red-600'
+                  proposal.legitimacyScore >= 80 ? 'bg-green-600' :
+                  proposal.legitimacyScore >= 60 ? 'bg-yellow-600' : 'bg-red-600'
                 }`}
-                style={{ width: `${proposal.legitimacy_score}%` }}
+                style={{ width: `${proposal.legitimacyScore}%` }}
               />
             </div>
           </div>
 
           {/* Notes/Description */}
-          {proposal.notes && (
+          {proposal.description && (
             <div>
               <h3 className="text-sm font-medium mb-2">Analysis Notes</h3>
-              <p className="text-sm text-neutral-600 whitespace-pre-wrap">{proposal.notes}</p>
+              <p className="text-sm text-neutral-600 whitespace-pre-wrap">{proposal.description}</p>
             </div>
           )}
 
           {/* Risk Flags */}
-          {proposal.risk_flags && proposal.risk_flags.length > 0 && (
+          {proposal.riskFlags && proposal.riskFlags.length > 0 && (
             <div>
               <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" />
                 Risk Flags
               </h3>
               <div className="flex flex-wrap gap-2">
-                {proposal.risk_flags.map((flag: string, i: number) => (
+                {proposal.riskFlags.map((flag: string, i: number) => (
                   <Badge key={i} variant="destructive">{flag}</Badge>
                 ))}
               </div>
@@ -184,24 +181,24 @@ export default function ProposalDetail() {
           )}
 
           {/* Suggested Issuance Limit */}
-          {proposal.suggested_issuance_limit && (
+          {proposal.suggestedIssuanceLimit && (
             <div>
               <h3 className="text-sm font-medium mb-2">Suggested Issuance Limit</h3>
               <p className="text-sm text-neutral-600">
-                {proposal.suggested_issuance_limit} credentials per period
+                {proposal.suggestedIssuanceLimit} credentials per period
               </p>
             </div>
           )}
 
           {/* Created Date */}
           <div className="text-sm text-neutral-500">
-            Created: {new Date(proposal.created_at).toLocaleString()}
+            Created: {new Date(proposal.createdAt).toLocaleString()}
           </div>
         </CardContent>
       </Card>
 
       {/* Voting Section */}
-      {votingPower && votingPower.power > 0 && (
+      {votingPower && votingPower.votingPower > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -209,7 +206,7 @@ export default function ProposalDetail() {
               Cast Your Vote
             </CardTitle>
             <CardDescription>
-              Your voting power: {votingPower.power.toFixed(2)}
+              Your voting power: {votingPower.votingPower.toFixed(2)}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -252,7 +249,7 @@ export default function ProposalDetail() {
         </Card>
       )}
 
-      {(!votingPower || votingPower.power === 0) && (
+      {(!votingPower || votingPower.votingPower === 0) && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>

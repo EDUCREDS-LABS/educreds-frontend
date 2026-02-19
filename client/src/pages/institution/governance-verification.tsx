@@ -82,7 +82,20 @@ export default function GovernanceVerification() {
     queryFn: async () => {
       try {
         const proposals = await api.governance.getAllProposals();
-        return proposals.find((p: any) => p.institution_name === user?.name || p.institutionId === user?.id);
+        const openStates = new Set([
+          "PENDING",
+          "ACTIVE",
+          "under_review",
+          "UNDER_REVIEW",
+          "pending",
+          "active",
+        ]);
+        return proposals.find((p: any) => {
+          const proposalState = p?.state || p?.status;
+          const isMatchingInstitution =
+            p.institution_name === user?.name || p.institutionId === user?.id;
+          return isMatchingInstitution && openStates.has(proposalState);
+        });
       } catch {
         return null;
       }
@@ -224,36 +237,6 @@ export default function GovernanceVerification() {
   const isAlreadyVerified = Boolean((verificationStatus as any)?.isVerified) ||
     (verificationStatus as any)?.verificationStatus === "approved";
 
-  if (isAlreadyVerified) {
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-              Institution Already Verified
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertDescription>
-                Your institution is already approved. Governance verification resubmission is not required.
-              </AlertDescription>
-            </Alert>
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">Status:</span>
-              <Badge className="bg-green-100 text-green-800">Approved</Badge>
-            </div>
-            <Button onClick={() => window.location.href = "/institution/governance-workspace"} className="w-full">
-              Open Governance Workspace
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   if (existingProposal) {
     return (
       <div className="space-y-6">
@@ -338,6 +321,16 @@ export default function GovernanceVerification() {
           Once approved, your Institution Identity NFT (IIN) will be minted, granting you issuance rights.
         </AlertDescription>
       </Alert>
+
+      {isAlreadyVerified && (
+        <Alert>
+          <CheckCircle className="h-4 w-4" />
+          <AlertDescription>
+            Your institution is already verified. You can still upload fresh verification documents and
+            submit a governance resubmission if your PoIC needs to be refreshed.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">

@@ -50,11 +50,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Configuration endpoint to provide frontend with deployment info
   app.get('/api/config', (req, res) => {
+    const contractAddress =
+      process.env.VITE_CREDENTIAL_ISSUER_ADDRESS ||
+      process.env.VITE_CONTRACT_ADDRESS ||
+      '';
     res.json({
       backendUrl: process.env.VITE_API_URL || '',
-      contractAddress: process.env.VITE_CONTRACT_ADDRESS || '',
+      contractAddress,
       rpcUrl: process.env.VITE_ETHEREUM_RPC_URL || '',
-      hasConfiguration: !!(process.env.VITE_API_URL && process.env.VITE_CONTRACT_ADDRESS)
+      hasConfiguration: !!(process.env.VITE_API_URL && contractAddress)
     });
   });
 

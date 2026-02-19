@@ -145,20 +145,64 @@ class GovernanceApiService {
     return response.data;
   }
 
-  // ============ VOTING API ============
-
-  async castVote(proposalId: string, support: boolean): Promise<VoteResponse> {
-    const response = await this.client.post(`/governance/proposals/${proposalId}/vote`, { support });
+  async listPublicProposals(page: number = 1, limit: number = 20): Promise<PaginatedResponse<ProposalResponse>> {
+    const response = await this.client.get('/governance/public/proposals', {
+      params: { page, limit },
+    });
     return response.data;
   }
 
-  async getVotingPower(proposalId: string): Promise<{ votingPower: number }> {
-    const response = await this.client.get(`/governance/proposals/${proposalId}/voting-power`);
+  async getPublicProposalDetail(proposalId: string): Promise<ProposalResponse & any> {
+    const response = await this.client.get(`/governance/public/proposals/${proposalId}/detail`);
+    return response.data;
+  }
+
+  // ============ VOTING API ============
+
+  async castVote(
+    proposalId: string,
+    support: boolean | 0 | 1 | 2,
+    voterAddress?: string
+  ): Promise<VoteResponse> {
+    const normalizedSupport =
+      typeof support === 'boolean' ? (support ? 1 : 0) : support;
+    const resolvedVoterAddress =
+      voterAddress ||
+      localStorage.getItem('walletAddress') ||
+      localStorage.getItem('institutionWalletAddress') ||
+      '';
+    const response = await this.client.post(`/governance/proposals/${proposalId}/vote`, {
+      support: normalizedSupport,
+      voterAddress: resolvedVoterAddress,
+    });
+    return response.data;
+  }
+
+  async getVotingPower(
+    proposalId: string,
+    voterAddress?: string
+  ): Promise<{ votingPower: number }> {
+    const resolvedVoterAddress =
+      voterAddress ||
+      localStorage.getItem('walletAddress') ||
+      localStorage.getItem('institutionWalletAddress') ||
+      '';
+    const response = await this.client.get(`/governance/proposals/${proposalId}/voting-power`, {
+      params: { voterAddress: resolvedVoterAddress },
+    });
     return response.data;
   }
 
   async getVoteDetail(voteId: string): Promise<VoteResponse> {
     const response = await this.client.get(`/governance/votes/${voteId}`);
+    return response.data;
+  }
+
+  async recordWalletDirectVote(
+    proposalId: string,
+    payload: { voterAddress: string; support: 0 | 1 | 2; txHash: string; reason?: string }
+  ): Promise<any> {
+    const response = await this.client.post(`/governance/public/proposals/${proposalId}/vote/wallet`, payload);
     return response.data;
   }
 
@@ -236,8 +280,87 @@ class GovernanceApiService {
     return response.data;
   }
 
+  async configureProposalCountdown(
+    proposalId: string,
+    payload: { durationHours: number; approvalThresholdPercent?: number; startNow?: boolean }
+  ): Promise<{
+    proposalId: string;
+    state: string;
+    startBlock: number;
+    endBlock: number;
+    durationHours: number;
+    approvalThresholdPercent: number;
+    configured: boolean;
+  }> {
+    const adminEmail = localStorage.getItem('adminEmail') || 'admin@educreds.xyz';
+    const response = await this.client.post(
+      `/governance/admin/proposals/${proposalId}/configure-countdown`,
+      payload,
+      { headers: { 'admin-email': adminEmail } }
+    );
+    return response.data;
+  }
+
   async updateSystemConfig(key: string, value: any): Promise<{ key: string; value: any; updated: boolean }> {
     const response = await this.client.patch(`/governance/admin/config/${key}`, { value });
+    return response.data;
+  }
+
+  async recomputeInstitutionPoIC(
+    institutionId: string
+  ): Promise<{
+    institutionId: string;
+    score: number;
+    onChainScore: number;
+    updated: boolean;
+    mode: string;
+    timestamp: string;
+  }> {
+    const adminEmail = localStorage.getItem('adminEmail') || 'admin@educreds.xyz';
+    const response = await this.client.post(
+      `/governance/admin/institutions/${institutionId}/recompute-poic`,
+      {},
+      { headers: { 'admin-email': adminEmail } }
+    );
+    return response.data;
+  }
+
+  async elevateInstitutionStatus(
+    institutionId: string
+  ): Promise<{
+    institutionId: string;
+    action: string;
+    updated: boolean;
+    verificationStatus: string;
+    isVerified: boolean;
+    timestamp: string;
+  }> {
+    const adminEmail = localStorage.getItem('adminEmail') || 'admin@educreds.xyz';
+    const response = await this.client.post(
+      `/governance/admin/institutions/${institutionId}/elevate-status`,
+      {},
+      { headers: { 'admin-email': adminEmail } }
+    );
+    return response.data;
+  }
+
+  async decommissionInstitution(
+    institutionId: string
+  ): Promise<{
+    institutionId: string;
+    action: string;
+    updated: boolean;
+    verificationStatus: string;
+    isVerified: boolean;
+    blockchainAuthorized: boolean;
+    timestamp: string;
+  }> {
+    const adminEmail = localStorage.getItem('adminEmail') || 'admin@educreds.xyz';
+    const response = await this.client.post(
+      `/governance/admin/institutions/${institutionId}/decommission`,
+      {},
+      { headers: { 'admin-email': adminEmail } }
+    );
     return response.data;
   }
 

@@ -75,6 +75,13 @@ interface RevenueData {
   planBreakdown: Record<string, number>;
 }
 
+interface VerificationStats {
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+}
+
 const reviewSchema = z.object({
   status: z.enum(['approved', 'rejected']),
   comments: z.string().optional(),
@@ -93,6 +100,12 @@ export default function AdminDashboard() {
 function AdminDashboardContent() {
   const [, setLocation] = useLocation();
   const [verificationRequests, setVerificationRequests] = useState<VerificationRequest[]>([]);
+  const [verificationStats, setVerificationStats] = useState<VerificationStats>({
+    total: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+  });
   const [revenueData, setRevenueData] = useState<RevenueData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<VerificationRequest | null>(null);
@@ -105,6 +118,7 @@ function AdminDashboardContent() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [diagnosticLoading, setDiagnosticLoading] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<ReviewForm>({
@@ -140,8 +154,12 @@ function AdminDashboardContent() {
   };
 
   const handleConnectionTest = async () => {
+    setDiagnosticLoading(true);
     const adminEmail = localStorage.getItem('adminEmail');
-    if (!adminEmail) return;
+    if (!adminEmail) {
+      setDiagnosticLoading(false);
+      return;
+    }
     const [backendTest, adminTest] = await Promise.all([
       testBackendConnection(),
       testAdminConnection(adminEmail)
@@ -152,6 +170,7 @@ function AdminDashboardContent() {
       description: `Backend: ${backendTest.isConnected ? "✅ Online" : "❌ Offline"}. Admin API: ${adminTest.isConnected ? "✅ Online" : "❌ Offline"}`,
       variant: backendTest.isConnected && adminTest.isConnected ? "default" : "destructive"
     });
+    setDiagnosticLoading(false);
   };
 
   const fetchAdminData = async (token: string, showLoading = true) => {
@@ -165,22 +184,30 @@ function AdminDashboardContent() {
 
       const [verificationResponse, revenueResponse] = await Promise.all([
         fetch(API_CONFIG.ADMIN.VERIFICATION_REQUESTS, {
-          headers: { 'admin-email': adminEmail, 'Content-Type': 'application/json' }
+          headers: { 'admin-email': adminEmail, 'Content-Type': 'application/json' },
+          cache: 'no-store',
         }),
         fetch(API_CONFIG.ADMIN.REVENUE, {
-          headers: { 'admin-email': adminEmail, 'Content-Type': 'application/json' }
+          headers: { 'admin-email': adminEmail, 'Content-Type': 'application/json' },
+          cache: 'no-store',
         })
       ]);
 
-      if (verificationResponse.ok) {
-        const data = await verificationResponse.json();
-        setVerificationRequests(data.verificationRequests || []);
+      if (!verificationResponse.ok) {
+        throw new Error(`Verification API error: ${verificationResponse.status}`);
+      }
+      if (!revenueResponse.ok) {
+        throw new Error(`Revenue API error: ${revenueResponse.status}`);
       }
 
-      if (revenueResponse.ok) {
-        const data = await revenueResponse.json();
-        setRevenueData(data);
-      }
+      const verificationData = await verificationResponse.json();
+      setVerificationRequests(verificationData.verificationRequests || []);
+      setVerificationStats(
+        verificationData.stats || { total: 0, pending: 0, approved: 0, rejected: 0 },
+      );
+
+      const revenue = await revenueResponse.json();
+      setRevenueData(revenue);
 
       setLastUpdated(new Date());
     } catch (error: any) {
@@ -337,18 +364,18 @@ function AdminDashboardContent() {
                     />
                     <StatCard
                       title="Verified Institutions"
-                      value={revenueData?.activeSubscriptions || 0}
+                      value={verificationStats.approved}
                       icon={Building2}
                       trend="+4 this week"
                       color="indigo"
                     />
                     <StatCard
                       title="Pending Approvals"
-                      value={verificationRequests.filter(r => r.status === 'pending').length}
+                      value={verificationStats.pending}
                       icon={FileCheck}
                       trend="Requires Action"
                       color="amber"
-                      highlight={verificationRequests.filter(r => r.status === 'pending').length > 0}
+                      highlight={verificationStats.pending > 0}
                     />
                     <StatCard
                       title="Service Uptime"
@@ -469,7 +496,12 @@ function AdminDashboardContent() {
                           <p className="text-xs text-blue-100 leading-relaxed opacity-80">
                             Current system throughput is at 4% of total capacity. Infrastructure is ready for mass institutional onboarding.
                           </p>
-                          <Button className="bg-white text-blue-600 hover:bg-blue-50 w-full font-bold text-xs uppercase tracking-widest">
+                          <Button
+                            onClick={handleConnectionTest}
+                            disabled={diagnosticLoading}
+                            className="bg-white text-blue-600 hover:bg-blue-50 w-full font-bold text-xs uppercase tracking-widest"
+                          >
+                            {diagnosticLoading ? <Loader2 className="w-3 h-3 mr-2 animate-spin" /> : null}
                             Load Diagnostics
                           </Button>
                         </div>

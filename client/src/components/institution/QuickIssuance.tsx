@@ -203,9 +203,12 @@ export default function QuickIssuance() {
       return api.issueCertificate(formData);
     },
     onSuccess: (data) => {
+      const fallbackNote = data?.issuanceMode === 'backend_fallback' && data?.walletDirectFailureReason
+        ? ` Wallet-direct skipped: ${data.walletDirectFailureReason}`
+        : '';
       toast({
         title: 'Success',
-        description: `Certificate issued successfully. Status: ${data.onChainStatus}`,
+        description: `Certificate issued successfully. Status: ${data.onChainStatus}.${fallbackNote}`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/certificates/institution'] });
       queryClient.invalidateQueries({ queryKey: ['/api/subscription/current'] });

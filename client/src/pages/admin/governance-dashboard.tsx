@@ -98,12 +98,29 @@ function AdminGovernanceDashboardContent() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeProposals, setActiveProposals] = useState<ProposalResponse[]>([]);
   const [proposalActionLoading, setProposalActionLoading] = useState<string | null>(null);
+  const [poicRecomputeLoading, setPoicRecomputeLoading] = useState<string | null>(null);
 
   // Fetch data using react-query hooks
-  const { data: metrics, isLoading: metricsLoading } = useSystemMetrics();
-  const { data: auditData, isLoading: auditLoading } = useAuditLog(1, 15);
-  const { data: statusData, isLoading: statusLoading } = useSystemStatus();
-  const { data: registryData, isLoading: registryLoading } = useInstitutionRegistry(1, 10);
+  const {
+    data: metrics,
+    isLoading: metricsLoading,
+    refetch: refetchMetrics,
+  } = useSystemMetrics();
+  const {
+    data: auditData,
+    isLoading: auditLoading,
+    refetch: refetchAuditLog,
+  } = useAuditLog(1, 15);
+  const {
+    data: statusData,
+    isLoading: statusLoading,
+    refetch: refetchSystemStatus,
+  } = useSystemStatus();
+  const {
+    data: registryData,
+    isLoading: registryLoading,
+    refetch: refetchRegistry,
+  } = useInstitutionRegistry(1, 10);
 
   useEffect(() => {
     loadAdminProposals();
@@ -144,13 +161,203 @@ function AdminGovernanceDashboardContent() {
     }
   };
 
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => setIsRefreshing(false), 1000);
-    toast({
-      title: "Real-time Sync",
-      description: "Governance ledger synchronized with mainnet consensus.",
-    });
+  const handleConfigureCountdown = async (proposal: ProposalResponse) => {
+    const durationInput = window.prompt(
+      'Set voting countdown in hours (1 - 720):',
+      '24',
+    );
+    if (!durationInput) return;
+
+    const thresholdInput = window.prompt(
+      'Set weighted approval threshold % (1 - 100):',
+      '60',
+    );
+    if (!thresholdInput) return;
+
+    const durationHours = Number(durationInput);
+    const approvalThresholdPercent = Number(thresholdInput);
+
+    if (!Number.isFinite(durationHours) || durationHours < 1 || durationHours > 720) {
+      toast({
+        title: 'Invalid countdown',
+        description: 'Duration must be between 1 and 720 hours.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!Number.isFinite(approvalThresholdPercent) || approvalThresholdPercent < 1 || approvalThresholdPercent > 100) {
+      toast({
+        title: 'Invalid threshold',
+        description: 'Threshold must be between 1 and 100 percent.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setProposalActionLoading(`${proposal.id}-countdown`);
+      const result = await governanceApiService.configureProposalCountdown(proposal.id, {
+        durationHours,
+        approvalThresholdPercent,
+        startNow: true,
+      });
+      toast({
+        title: 'Countdown configured',
+        description: `Voting window set to ${result.durationHours}h at ${result.approvalThresholdPercent}% threshold.`,
+      });
+      await loadAdminProposals();
+    } catch (error: any) {
+      toast({
+        title: 'Countdown setup failed',
+        description: error?.message || 'Could not configure proposal countdown.',
+        variant: 'destructive',
+      });
+    } finally {
+      setProposalActionLoading(null);
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      await Promise.all([
+        refetchMetrics(),
+        refetchSystemStatus(),
+        refetchAuditLog(),
+        refetchRegistry(),
+        loadAdminProposals(),
+      ]);
+      toast({
+        title: "Consensus sync completed",
+        description: "Metrics, registry, proposals and telemetry have been refreshed.",
+      });
+    } catch {
+      toast({
+        title: "Consensus sync failed",
+        description: "Some governance modules could not be refreshed.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleCsvExport = () => {
+    const rows = registryData?.data || [];
+    if (!rows.length) {
+      toast({
+        title: "No data to export",
+        description: "Registry is empty for the selected view.",
+      });
+      return;
+    }
+
+    const header = ['id', 'name', 'walletAddress', 'status', 'currentPoICScore', 'proposalsSubmitted', 'createdAt'];
+    const csv = [
+      header.join(','),
+      ...rows.map((inst: any) => [
+        inst.id,
+        JSON.stringify(inst.name || ''),
+        inst.walletAddress,
+        inst.status,
+        inst.currentPoICScore ?? 0,
+        inst.proposalsSubmitted ?? 0,
+        inst.createdAt || '',
+      ].join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `institution-registry-${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSystemAudit = async () => {
+    try {
+      await Promise.all([refetchAuditLog(), refetchSystemStatus()]);
+      setActiveTab('NOC');
+      toast({
+        title: "System audit completed",
+        description: "Latest audit records and telemetry have been loaded.",
+      });
+    } catch {
+      toast({
+        title: "System audit failed",
+        description: "Could not fetch telemetry/audit records.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleElevateStatus = async (institution: any) => {
+    try {
+      await governanceApiService.elevateInstitutionStatus(institution.id);
+      await refetchRegistry();
+      toast({
+        title: "Status elevated",
+        description: `${institution.name} is now approved and verified.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Elevate failed",
+        description: error?.message || "Could not elevate institution status.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDecommission = async (institution: any) => {
+    try {
+      await governanceApiService.decommissionInstitution(institution.id);
+      await refetchRegistry();
+      setSelectedInstitution(null);
+      toast({
+        title: "Institution decommissioned",
+        description: `${institution.name} has been removed from active governance.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Decommission failed",
+        description: error?.message || "Could not decommission institution.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleManualPoICRecompute = async (institution: any) => {
+    try {
+      setPoicRecomputeLoading(institution.id);
+      const result = await governanceApiService.recomputeInstitutionPoIC(institution.id);
+
+      toast({
+        title: "PoIC recompute completed",
+        description: `Updated score: ${result.score} (on-chain: ${result.onChainScore})`,
+      });
+
+      await refetchRegistry();
+      setSelectedInstitution((current: any) =>
+        current?.id === institution.id
+          ? {
+              ...current,
+              currentPoICScore: result.onChainScore ?? result.score,
+            }
+          : current,
+      );
+    } catch (error: any) {
+      toast({
+        title: "PoIC recompute failed",
+        description: error?.message || "Failed to recompute institution PoIC.",
+        variant: "destructive",
+      });
+    } finally {
+      setPoicRecomputeLoading(null);
+    }
   };
 
   if (metricsLoading) {
@@ -230,7 +437,10 @@ function AdminGovernanceDashboardContent() {
             <RefreshCw className={cn("w-4 h-4 mr-2 group-hover:rotate-180 transition-transform duration-700", isRefreshing && "animate-spin")} />
             Recalibrate
           </Button>
-          <Button className="bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black h-12 px-10 shadow-2xl shadow-blue-500/20 text-xs uppercase tracking-widest">
+          <Button
+            onClick={handleRefresh}
+            className="bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black h-12 px-10 shadow-2xl shadow-blue-500/20 text-xs uppercase tracking-widest"
+          >
             <Zap className="w-4 h-4 mr-2" />
             Trigger Consensus
           </Button>
@@ -417,6 +627,11 @@ function AdminGovernanceDashboardContent() {
                     <div>
                       <p className="text-sm font-black text-white">{proposal.title}</p>
                       <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mt-1">{proposal.state}</p>
+                      {proposal.endBlock ? (
+                        <p className="text-[10px] text-blue-400 uppercase tracking-[0.18em] mt-1">
+                          Ends: {new Date(Number(proposal.endBlock) * 1000).toLocaleString()}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -449,13 +664,26 @@ function AdminGovernanceDashboardContent() {
                       {proposalActionLoading === `${proposal.id}-2` ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
                       Abstain
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-blue-500/40 text-blue-300 hover:bg-blue-700 hover:text-white"
+                      disabled={proposalActionLoading !== null}
+                      onClick={() => handleConfigureCountdown(proposal)}
+                    >
+                      {proposalActionLoading === `${proposal.id}-countdown` ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
+                      Set Countdown
+                    </Button>
                   </div>
                 </div>
               ))}
             </CardContent>
           </Card>
 
-          <TacticalRiskMonitor registryData={registryData} />
+          <TacticalRiskMonitor
+            registryData={registryData}
+            onIntervene={(institution: any) => setSelectedInstitution(institution)}
+          />
         </TabsContent>
 
         <TabsContent value="registry" className="outline-none">
@@ -470,7 +698,13 @@ function AdminGovernanceDashboardContent() {
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600 group-focus-within:text-blue-500 transition-colors" />
                             <input className="bg-gray-950 border border-gray-800 rounded-2xl h-12 pl-12 pr-6 text-xs font-black text-white focus:ring-2 focus:ring-blue-600 transition-all outline-none w-full md:w-64" placeholder="QUERY LEDGER..." />
                         </div>
-                        <Button variant="outline" className="border-gray-800 bg-gray-900 rounded-2xl h-12 px-8 font-black text-[10px] uppercase tracking-widest text-gray-500 hover:text-white transition-all">CSV EXPORT</Button>
+                        <Button
+                          variant="outline"
+                          onClick={handleCsvExport}
+                          className="border-gray-800 bg-gray-900 rounded-2xl h-12 px-8 font-black text-[10px] uppercase tracking-widest text-gray-500 hover:text-white transition-all"
+                        >
+                          CSV EXPORT
+                        </Button>
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -683,6 +917,9 @@ function AdminGovernanceDashboardContent() {
                     </div>
                     <div>
                       <DialogTitle className="text-4xl font-black tracking-tighter uppercase italic">{selectedInstitution.name}</DialogTitle>
+                      <DialogDescription className="text-xs text-gray-400 mt-2">
+                        Institution governance controls and live integrity intervention actions.
+                      </DialogDescription>
                       <div className="flex flex-wrap items-center gap-4 mt-3">
                         <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 bg-blue-600/10 px-4 py-1.5 rounded-full border border-blue-600/10">
                             PARTNER NODE: {selectedInstitution.walletAddress.substring(0, 16)}...
@@ -708,10 +945,33 @@ function AdminGovernanceDashboardContent() {
                         <div className="h-px flex-1 bg-gray-900" />
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <ActionTacticalButton icon={Database} label="System Audit" desc="Deep-scan ledger issuance" />
-                        <ActionTacticalButton icon={RefreshCw} label="Rebase Score" desc="Force credibility re-calc" />
-                        <ActionTacticalButton icon={ShieldCheck} label="Elevate Status" desc="Grant priority access" color="blue" />
-                        <ActionTacticalButton icon={ShieldAlert} label="Decommission" desc="Revoke network rights" color="red" />
+                        <ActionTacticalButton
+                          icon={Database}
+                          label="System Audit"
+                          desc="Deep-scan ledger issuance"
+                          onClick={handleSystemAudit}
+                        />
+                        <ActionTacticalButton
+                          icon={RefreshCw}
+                          label="Rebase Score"
+                          desc="Force credibility re-calc"
+                          onClick={() => handleManualPoICRecompute(selectedInstitution)}
+                          loading={poicRecomputeLoading === selectedInstitution.id}
+                        />
+                        <ActionTacticalButton
+                          icon={ShieldCheck}
+                          label="Elevate Status"
+                          desc="Grant priority access"
+                          color="blue"
+                          onClick={() => handleElevateStatus(selectedInstitution)}
+                        />
+                        <ActionTacticalButton
+                          icon={ShieldAlert}
+                          label="Decommission"
+                          desc="Revoke network rights"
+                          color="red"
+                          onClick={() => handleDecommission(selectedInstitution)}
+                        />
                     </div>
                   </div>
                 </div>
@@ -780,7 +1040,7 @@ function TacticalTierMetric({ label, value, color }: { label: string, value: str
     );
 }
 
-function TacticalRiskMonitor({ registryData }: any) {
+function TacticalRiskMonitor({ registryData, onIntervene }: any) {
   const highRisk = registryData?.data?.filter((i: any) => i.currentPoICScore < 75) || [];
 
   return (
@@ -822,7 +1082,11 @@ function TacticalRiskMonitor({ registryData }: any) {
                     <p className="text-5xl font-black text-red-600 tracking-tighter italic">{inst.currentPoICScore}<span className="text-xs ml-2 opacity-30 not-italic">SCORE</span></p>
                     <p className="text-[9px] text-gray-700 uppercase tracking-[0.4em] font-black mt-1">PoIC Degradation Point</p>
                   </div>
-                  <Button variant="outline" className="h-14 px-10 border-red-500/20 bg-gray-950 text-red-500 hover:bg-red-600 hover:text-white hover:border-red-600 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-xl">
+                  <Button
+                    variant="outline"
+                    onClick={() => onIntervene?.(inst)}
+                    className="h-14 px-10 border-red-500/20 bg-gray-950 text-red-500 hover:bg-red-600 hover:text-white hover:border-red-600 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-xl"
+                  >
                     INTERVENE
                   </Button>
                 </div>
@@ -879,13 +1143,24 @@ function TacticalOversightStat({ label, value, color }: any) {
   );
 }
 
-function ActionTacticalButton({ icon: Icon, label, desc, color }: any) {
+function ActionTacticalButton({
+  icon: Icon,
+  label,
+  desc,
+  color,
+  onClick,
+  loading,
+}: any) {
     const isRed = color === 'red';
     const isBlue = color === 'blue';
 
     return (
-        <button className={cn(
+        <button
+            onClick={onClick}
+            disabled={Boolean(loading)}
+            className={cn(
             "flex items-center gap-6 p-7 rounded-[2rem] border transition-all text-left group relative overflow-hidden",
+            loading && "opacity-70 cursor-not-allowed",
             isRed ? "bg-red-600/5 border-red-500/20 hover:bg-red-600 hover:border-red-600 shadow-red-600/10" : 
             isBlue ? "bg-blue-600/10 border-blue-500/20 hover:bg-blue-600 hover:border-blue-600 shadow-blue-600/10" :
             "bg-gray-900 border-gray-800 hover:bg-white hover:border-white shadow-xl"
@@ -896,7 +1171,7 @@ function ActionTacticalButton({ icon: Icon, label, desc, color }: any) {
                 isBlue ? "bg-blue-600/20 text-blue-500 group-hover:bg-white/20 group-hover:text-white" :
                 "bg-gray-800 text-gray-400 group-hover:bg-gray-950 group-hover:text-white shadow-xl"
             )}>
-                <Icon className="w-7 h-7" />
+                {loading ? <Loader2 className="w-7 h-7 animate-spin" /> : <Icon className="w-7 h-7" />}
             </div>
             <div className="relative z-10">
                 <p className={cn(

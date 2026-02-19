@@ -41,7 +41,10 @@ export default function BlockchainStatus() {
       const configResponse = await fetch(`${API_BASE}/api/blockchain/config`);
       if (!configResponse.ok) {
         // If backend doesn't have blockchain config endpoint, use environment variables directly
-        const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS || '';
+        const contractAddress =
+          import.meta.env.VITE_CREDENTIAL_ISSUER_ADDRESS ||
+          import.meta.env.VITE_CONTRACT_ADDRESS ||
+          '';
         const rpcUrl = import.meta.env.VITE_ETHEREUM_RPC_URL || '';
         const contractABI = import.meta.env.VITE_CONTRACT_ABI || '[]';
         
@@ -154,7 +157,7 @@ export default function BlockchainStatus() {
             
             <div className="space-y-2 text-sm">
               <div>
-                <span className="font-medium">Contract:</span>
+                <span className="font-medium">CredentialIssuer Contract:</span>
                 <div className="font-mono text-xs break-all text-gray-600">
                   {config.contractAddress}
                   {config.contractAddress !== '0x0000000000000000000000000000000000000000' && (
