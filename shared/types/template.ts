@@ -65,3 +65,19 @@ export interface IssuedCertificate {
   issuedAt: Date;
   status: 'issued' | 'pending' | 'failed';
 }
+
+export interface Certificate {
+  id: string;
+  studentAddress?: string;
+  studentName: string;
+  courseName: string;
+  grade: string;
+  ipfsHash: string;
+  certificateType: string;
+  completionDate: number;
+  isValid?: boolean;
+  isMinted?: boolean;
+  tokenId?: number;
+  institutionName?: string;
+  issuedBy?: string;
+}

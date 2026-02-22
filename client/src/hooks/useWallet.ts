@@ -1,15 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { blockchainService, type CertificateData } from "@/lib/blockchain";
 import { useToast } from "@/hooks/use-toast";
 import { Certificate } from "@/shared/types/template";
-
-// Declare global ethereum object for TypeScript
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-}
+import { walletService } from "@/lib/walletService";
 
 // Helper function to safely parse JSON responses
 async function safeJsonParse(response: Response) {
@@ -28,11 +22,11 @@ async function safeJsonParse(response: Response) {
 }
 
 export function useWallet() {
-  const [isConnected, setIsConnected] = useState(false);
-  const [walletAddress, setWalletAddress] = useState<string>("");
+  const [isConnected, setIsConnected] = useState(walletService.isConnected());
+  const [walletAddress, setWalletAddress] = useState<string | null>(walletService.getAddress());
   const [isLoading, setIsLoading] = useState(false);
   const [isMinting, setIsMinting] = useState(false);
-  const [error, setError] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
   const [networkId, setNetworkId] = useState<string>("");
   const { toast } = useToast();
 
@@ -45,12 +39,12 @@ export function useWallet() {
       try {
         const API_BASE = import.meta.env.VITE_CERT_API_BASE || "http://localhost:3001";
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
         
         try {
           const response = await fetch(
             `${API_BASE}/api/v1/verify/wallet/${walletAddress}`,
-            { 
+            {
               method: 'GET',
               headers: {
                 'Content-Type': 'application/json',
@@ -66,7 +60,6 @@ export function useWallet() {
           }
 
           const data = await safeJsonParse(response);
-          // Handle both response formats: certificates array or nested in object
           const certs = data.certificates || data.data || data.payload || [];
           return Array.isArray(certs) ? certs : [];
         } catch (fetchError: any) {
@@ -84,97 +77,56 @@ export function useWallet() {
       }
     },
     enabled: isConnected && !!walletAddress,
-    staleTime: 30000, // 30 seconds
-    gcTime: 60000, // 1 minute
+    staleTime: 30000,
+    gcTime: 60000,
     retry: 1,
     retryDelay: 1000,
   });
 
-
-
-  // Check if wallet is already connected
+  // Subscribe to walletService events
   useEffect(() => {
-    const checkConnection = async () => {
-      try {
-        const connected = await blockchainService.isWalletConnected();
-        if (connected) {
-          const address = await blockchainService.getWalletAddress();
-          if (address) {
-            setWalletAddress(address);
-            setIsConnected(true);
-            
-            // Get network info
-            try {
-              const networkInfo = await blockchainService.getNetworkInfo();
-              setNetworkId(networkInfo.chainId);
-            } catch (networkError) {
-              console.warn('Failed to get network info:', networkError);
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error checking wallet connection:", error);
-      }
+    const handleConnect = ({ address, chainId }: { address: string; chainId: string }) => {
+      setIsConnected(true);
+      setWalletAddress(address);
+      setNetworkId(chainId);
+      setIsLoading(false);
     };
 
-    checkConnection();
+    const handleChange = ({ address, chainId }: { address: string; chainId: string }) => {
+      setWalletAddress(address);
+      setNetworkId(chainId);
+    };
+
+    const handleDisconnect = () => {
+      setIsConnected(false);
+      setWalletAddress(null);
+      setNetworkId("");
+      setIsLoading(false);
+    };
+
+    walletService.on('connect', handleConnect);
+    walletService.on('change', handleChange);
+    walletService.on('disconnect', handleDisconnect);
+
+    // Check initial state
+    walletService.getWalletState().then(state => {
+      if (state.isConnected && state.address) {
+        handleConnect({ address: state.address, chainId: state.chainId || '' });
+      }
+    });
+
+    return () => {
+      walletService.removeListener('connect', handleConnect);
+      walletService.removeListener('change', handleChange);
+      walletService.removeListener('disconnect', handleDisconnect);
+    };
   }, []);
 
-
-  // Listen for account changes
-  useEffect(() => {
-    if (typeof window.ethereum !== 'undefined') {
-      const handleAccountsChanged = (accounts: string[]) => {
-        if (accounts.length === 0) {
-          setIsConnected(false);
-          setWalletAddress("");
-          setNetworkId("");
-        } else {
-          setWalletAddress(accounts[0]);
-          setIsConnected(true);
-        }
-      };
-
-      const handleChainChanged = (chainId: string) => {
-        setNetworkId(chainId);
-        // Reload page on network change
-        window.location.reload();
-      };
-
-      window.ethereum.on('accountsChanged', handleAccountsChanged);
-      window.ethereum.on('chainChanged', handleChainChanged);
-
-      return () => {
-        window.ethereum?.removeListener('accountsChanged', handleAccountsChanged);
-        window.ethereum?.removeListener('chainChanged', handleChainChanged);
-      };
-    }
-  }, []);
-
-
-
-  const connect = async () => {
+  const connect = useCallback(async () => {
     setIsLoading(true);
     setError("");
-    
     try {
-      // Check if MetaMask or any Web3 wallet is installed
-      if (typeof window.ethereum === 'undefined') {
-        throw new Error('No Web3 wallet detected. Please install MetaMask or another Web3 wallet.');
-      }
-
-      const address = await blockchainService.connectWallet();
-      setWalletAddress(address);
-      setIsConnected(true);
-      
-      // Get network info
-      try {
-        const networkInfo = await blockchainService.getNetworkInfo();
-        setNetworkId(networkInfo.chainId);
-      } catch (networkError) {
-        console.warn('Failed to get network info:', networkError);
-      }
-      
+      const { address } = await walletService.connect();
       toast({
         title: "Wallet connected",
         description: `Connected to wallet: ${address.substring(0, 6)}...${address.substring(address.length - 4)}`,
@@ -191,35 +143,18 @@ export function useWallet() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-
-
-  const disconnect = () => {
-    setIsConnected(false);
-    setWalletAddress("");
-    setNetworkId("");
-    setError("");
-    
-    // Clear any wallet-related data from localStorage
-    try {
-      localStorage.removeItem('walletAddress');
-      localStorage.removeItem('networkId');
-    } catch (err) {
-      console.warn('Failed to clear localStorage:', err);
-    }
-    
+  const disconnect = useCallback(() => {
+    walletService.disconnect();
     toast({
       title: "Wallet disconnected",
       description: "Your wallet has been disconnected.",
     });
-  };
-
-
+  }, [toast]);
 
   const verifyCertificate = async (certificateId: string) => {
     try {
-      // Try API endpoint first (more reliable)
       const API_BASE = import.meta.env.VITE_CERT_API_BASE || "http://localhost:3001";
       
       const response = await fetch(
@@ -245,8 +180,6 @@ export function useWallet() {
     }
   };
 
-
-
   const mintCertificate = async (certificate: Certificate) => {
     setIsMinting(true);
     setError("");
@@ -254,19 +187,6 @@ export function useWallet() {
     try {
       if (!walletAddress) {
         throw new Error('Wallet not connected. Please connect your wallet first.');
-      }
-
-      // Check if MetaMask is available
-      if (typeof window.ethereum === 'undefined') {
-        // Demo mode - simulate transaction
-        const mockTxHash = `0x${Math.random().toString(16).substr(2, 64)}`;
-        
-        toast({
-          title: "Demo minting",
-          description: "In production, this would be a real blockchain transaction.",
-        });
-        
-        return mockTxHash;
       }
 
       const txHash = await blockchainService.mintCertificate(
@@ -280,7 +200,6 @@ export function useWallet() {
         new Date(certificate.completionDate).getTime()
       );
       
-      // Refetch certificates after minting
       await refetchCertificates();
       
       toast({
@@ -290,18 +209,6 @@ export function useWallet() {
       
       return txHash;
     } catch (error: any) {
-      // Fallback to demo mode if blockchain fails
-      if (error.message.includes("MetaMask") || error.message.includes("extension not found")) {
-        const mockTxHash = `0x${Math.random().toString(16).substr(2, 64)}`;
-        
-        toast({
-          title: "Demo minting simulation",
-          description: "MetaMask not available. Simulated for demo purposes.",
-        });
-        
-        return mockTxHash;
-      }
-      
       const errorMessage = error.message || "Failed to mint certificate";
       setError(errorMessage);
       throw new Error(errorMessage);
@@ -309,8 +216,6 @@ export function useWallet() {
       setIsMinting(false);
     }
   };
-
-
 
   const revokeCertificate = async (certificateId: string) => {
     try {
@@ -320,7 +225,6 @@ export function useWallet() {
 
       const txHash = await blockchainService.revokeCertificate(parseInt(certificateId, 10));
       
-      // Refetch certificates after revoking
       await refetchCertificates();
       
       toast({
@@ -364,11 +268,9 @@ export function useWallet() {
     }
   };
 
-
-
   return {
     isConnected,
-    walletAddress,
+    walletAddress: walletAddress || "",
     networkId,
     certificates: certificates || [],
     isLoading: isLoading || certificatesLoading,
@@ -384,5 +286,3 @@ export function useWallet() {
     refetchCertificates,
   };
 }
-
-

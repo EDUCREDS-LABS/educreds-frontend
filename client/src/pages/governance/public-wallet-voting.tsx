@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ethers } from "ethers";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { governanceApiService } from "@/lib/governanceApiService";
 import { Vote, Wallet, CheckCircle, XCircle, Minus, Loader2, AlertCircle } from "lucide-react";
+import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 
 declare global {
   interface Window {
@@ -16,17 +16,17 @@ declare global {
   }
 }
 
-const IIN_ABI = ["function institutionIdOfOwner(address owner) external view returns (uint256)"];
-const DAO_ABI = ["function vote(uint256 proposalId, uint8 support) external"];
-
 export default function PublicWalletVotingPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [votingKey, setVotingKey] = useState<string | null>(null);
+  
+  // Use AppKit hooks for wallet connection
+  const { open } = useAppKit();
+  const { address: appKitAddress, isConnected: appKitIsConnected } = useAppKitAccount();
 
   const governanceDaoAddress = import.meta.env.VITE_GOVERNANCE_DAO_ADDRESS || "";
-  const institutionNftAddress = import.meta.env.VITE_INSTITUTION_NFT_ADDRESS || "";
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["governance", "public-proposals"],
@@ -35,11 +35,34 @@ export default function PublicWalletVotingPage() {
 
   const proposals = data?.data || [];
 
+  // Sync AppKit address with local state
+  useMemo(() => {
+    if (appKitAddress) {
+      setWalletAddress(appKitAddress);
+    }
+  }, [appKitAddress]);
+
   const connectWallet = async () => {
     try {
-      if (typeof window.ethereum === "undefined") {
-        throw new Error("No Web3 wallet detected. Install MetaMask or a compatible wallet.");
+      // Try AppKit modal first for wallet selection
+      if (open) {
+        await open();
+        // Address will be updated via useAppKitAccount hook
+        if (appKitAddress) {
+          setWalletAddress(appKitAddress);
+          toast({
+            title: "Wallet connected",
+            description: `${appKitAddress.slice(0, 6)}...${appKitAddress.slice(-4)}`,
+          });
+          return;
+        }
       }
+
+      // Fallback to injected wallet (MetaMask)
+      if (typeof window.ethereum === "undefined") {
+        throw new Error("No Web3 wallet detected. Install MetaMask or use WalletConnect.");
+      }
+
       const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
       if (!accounts || !accounts[0]) {
         throw new Error("No wallet account returned");
@@ -59,8 +82,8 @@ export default function PublicWalletVotingPage() {
   };
 
   const canVote = useMemo(() => {
-    return Boolean(walletAddress && governanceDaoAddress && institutionNftAddress);
-  }, [walletAddress, governanceDaoAddress, institutionNftAddress]);
+    return Boolean(walletAddress && governanceDaoAddress);
+  }, [walletAddress, governanceDaoAddress]);
 
   const castWalletVote = async (proposal: any, support: 0 | 1 | 2) => {
     const key = `${proposal.id}-${support}`;
@@ -68,41 +91,22 @@ export default function PublicWalletVotingPage() {
 
     try {
       if (!canVote) {
-        throw new Error("Connect wallet and configure VITE_GOVERNANCE_DAO_ADDRESS / VITE_INSTITUTION_NFT_ADDRESS");
+        throw new Error("Connect wallet and configure VITE_GOVERNANCE_DAO_ADDRESS");
       }
       if (!proposal?.metadata?.onChainProposalId) {
         throw new Error("Proposal is not sponsored on-chain yet");
       }
-      if (typeof window.ethereum === "undefined") {
-        throw new Error("No Web3 wallet detected");
-      }
-
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const signerAddress = await signer.getAddress();
-
-      const iin = new ethers.Contract(institutionNftAddress, IIN_ABI, provider);
-      const iinId = Number(await iin.institutionIdOfOwner(signerAddress));
-      if (!iinId) {
-        throw new Error("Connected wallet does not hold an IIN. Only IIN holders can vote.");
-      }
-
-      const dao = new ethers.Contract(governanceDaoAddress, DAO_ABI, signer);
-      const tx = await dao.vote(Number(proposal.metadata.onChainProposalId), support);
-      const receipt = await tx.wait();
-      if (!receipt?.hash) {
-        throw new Error("Vote transaction mined but no tx hash found");
-      }
-
-      await governanceApiService.recordWalletDirectVote(proposal.id, {
-        voterAddress: signerAddress,
+      const result = await governanceApiService.castVote(
+        proposal.id || proposal.proposalId,
         support,
-        txHash: receipt.hash,
-      });
+        walletAddress || appKitAddress,
+      );
 
       toast({
         title: "Vote submitted",
-        description: `Vote recorded. Tx: ${receipt.hash.slice(0, 10)}...`,
+        description: result?.txHash
+          ? `Vote recorded. Tx: ${String(result.txHash).slice(0, 10)}...`
+          : "Vote recorded successfully.",
       });
       await queryClient.invalidateQueries({ queryKey: ["governance", "public-proposals"] });
       await refetch();
@@ -135,11 +139,11 @@ export default function PublicWalletVotingPage() {
         </Button>
       </div>
 
-      {(!governanceDaoAddress || !institutionNftAddress) && (
+      {!governanceDaoAddress && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Missing frontend env config. Set `VITE_GOVERNANCE_DAO_ADDRESS` and `VITE_INSTITUTION_NFT_ADDRESS`.
+            Missing frontend env config. Set `VITE_GOVERNANCE_DAO_ADDRESS`.
           </AlertDescription>
         </Alert>
       )}
@@ -221,4 +225,3 @@ export default function PublicWalletVotingPage() {
     </div>
   );
 }
-

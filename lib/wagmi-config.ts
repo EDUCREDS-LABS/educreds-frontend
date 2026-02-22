@@ -4,7 +4,10 @@ import { mainnet, base, polygon } from '@reown/appkit/networks'
 import type { Chain } from 'viem'
 
 // Read Project ID from environment variables
-export const projectId = process.env.NEXT_PUBLIC_PROJECT_ID || 'YOUR_PROJECT_ID'
+export const projectId =
+  process.env.NEXT_PUBLIC_PROJECT_ID ||
+  process.env.VITE_WALLETCONNECT_PROJECT_ID ||
+  'YOUR_PROJECT_ID'
 
 if (!projectId || projectId === 'YOUR_PROJECT_ID') {
   console.warn('NEXT_PUBLIC_PROJECT_ID is not defined. Please set it in .env.local')

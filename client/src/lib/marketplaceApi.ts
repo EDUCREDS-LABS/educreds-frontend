@@ -10,7 +10,7 @@ const api = axios.create({
 });
 
 // Add auth interceptor
-api.interceptors.request.use((config) => {
+api.interceptors.request.use((config: any) => {
   const token = localStorage.getItem('marketplace_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

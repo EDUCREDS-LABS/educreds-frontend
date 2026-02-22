@@ -34,7 +34,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { governanceApiService } from "@/lib/governanceApiService";
-import { castDirectWalletVote } from "@/lib/governanceWalletVoting";
 import { api } from "@/lib/api";
 import {
   useProposals,
@@ -133,12 +132,16 @@ export default function GovernanceWorkspace() {
       if (!proposal) {
         throw new Error("Proposal not found for voting");
       }
-      return castDirectWalletVote(proposal as any, support);
+      return governanceApiService.castVote(
+        proposal.id || proposal.proposalId,
+        support,
+        user?.walletAddress,
+      );
     },
     onSuccess: () => {
       toast({
         title: "Vote submitted",
-        description: "Your wallet vote has been recorded on-chain.",
+        description: "Your vote has been submitted successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ["governance"] });
       queryClient.invalidateQueries({ queryKey: ["/governance/proposals", user?.id] });

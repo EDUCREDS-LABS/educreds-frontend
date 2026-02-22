@@ -2,7 +2,18 @@ import { API_CONFIG } from "@/config/api";
 import { auth, getAuthHeaders } from "./auth";
 import { AdminAuth } from "./admin-auth";
 import { transformDocumentsForBackend } from "@/utils/documentTransform";
-import { ethers } from "ethers";
+import { ethers, Eip1193Provider } from "ethers";
+import { walletService } from "./walletService";
+
+// Extended EIP-1193 provider interface for wallet providers like MetaMask
+interface EthereumProvider extends Eip1193Provider {
+  isMetaMask?: boolean;
+  isConnected?: () => boolean;
+  networkVersion?: string;
+  chainId?: string;
+}
+
+// Note: For wallet connection in utility functions, we use window.ethereum directly.
 
 console.log("Using API configuration:", {
   MAIN: API_CONFIG.MAIN,
@@ -54,11 +65,8 @@ async function handleResponse(response: Response) {
   return await response.text();
 }
 
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-}
+// Note: For wallet connection in utility functions, we use window.ethereum directly.
+// The Window.ethereum type is declared in useWallet.ts
 
 const CREDENTIAL_ISSUER_ABI = [
   "function issueCredential(uint256 institutionId, address recipient, string credentialURI) external returns (uint256 credentialId)",
@@ -73,17 +81,88 @@ const isPlaceholderAddress = (address?: string): boolean => {
   );
 };
 
-async function tryWalletDirectIssuance(formData: FormData, authHeaders: Record<string, string>) {
-  if (typeof window === "undefined" || typeof window.ethereum === "undefined") {
-    throw new Error("No Web3 wallet detected");
-  }
+const toHexChainId = (chainId: number): string => `0x${Number(chainId).toString(16)}`;
 
-  const prepareResponse = await fetch(`${API_CONFIG.CERT}/api/certificates/issue/wallet-direct/prepare`, {
-    method: "POST",
-    headers: authHeaders,
-    body: formData,
-  });
-  const prepared = await handleResponse(prepareResponse);
+const CHAIN_CONFIG: Record<number, { chainName: string; rpcUrls: string[]; nativeCurrency: { name: string; symbol: string; decimals: number }; blockExplorerUrls: string[] }> = {
+  84532: {
+    chainName: "Base Sepolia",
+    rpcUrls: ["https://sepolia.base.org", "https://base-sepolia-rpc.publicnode.com"],
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+    blockExplorerUrls: ["https://sepolia.basescan.org"],
+  },
+  8453: {
+    chainName: "Base",
+    rpcUrls: ["https://mainnet.base.org", "https://base-rpc.publicnode.com"],
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+    blockExplorerUrls: ["https://basescan.org"],
+  },
+};
+
+async function ensureWalletChain(chainId?: number) {
+  if (!chainId) {
+    return;
+  }
+  const provider = walletService.getRawProvider();
+  if (!provider) return; // or throw error
+
+  try {
+    await provider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: toHexChainId(chainId) }],
+    });
+  } catch (error: any) {
+    const code = Number(error?.code);
+    const chainMeta = CHAIN_CONFIG[Number(chainId)];
+    if ((code === 4902 || code === -32603) && chainMeta) {
+      try {
+        await provider.request({
+          method: "wallet_addEthereumChain",
+          params: [
+            {
+              chainId: toHexChainId(chainId),
+              chainName: chainMeta.chainName,
+              rpcUrls: chainMeta.rpcUrls,
+              nativeCurrency: chainMeta.nativeCurrency,
+              blockExplorerUrls: chainMeta.blockExplorerUrls,
+            },
+          ],
+        });
+        await provider.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: toHexChainId(chainId) }],
+        });
+        return;
+      } catch (addError: any) {
+        console.warn("[API] wallet_addEthereumChain failed:", addError?.message || addError);
+      }
+    }
+    // Keep going; transaction may still fail with clearer wallet-specific error.
+    console.warn("[API] Chain switch skipped/failed:", error?.message || error);
+  }
+}
+
+async function submitWalletDirectIssuanceTx(prepared: any): Promise<string> {
+  if (!walletService.isConnected()) {
+    await walletService.connect();
+  }
+  const signer = walletService.getSigner();
+  if (!signer) throw new Error("Could not get wallet signer.");
+  await ensureWalletChain(Number(prepared?.transactionData?.chainId || 0));
+
+  if (prepared?.transactionData?.to && prepared?.transactionData?.data) {
+    const tx = await signer.sendTransaction({
+      to: prepared.transactionData.to,
+      data: prepared.transactionData.data,
+      gasLimit: prepared.transactionData.gasEstimate
+        ? BigInt(prepared.transactionData.gasEstimate)
+        : undefined,
+    });
+    const receipt = await tx.wait();
+    if (!receipt?.hash) {
+      throw new Error("Wallet transaction mined but tx hash is missing");
+    }
+    return receipt.hash;
+  }
 
   const contractAddress =
     import.meta.env.VITE_CREDENTIAL_ISSUER_ADDRESS ||
@@ -95,10 +174,7 @@ async function tryWalletDirectIssuance(formData: FormData, authHeaders: Record<s
     );
   }
 
-  const provider = new ethers.BrowserProvider(window.ethereum);
-  const signer = await provider.getSigner();
   const contract = new ethers.Contract(contractAddress, CREDENTIAL_ISSUER_ABI, signer);
-
   const tx = await contract.issueCredential(
     Number(prepared.institutionTokenId),
     prepared.recipientWallet,
@@ -108,6 +184,17 @@ async function tryWalletDirectIssuance(formData: FormData, authHeaders: Record<s
   if (!receipt?.hash) {
     throw new Error("Wallet transaction mined but tx hash is missing");
   }
+  return receipt.hash;
+}
+
+async function tryWalletDirectIssuance(formData: FormData, authHeaders: Record<string, string>) {
+  const prepareResponse = await fetch(`${API_CONFIG.CERT}/api/certificates/issue/wallet-direct/prepare`, {
+    method: "POST",
+    headers: authHeaders,
+    body: formData,
+  });
+  const prepared = await handleResponse(prepareResponse);
+  const txHash = await submitWalletDirectIssuanceTx(prepared);
 
   const confirmResponse = await fetch(`${API_CONFIG.CERT}/api/certificates/issue/wallet-direct/confirm`, {
     method: "POST",
@@ -117,13 +204,48 @@ async function tryWalletDirectIssuance(formData: FormData, authHeaders: Record<s
     },
     body: JSON.stringify({
       issuanceRequestId: prepared.issuanceRequestId,
-      txHash: receipt.hash,
+      txHash,
     }),
   });
   const confirmed = await handleResponse(confirmResponse);
 
   return {
     ...confirmed,
+    onChainStatus: "minted_wallet_direct",
+    issuanceMode: "wallet_direct",
+  };
+}
+
+async function confirmWalletDirectIssuanceIfNeeded(
+  issuanceResponse: any,
+  authHeaders: Record<string, string>,
+) {
+  if (!issuanceResponse?.walletDirectRequired) {
+    return issuanceResponse;
+  }
+
+  if (!issuanceResponse?.issuanceRequestId) {
+    throw new Error("walletDirectRequired response is missing issuanceRequestId");
+  }
+
+  const txHash = await submitWalletDirectIssuanceTx(issuanceResponse);
+  const confirmResponse = await fetch(`${API_CONFIG.CERT}/api/certificates/issue/wallet-direct/confirm`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders,
+    },
+    body: JSON.stringify({
+      issuanceRequestId: issuanceResponse.issuanceRequestId,
+      txHash,
+    }),
+  });
+  const confirmed = await handleResponse(confirmResponse);
+
+  return {
+    ...issuanceResponse,
+    ...confirmed,
+    blockchainTxHash: txHash,
     onChainStatus: "minted_wallet_direct",
     issuanceMode: "wallet_direct",
   };
@@ -389,10 +511,28 @@ export const api = {
       body: formData,
     });
     const fallback = await handleResponse(response);
+    const walletDirectRequired = Boolean(fallback?.walletDirectRequired);
+    if (walletDirectRequired && typeof window !== "undefined" && typeof window.ethereum !== "undefined") {
+      try {
+        return await confirmWalletDirectIssuanceIfNeeded(fallback, authHeaders);
+      } catch (error) {
+        const walletError = error instanceof Error ? error.message : String(error);
+        return {
+          ...fallback,
+          onChainStatus: "pending_wallet_signature",
+          issuanceMode: "wallet_direct_pending",
+          walletDirectAttempted: true,
+          walletDirectFailureReason: walletError,
+        };
+      }
+    }
+
     return {
       ...fallback,
-      onChainStatus: fallback?.onChainStatus || "minted_backend_fallback",
-      issuanceMode: "backend_fallback",
+      onChainStatus: walletDirectRequired
+        ? "pending_wallet_signature"
+        : fallback?.onChainStatus || "minted_backend_fallback",
+      issuanceMode: walletDirectRequired ? "wallet_direct_pending" : "backend_fallback",
       walletDirectAttempted: walletDirectEnabled && typeof window !== "undefined" && typeof window.ethereum !== "undefined",
       walletDirectFailureReason,
     };
@@ -420,7 +560,22 @@ export const api = {
     });
 
     console.log('[API] Response status:', response.status);
-    return handleResponse(response);
+    const result = await handleResponse(response);
+    if (result?.walletDirectRequired && typeof window !== "undefined" && typeof window.ethereum !== "undefined") {
+      try {
+        return await confirmWalletDirectIssuanceIfNeeded(result, authHeaders);
+      } catch (error) {
+        const walletError = error instanceof Error ? error.message : String(error);
+        return {
+          ...result,
+          onChainStatus: "pending_wallet_signature",
+          issuanceMode: "wallet_direct_pending",
+          walletDirectAttempted: true,
+          walletDirectFailureReason: walletError,
+        };
+      }
+    }
+    return result;
   },
 
   updateCertificateAfterMint: async (certificateId: string, data: { tokenId: number; walletAddress: string }) => {
@@ -448,6 +603,21 @@ export const api = {
           : [];
 
     const certificates = list.map((c: any) => ({
+      ...(() => {
+        const status =
+          c.issuanceStatus ??
+          (c.isValid === false
+            ? "revoked"
+            : (c.isMinted ?? Boolean(c.tokenId))
+              ? "minted"
+              : "pending_wallet_signature");
+        const minted = status === "minted" || Boolean(c.isMinted ?? c.tokenId);
+        return {
+          issuanceStatus: status,
+          isMinted: minted,
+          isValid: c.isValid ?? minted,
+        };
+      })(),
       id: c.id ?? c._id ?? c.uuid ?? String(c.tokenId ?? c._id ?? Math.random()),
       studentAddress: c.studentAddress,
       studentName: c.studentName,
@@ -459,8 +629,6 @@ export const api = {
       issuedBy: c.issuedBy?._id ?? c.issuedBy ?? "",
       institutionName: c.institutionName,
       issuedAt: c.issuedAt ?? c.createdAt ?? c.issueDate,
-      isValid: c.isValid ?? true,
-      isMinted: c.isMinted ?? Boolean(c.tokenId),
       tokenId: c.tokenId,
       mintedTo: c.mintedTo,
       mintedAt: c.mintedAt,

@@ -206,9 +206,12 @@ export default function QuickIssuance() {
       const fallbackNote = data?.issuanceMode === 'backend_fallback' && data?.walletDirectFailureReason
         ? ` Wallet-direct skipped: ${data.walletDirectFailureReason}`
         : '';
+      const pending = data?.onChainStatus === 'pending_wallet_signature';
       toast({
-        title: 'Success',
-        description: `Certificate issued successfully. Status: ${data.onChainStatus}.${fallbackNote}`,
+        title: pending ? 'Pending Wallet Signature' : 'Success',
+        description: pending
+          ? `Certificate prepared. Await wallet signature. Status: ${data.onChainStatus}.${fallbackNote}`
+          : `Certificate minted successfully. Status: ${data.onChainStatus}.${fallbackNote}`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/certificates/institution'] });
       queryClient.invalidateQueries({ queryKey: ['/api/subscription/current'] });
@@ -238,9 +241,12 @@ export default function QuickIssuance() {
       });
     },
     onSuccess: (data) => {
+      const pending = data?.onChainStatus === 'pending_wallet_signature';
       toast({
-        title: 'Success',
-        description: `Certificate issued successfully. Status: ${data.onChainStatus}`,
+        title: pending ? 'Pending Wallet Signature' : 'Success',
+        description: pending
+          ? `Certificate prepared. Await wallet signature. Status: ${data.onChainStatus}`
+          : `Certificate minted successfully. Status: ${data.onChainStatus}`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/certificates/institution'] });
       queryClient.invalidateQueries({ queryKey: ['/api/subscription/current'] });

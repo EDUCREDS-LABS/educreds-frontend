@@ -1,4 +1,8 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { type AxiosInstance } from 'axios';
+import { ethers } from 'ethers';
+import { walletService } from './walletService';
+
+// Note: For wallet connection in utility functions, we use window.ethereum directly.
 
 const rawApiBase = (import.meta.env.VITE_API_BASE ?? 'http://localhost:3001').replace(/\/$/, '');
 const API_BASE_URL = rawApiBase.endsWith('/api') ? rawApiBase : `${rawApiBase}/api`;
@@ -93,6 +97,72 @@ export interface SystemStatusResponse {
 
 class GovernanceApiService {
   private client: AxiosInstance;
+  private readonly chainConfig: Record<number, {
+    chainName: string;
+    rpcUrls: string[];
+    nativeCurrency: { name: string; symbol: string; decimals: number };
+    blockExplorerUrls: string[];
+  }> = {
+    84532: {
+      chainName: 'Base Sepolia',
+      rpcUrls: ['https://sepolia.base.org', 'https://base-sepolia-rpc.publicnode.com'],
+      nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+      blockExplorerUrls: ['https://sepolia.basescan.org'],
+    },
+    8453: {
+      chainName: 'Base',
+      rpcUrls: ['https://mainnet.base.org', 'https://base-rpc.publicnode.com'],
+      nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+      blockExplorerUrls: ['https://basescan.org'],
+    },
+  };
+
+  private normalizeGovernanceRevert(error: any): Error {
+    const candidates = [
+      error?.reason,
+      error?.shortMessage,
+      error?.message,
+      error?.info?.error?.message,
+      error?.error?.message,
+      error?.data?.message,
+      error?.cause?.message,
+      typeof error === 'string' ? error : undefined,
+    ]
+      .filter(Boolean)
+      .map((v) => String(v));
+
+    const raw = candidates.join(' | ');
+
+    if (raw.includes('DAO: not active')) {
+      return new Error('Vote blocked: proposal is not in ACTIVE on-chain state.');
+    }
+    if (raw.includes('DAO: voted')) {
+      return new Error('Vote blocked: this wallet already voted on this proposal.');
+    }
+    if (raw.includes('DAO: bad support')) {
+      return new Error('Vote blocked: invalid support value.');
+    }
+    if (raw.includes('DAO: not IIN holder')) {
+      return new Error('Vote blocked: connected wallet is not an IIN holder.');
+    }
+    if (raw.includes('DAO: no institutionId')) {
+      return new Error('Vote blocked: wallet has no institutionId in IIN contract.');
+    }
+    if (raw.includes('DAO: zero weight')) {
+      return new Error('Vote blocked: wallet has zero on-chain PoIC voting weight.');
+    }
+    if (raw.includes('DAO: missing')) {
+      return new Error('Vote blocked: on-chain proposal does not exist.');
+    }
+
+    if (String(error?.receipt?.status) === '0' || raw.includes('transaction execution reverted')) {
+      return new Error(
+        'Vote transaction reverted on-chain. Common causes: proposal no longer ACTIVE, already voted, wallet is not IIN holder, or PoIC weight is zero.',
+      );
+    }
+
+    return new Error(raw || 'Vote transaction reverted on-chain.');
+  }
 
   constructor() {
     this.client = axios.create({
@@ -104,7 +174,7 @@ class GovernanceApiService {
     });
 
     // Add auth token to requests if available
-    this.client.interceptors.request.use((config) => {
+    this.client.interceptors.request.use((config: any) => {
       const token =
         localStorage.getItem('institution_token') ||
         localStorage.getItem('marketplace_token') ||
@@ -157,13 +227,134 @@ class GovernanceApiService {
     return response.data;
   }
 
+  async getVoteTransactionData(
+    proposalId: string,
+    support: 0 | 1 | 2,
+  ): Promise<{
+    to: string;
+    data: string;
+    method: string;
+    params: { proposalId: number; support: number };
+    chainId: number;
+    gasEstimate?: string;
+  }> {
+    const response = await this.client.get(`/governance/public/proposals/${proposalId}/vote/tx-data`, {
+      params: { support },
+    });
+    return response.data;
+  }
+
   // ============ VOTING API ============
+
+  private async tryWalletDirectVote(
+    proposalId: string,
+    support: 0 | 1 | 2,
+    voterAddress?: string,
+  ): Promise<any> {
+    const txData = await this.getVoteTransactionData(proposalId, support);
+
+    if (!walletService.isConnected()) {
+      await walletService.connect();
+    }
+    const signer = walletService.getSigner();
+    const eip1193Provider = walletService.getRawProvider();
+    if (!signer || !eip1193Provider) throw new Error("Wallet not connected.");
+    const connectedWallet = await signer.getAddress();
+    const resolvedVoterAddress = (voterAddress || connectedWallet).toLowerCase();
+
+    if (resolvedVoterAddress !== connectedWallet.toLowerCase()) {
+      throw new Error('Connected wallet does not match requested voter address');
+    }
+
+    if (txData?.chainId) {
+      try {
+        await eip1193Provider.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: `0x${Number(txData.chainId).toString(16)}` }],
+        });
+      } catch (error: any) {
+        const chainMeta = this.chainConfig[Number(txData.chainId)];
+        const code = Number(error?.code);
+        if ((code === 4902 || code === -32603) && chainMeta) {
+          try {
+            await eip1193Provider.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: `0x${Number(txData.chainId).toString(16)}`,
+                chainName: chainMeta.chainName,
+                rpcUrls: chainMeta.rpcUrls,
+                nativeCurrency: chainMeta.nativeCurrency,
+                blockExplorerUrls: chainMeta.blockExplorerUrls,
+              }],
+            });
+            await eip1193Provider.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: `0x${Number(txData.chainId).toString(16)}` }],
+            });
+          } catch (addError: any) {
+            console.warn('[Governance] wallet_addEthereumChain failed:', addError?.message || addError);
+          }
+        } else {
+          console.warn('[Governance] Chain switch skipped/failed:', error?.message || error);
+        }
+      }
+    }
+
+    // Preflight with the connected wallet context so we surface a concrete DAO revert reason.
+    try {
+      await signer.estimateGas({
+        to: txData.to,
+        data: txData.data,
+      });
+    } catch (preflightError: any) {
+      throw this.normalizeGovernanceRevert(preflightError);
+    }
+
+    let tx: any;
+    try {
+      tx = await signer.sendTransaction({
+        to: txData.to,
+        data: txData.data,
+        gasLimit: txData.gasEstimate ? BigInt(txData.gasEstimate) : undefined,
+      });
+    } catch (sendError: any) {
+      throw this.normalizeGovernanceRevert(sendError);
+    }
+    let receipt: any;
+    try {
+      receipt = await tx.wait();
+    } catch (waitError: any) {
+      throw this.normalizeGovernanceRevert(waitError);
+    }
+
+    if (!receipt || receipt.status === 0) {
+      throw this.normalizeGovernanceRevert({
+        message: 'transaction execution reverted',
+        receipt,
+      });
+    }
+    if (!receipt?.hash) {
+      throw new Error('Vote transaction mined but tx hash missing');
+    }
+
+    const walletRecord = await this.recordWalletDirectVote(proposalId, {
+      voterAddress: connectedWallet,
+      support,
+      txHash: receipt.hash,
+    });
+
+    return {
+      ...walletRecord,
+      txHash: receipt.hash,
+      walletDirect: true,
+    };
+  }
 
   async castVote(
     proposalId: string,
     support: boolean | 0 | 1 | 2,
     voterAddress?: string
-  ): Promise<VoteResponse> {
+  ): Promise<any> {
     const normalizedSupport =
       typeof support === 'boolean' ? (support ? 1 : 0) : support;
     const resolvedVoterAddress =
@@ -171,11 +362,29 @@ class GovernanceApiService {
       localStorage.getItem('walletAddress') ||
       localStorage.getItem('institutionWalletAddress') ||
       '';
+    const walletDirectEnabled =
+      String(import.meta.env.VITE_ENABLE_WALLET_DIRECT_VOTING ?? 'true').toLowerCase() !== 'false';
+
+    if (walletDirectEnabled) {
+      try {
+        return await this.tryWalletDirectVote(
+          proposalId,
+          normalizedSupport as 0 | 1 | 2,
+          resolvedVoterAddress || undefined,
+        );
+      } catch (error) {
+        console.warn('[Governance] Wallet-direct voting failed, falling back to backend vote:', error);
+      }
+    }
+
     const response = await this.client.post(`/governance/proposals/${proposalId}/vote`, {
       support: normalizedSupport,
       voterAddress: resolvedVoterAddress,
     });
-    return response.data;
+    return {
+      ...response.data,
+      walletDirect: false,
+    };
   }
 
   async getVotingPower(

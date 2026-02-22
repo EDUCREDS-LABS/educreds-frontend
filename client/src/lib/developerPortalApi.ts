@@ -11,7 +11,7 @@ const api = axios.create({
 });
 
 // Add auth interceptor
-api.interceptors.request.use((config) => {
+api.interceptors.request.use((config: any) => {
     const token = DualAuth.getCurrentToken();
     if (token) {
         if (!config.headers) {

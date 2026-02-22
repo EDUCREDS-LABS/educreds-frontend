@@ -1,5 +1,6 @@
 import { ethers, JsonRpcProvider } from 'ethers';
 import { CONTRACT_CONFIG, type CertificateData, type InstitutionStats } from './contract';
+import { walletService } from './walletService';
 
 // Re-export types for external use
 export type { CertificateData, InstitutionStats };
@@ -19,64 +20,29 @@ try {
 
 export class BlockchainService {
   private contract: ethers.Contract;
-  private signer: ethers.Signer | null = null;
 
   constructor() {
-    // Initialize with minimal contract setup - actual calls will be made through connected signer
+    // Initialize with read-only provider. Write operations will use a signer-connected contract.
     this.contract = new ethers.Contract(CONTRACT_CONFIG.address, CONTRACT_CONFIG.abi, provider);
   }
 
-  // Connect wallet and get signer
-  async connectWallet(): Promise<string> {
-    if (typeof window.ethereum === 'undefined') {
-      throw new Error('MetaMask is not installed');
-    }
-
-    try {
-      // Request account access
-      const accounts = await window.ethereum.request({
-        method: 'eth_requestAccounts',
-      });
-
-      if (accounts.length === 0) {
-        throw new Error('No accounts found');
+  // This is now a helper to get a contract instance connected to a signer for write operations.
+  private async getSignedContract(): Promise<ethers.Contract> {
+    const signer = walletService.getSigner();
+    if (!signer) {
+      // Try to connect if not connected
+      await walletService.connect();
+      const newSigner = walletService.getSigner();
+      if (!newSigner) {
+        throw new Error('Wallet not connected or signer not available.');
       }
-
-      // Create provider from MetaMask
-      const web3Provider = new ethers.BrowserProvider(window.ethereum);
-      this.signer = await web3Provider.getSigner();
-      
-      // Connect contract with signer for write operations
-      this.contract = this.contract.connect(this.signer) as ethers.Contract;
-
-      return accounts[0];
-    } catch (error: any) {
-      throw new Error(`Failed to connect wallet: ${error.message}`);
+      return this.contract.connect(newSigner) as ethers.Contract;
     }
+    return this.contract.connect(signer) as ethers.Contract;
   }
 
-  // Check if wallet is connected
-  async isWalletConnected(): Promise<boolean> {
-    try {
-      if (typeof window.ethereum === 'undefined') return false;
-      
-      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-      return accounts.length > 0;
-    } catch {
-      return false;
-    }
-  }
-
-  // Get current wallet address
-  async getWalletAddress(): Promise<string | null> {
-    try {
-      if (typeof window.ethereum === 'undefined') return null;
-      
-      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-      return accounts.length > 0 ? accounts[0] : null;
-    } catch {
-      return null;
-    }
+  public isWalletConnected(): boolean {
+    return walletService.isConnected();
   }
 
   // Issue a new certificate on-chain (for institutions)
@@ -89,12 +55,9 @@ export class BlockchainService {
     completionDate: number,
     certificateType: string
   ): Promise<number> {
-    if (!this.signer) {
-      throw new Error('Wallet not connected');
-    }
-
     try {
-      const tx = await this.contract.issueCertificate(
+      const contract = await this.getSignedContract();
+      const tx = await contract.issueCertificate(
         studentAddress,
         studentName,
         courseName,
@@ -107,14 +70,14 @@ export class BlockchainService {
       const receipt = await tx.wait();
       
       // Get the token ID from the event
-      const event = receipt.logs.find((log: any) => {
+      const event = receipt.logs?.find((log: any) => {
         try {
-          const decoded = this.contract.interface.parseLog(log);
+          const decoded = contract.interface.parseLog(log);
           return decoded?.name === 'CertificateIssued';
         } catch {
           return false;
         }
-      });
+      }) as ethers.Log | undefined;
       
       if (event) {
         const decodedEvent = this.contract.interface.parseLog(event);
@@ -241,12 +204,9 @@ export class BlockchainService {
 
   // Register an institution
   async registerInstitution(name: string, email: string): Promise<string> {
-    if (!this.signer) {
-      throw new Error('Wallet not connected');
-    }
-
     try {
-      const tx = await this.contract.registerInstitution(name, email);
+      const contract = await this.getSignedContract();
+      const tx = await contract.registerInstitution(name, email);
       const receipt = await tx.wait();
       return receipt.hash;
     } catch (error: any) {
@@ -256,12 +216,9 @@ export class BlockchainService {
 
   // Update institution information
   async updateInstitutionInfo(newName: string, newEmail: string): Promise<string> {
-    if (!this.signer) {
-      throw new Error('Wallet not connected');
-    }
-
     try {
-      const tx = await this.contract.updateInstitutionInfo(newName, newEmail);
+      const contract = await this.getSignedContract();
+      const tx = await contract.updateInstitutionInfo(newName, newEmail);
       const receipt = await tx.wait();
       return receipt.hash;
     } catch (error: any) {
@@ -271,12 +228,9 @@ export class BlockchainService {
 
   // Revoke a certificate (set as invalid)
   async revokeCertificate(tokenId: number): Promise<string> {
-    if (!this.signer) {
-      throw new Error('Wallet not connected');
-    }
-
     try {
-      const tx = await this.contract.revokeCertificate(tokenId);
+      const contract = await this.getSignedContract();
+      const tx = await contract.revokeCertificate(tokenId);
       const receipt = await tx.wait();
       return receipt.hash;
     } catch (error: any) {
@@ -294,12 +248,9 @@ export class BlockchainService {
     completionDates: number[],
     certificateTypes: string[]
   ): Promise<number[]> {
-    if (!this.signer) {
-      throw new Error('Wallet not connected');
-    }
-
     try {
-      const tx = await this.contract.batchIssueCertificates(
+      const contract = await this.getSignedContract();
+      const tx = await contract.batchIssueCertificates(
         students,
         studentNames,
         courseNames,
@@ -312,16 +263,16 @@ export class BlockchainService {
       const receipt = await tx.wait();
       
       // Get the token IDs from the events
-      const events = receipt.logs.filter((log: any) => {
+      const events = receipt.logs?.filter((log: any) => {
         try {
-          const decoded = this.contract.interface.parseLog(log);
+          const decoded = contract.interface.parseLog(log);
           return decoded?.name === 'CertificateIssued';
         } catch {
           return false;
         }
-      });
+      }) || [];
       
-      return events.map((event: any) => {
+      return events.map((event: ethers.Log) => {
         const decodedEvent = this.contract.interface.parseLog(event);
         if (decodedEvent && decodedEvent.args) {
           return Number(decodedEvent.args.tokenId);
@@ -359,11 +310,7 @@ export class BlockchainService {
     grade?: string,
     certificateType?: string,
     completionDate?: number
-  ): Promise<string> {
-    if (!this.signer) {
-      throw new Error('Wallet not connected');
-    }
-
+  ): Promise<any> { // Returning tx hash would require waiting for it, let's return tokenId
     try {
       // Use the existing issueCertificate function to mint to blockchain
       // Default values if not provided
@@ -381,9 +328,8 @@ export class BlockchainService {
         defaultType
       );
 
-      // Return a transaction hash-like string for compatibility
-      // In a real blockchain implementation, this would be the actual transaction hash
-      return `0x${Math.random().toString(16).substring(2, 66)}`;
+      // Returning tokenId is more useful here
+      return tokenId;
     } catch (error: any) {
       throw new Error(`Failed to mint certificate: ${error.message}`);
     }
@@ -414,12 +360,13 @@ export class BlockchainService {
 
   // Switch to the correct network
   async switchToCorrectNetwork(targetChainId: string): Promise<void> {
-    if (typeof window.ethereum === 'undefined') {
-      throw new Error('MetaMask is not installed');
+    const rawProvider = walletService.getRawProvider();
+    if (!rawProvider) {
+      throw new Error('Wallet not connected');
     }
 
     try {
-      await window.ethereum.request({
+      await rawProvider.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: targetChainId }],
       });
