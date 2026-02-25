@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   ArrowLeft, 
   Vote, 
@@ -16,13 +17,17 @@ import {
   AlertCircle,
   TrendingUp,
   FileText,
-  Shield
+  Shield,
+  Eye
 } from "lucide-react";
 import { governanceApiService } from "@/lib/governanceApiService";
 import { castDirectWalletVote } from "@/lib/governanceWalletVoting";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
+import { ProposalTransparencyCard } from "@/components/governance/ProposalTransparencyCard";
+import { RiskAssessmentPanel } from "@/components/governance/RiskAssessmentPanel";
+import { AssessmentTimeline } from "@/components/governance/AssessmentTimeline";
 
 export default function ProposalDetail() {
   const [match, params] = useRoute("/institution/governance/proposals/:id");
@@ -116,7 +121,7 @@ export default function ProposalDetail() {
         </Button>
         <div className="flex-1">
           <h1 className="text-3xl font-bold text-neutral-900">Proposal Details</h1>
-          <p className="text-neutral-600 mt-1">Proposal ID: {proposal.proposalId || proposal.id}</p>
+          <p className="text-neutral-600 mt-1">Proposal ID: {proposal.id}</p>
         </div>
       </div>
 
@@ -127,11 +132,11 @@ export default function ProposalDetail() {
             <CardTitle>{proposal.title || "Institution Verification"}</CardTitle>
             <div className="flex gap-2">
               <Badge variant={
-                proposal.recommendedAction === 'approve' ? 'default' :
-                proposal.recommendedAction === 'approve_with_limits' ? 'secondary' :
-                proposal.recommendedAction === 'reject' ? 'destructive' : 'outline'
+                proposal.state === 'ACTIVE' ? 'default' :
+                proposal.state === 'PENDING' ? 'secondary' :
+                proposal.state === 'REJECTED' ? 'destructive' : 'outline'
               }>
-                {proposal.recommendedAction || proposal.state}
+                {proposal.state}
               </Badge>
               <Badge variant="outline">
                 Score: {proposal.legitimacyScore}/100
@@ -162,31 +167,6 @@ export default function ProposalDetail() {
             <div>
               <h3 className="text-sm font-medium mb-2">Analysis Notes</h3>
               <p className="text-sm text-neutral-600 whitespace-pre-wrap">{proposal.description}</p>
-            </div>
-          )}
-
-          {/* Risk Flags */}
-          {proposal.riskFlags && proposal.riskFlags.length > 0 && (
-            <div>
-              <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4" />
-                Risk Flags
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {proposal.riskFlags.map((flag: string, i: number) => (
-                  <Badge key={i} variant="destructive">{flag}</Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Suggested Issuance Limit */}
-          {proposal.suggestedIssuanceLimit && (
-            <div>
-              <h3 className="text-sm font-medium mb-2">Suggested Issuance Limit</h3>
-              <p className="text-sm text-neutral-600">
-                {proposal.suggestedIssuanceLimit} credentials per period
-              </p>
             </div>
           )}
 
@@ -257,6 +237,39 @@ export default function ProposalDetail() {
           </AlertDescription>
         </Alert>
       )}
+
+      {/* DAO Governance Transparency Section - NEW */}
+      <Tabs defaultValue="transparency" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="transparency" className="flex items-center gap-2">
+            <Eye className="h-4 w-4" />
+            <span className="hidden sm:inline">Transparency</span>
+            <span className="sm:hidden">Assess</span>
+          </TabsTrigger>
+          <TabsTrigger value="risks" className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            <span className="hidden sm:inline">Risk Analysis</span>
+            <span className="sm:hidden">Risk</span>
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            <span className="hidden sm:inline">Assessment</span>
+            <span className="sm:hidden">History</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="transparency" className="space-y-4">
+          <ProposalTransparencyCard proposalId={proposal.id} />
+        </TabsContent>
+
+        <TabsContent value="risks" className="space-y-4">
+          <RiskAssessmentPanel proposalId={proposal.id} />
+        </TabsContent>
+
+        <TabsContent value="history" className="space-y-4">
+          <AssessmentTimeline proposalId={proposal.id} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

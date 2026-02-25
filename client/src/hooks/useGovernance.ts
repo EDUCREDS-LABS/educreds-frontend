@@ -9,6 +9,9 @@ import type {
   PaginatedResponse,
   VoteResponse,
   SystemStatusResponse,
+  AssessmentTransparencyResponse,
+  AssessmentHistoryResponse,
+  RiskAssessmentResponse,
 } from '../lib/governanceApiService.ts';
 
 // Query keys for cache management
@@ -30,6 +33,11 @@ export const governanceKeys = {
   institutionMetrics: (id: string) => ['governance', 'analytics', 'institution', id],
   poicScores: ['governance', 'analytics', 'poic-scores'],
   poicStatistics: ['governance', 'analytics', 'poic-statistics'],
+  // Transparency endpoints
+  transparency: ['governance', 'transparency'],
+  assessmentTransparency: (id: string) => ['governance', 'transparency', 'assessment', id],
+  assessmentHistory: (id: string) => ['governance', 'transparency', 'history', id],
+  riskAssessment: (id: string) => ['governance', 'transparency', 'risk', id],
 };
 
 // ============ PROPOSALS HOOKS ============
@@ -228,6 +236,41 @@ export function usePoICStatistics() {
     queryFn: () => governanceApiService.getPoICStatistics(),
     staleTime: 60 * 1000,
     gcTime: 10 * 60 * 1000,
+  });
+}
+
+// ============ TRANSPARENCY HOOKS ============
+
+export function useAssessmentTransparency(proposalId: string | undefined) {
+  return useQuery({
+    queryKey: governanceKeys.assessmentTransparency(proposalId || ''),
+    queryFn: () => governanceApiService.getAssessmentTransparency(proposalId!),
+    enabled: !!proposalId,
+    staleTime: 60 * 1000, // Assessments are stable data
+    gcTime: 30 * 60 * 1000, // 30 minutes cache
+    retry: 2,
+  });
+}
+
+export function useAssessmentHistory(proposalId: string | undefined) {
+  return useQuery({
+    queryKey: governanceKeys.assessmentHistory(proposalId || ''),
+    queryFn: () => governanceApiService.getAssessmentHistory(proposalId!),
+    enabled: !!proposalId,
+    staleTime: 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    retry: 2,
+  });
+}
+
+export function useRiskAssessment(proposalId: string | undefined) {
+  return useQuery({
+    queryKey: governanceKeys.riskAssessment(proposalId || ''),
+    queryFn: () => governanceApiService.getRiskAssessment(proposalId!),
+    enabled: !!proposalId,
+    staleTime: 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    retry: 2,
   });
 }
 

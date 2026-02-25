@@ -503,7 +503,7 @@ function AdminGovernanceDashboardContent() {
             className="grid grid-cols-1 lg:grid-cols-3 gap-8"
           >
             {/* Visual Analytics */}
-            <Card className="lg:col-span-2 bg-gray-900/40 border-gray-800/50 border-none shadow-2xl rounded-[2.5rem] backdrop-blur-md overflow-hidden">
+            <Card className="lg:col-span-2 bg-gray-900/40 border-gray-800/50 border-none shadow-2xl rounded-[2.5rem] backdrop-blur-md overflow-hidden !bg-gray-900/40">
               <CardHeader className="p-10 border-b border-gray-800/30">
                  <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                     <div>
@@ -555,7 +555,7 @@ function AdminGovernanceDashboardContent() {
             </Card>
 
             {/* Participation Distribution */}
-            <Card className="bg-gray-900/40 border-gray-800/50 border-none shadow-2xl rounded-[2.5rem] backdrop-blur-md overflow-hidden">
+            <Card className="bg-gray-900/40 border-gray-800/50 border-none shadow-2xl rounded-[2.5rem] backdrop-blur-md overflow-hidden !bg-gray-900/40">
               <CardHeader className="p-10 border-b border-gray-800/30">
                  <CardTitle className="text-2xl font-black text-white italic tracking-tighter">TIER DENSITY</CardTitle>
                  <CardDescription className="text-gray-500 font-bold uppercase tracking-widest text-[9px] mt-1">Classification of network capacity</CardDescription>
@@ -597,7 +597,7 @@ function AdminGovernanceDashboardContent() {
             </Card>
           </motion.div>
 
-          <Card className="bg-gray-900/40 border-gray-800/50 border-none shadow-2xl rounded-[2.5rem] backdrop-blur-md overflow-hidden">
+          <Card className="bg-gray-900/40 border-gray-800/50 border-none shadow-2xl rounded-[2.5rem] backdrop-blur-md overflow-hidden !bg-gray-900/40">
             <CardHeader className="p-10 border-b border-gray-800/30">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -687,7 +687,7 @@ function AdminGovernanceDashboardContent() {
         </TabsContent>
 
         <TabsContent value="registry" className="outline-none">
-            <Card className="bg-gray-900 border-gray-800 border-none shadow-2xl rounded-[2.5rem] overflow-hidden">
+            <Card className="bg-gray-900 border-gray-800 border-none shadow-2xl rounded-[2.5rem] overflow-hidden !bg-gray-900">
                 <CardHeader className="p-10 flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-gray-800/40">
                     <div>
                         <CardTitle className="text-3xl font-black text-white italic tracking-tighter uppercase">Personnel & Node Registry</CardTitle>
@@ -789,7 +789,7 @@ function AdminGovernanceDashboardContent() {
         </TabsContent>
 
         <TabsContent value="intelligence" className="outline-none">
-            <Card className="bg-gray-900 border-gray-800 border-none shadow-2xl rounded-[2.5rem] overflow-hidden">
+            <Card className="bg-gray-900 border-gray-800 border-none shadow-2xl rounded-[2.5rem] overflow-hidden !bg-gray-900">
                 <CardHeader className="p-10 border-b border-gray-800/40 bg-gray-950/30">
                     <CardTitle className="text-2xl font-black text-white italic tracking-tighter uppercase">Log Stream Intelligence</CardTitle>
                     <CardDescription className="text-gray-500 font-bold uppercase tracking-widest text-[9px] mt-1">Real-time classification of protocol-level events</CardDescription>
@@ -841,7 +841,7 @@ function AdminGovernanceDashboardContent() {
 
         <TabsContent value="NOC" className="outline-none space-y-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <Card className="bg-gray-900/60 border-gray-800 border-none shadow-2xl rounded-[2.5rem] backdrop-blur-xl overflow-hidden">
+                <Card className="bg-gray-900/60 border-gray-800 border-none shadow-2xl rounded-[2.5rem] backdrop-blur-xl overflow-hidden !bg-gray-900/60">
                    <CardHeader className="p-10 border-b border-gray-800/40">
                       <div className="flex items-center gap-4">
                          <div className="p-2.5 bg-blue-600/10 rounded-xl border border-blue-600/20">
@@ -881,13 +881,13 @@ function AdminGovernanceDashboardContent() {
                    </CardContent>
                 </Card>
 
-                <Card className="bg-gray-900/60 border-gray-800 border-none shadow-2xl rounded-[2.5rem] backdrop-blur-xl overflow-hidden">
+                <Card className="bg-gray-900/60 border-gray-800 border-none shadow-2xl rounded-[2.5rem] backdrop-blur-xl overflow-hidden !bg-gray-900/60">
                    <CardHeader className="p-10 border-b border-gray-800/40">
                       <div className="flex items-center gap-4">
                         <div className="p-2.5 bg-indigo-600/10 rounded-xl border border-indigo-600/20">
                             <Activity className="w-6 h-6 text-indigo-500" />
-                        </div>
-                        <div>
+                         </div>
+                         <div>
                             <CardTitle className="text-2xl font-black text-white italic tracking-tighter">RESOURCE ALLOCATION</CardTitle>
                             <CardDescription className="text-gray-500 font-bold uppercase tracking-widest text-[9px] mt-1">Autonomous governance processing density</CardDescription>
                         </div>
@@ -1005,7 +1005,7 @@ function TacticalMetric({ title, value, trend, icon: Icon, color, subtext, suffi
   };
 
   return (
-    <Card className="bg-gray-900 border-none shadow-2xl overflow-hidden relative group rounded-[2rem] cursor-default border-t border-white/5">
+    <Card className="bg-gray-900 border-none shadow-2xl overflow-hidden relative group rounded-[2rem] cursor-default border-t border-white/5 !bg-gray-900">
       <CardContent className="p-8">
         <div className="flex justify-between items-start mb-8">
           <div className={cn("p-3.5 rounded-2xl border transition-all duration-700 group-hover:-rotate-12 shadow-2xl", colorMap[color])}>
@@ -1136,7 +1136,7 @@ function TacticalOversightStat({ label, value, color }: any) {
     blue: "text-blue-500", indigo: "text-indigo-500", green: "text-green-500", purple: "text-purple-500"
   };
   return (
-    <div className="bg-gray-900/60 p-8 rounded-[2rem] border border-gray-800 shadow-2xl backdrop-blur-md group hover:bg-gray-800 transition-all">
+    <div className="bg-gray-900/60 p-8 rounded-[2rem] border border-gray-800 shadow-2xl backdrop-blur-md group hover:bg-gray-800 transition-all !bg-gray-900/60">
       <p className="text-[9px] uppercase tracking-[0.4em] font-black text-gray-600 mb-2 group-hover:text-gray-400 transition-colors">{label}</p>
       <p className={cn("text-3xl font-black italic tracking-tighter", colors[color])}>{value}</p>
     </div>
@@ -1214,7 +1214,15 @@ function getLogStyle(action: string) {
     return "bg-gray-800 border-gray-700 text-gray-400";
 }
 
-export default function AdminGovernanceDashboard() {
+interface AdminGovernanceDashboardProps {
+  embedded?: boolean;
+}
+
+export default function AdminGovernanceDashboard({ embedded = false }: AdminGovernanceDashboardProps) {
+  if (embedded) {
+    return <AdminGovernanceDashboardContent />;
+  }
+
   return (
     <AdminGuard>
       <AdminGovernanceDashboardContent />

@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
-import { CryptoPaymentProvider } from "@/components/payment/CryptoPaymentProvider";
+import { AppKitProvider } from "@/lib/appkit-provider";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ChatWidget } from "@/components/ChatWidget";
@@ -307,17 +307,17 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <CryptoPaymentProvider>
+    <AppKitProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
           <Toaster />
           <Router />
           <Analytics />
           <SpeedInsights />
           <ChatWidget />
-        </CryptoPaymentProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </AppKitProvider>
   );
 }
 

@@ -95,6 +95,125 @@ export interface SystemStatusResponse {
   error?: string;
 }
 
+// ============ TRANSPARENCY API TYPES ============
+
+export interface SubmittedDocumentResponse {
+  type: 'accreditation' | 'audit_report' | 'financial' | 'other';
+  label: string;
+  ipfsHash: string;
+  url: string;
+  uploadedAt: Date;
+  verified: boolean;
+}
+
+export interface InstitutionTransparencyResponse {
+  name: string;
+  walletAddress: string;
+  domain?: string;
+  country?: string;
+  type: string;
+  submittedDocuments: SubmittedDocumentResponse[];
+}
+
+export interface PoICComponentsResponse {
+  issuanceAccuracy?: number;
+  revocationRate?: number;
+  governanceBehavior?: number;
+  aiRiskComponent?: number;
+  certificatesIssued?: number;
+  certificateRevocations?: number;
+  historicalStability?: number;
+}
+
+export interface PoICScoreDetailResponse {
+  value: number;
+  calculatedAt: Date;
+  components: PoICComponentsResponse;
+  methodology: string;
+}
+
+export interface RiskFlagResponse {
+  flag: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  description: string;
+  evidence: string;
+}
+
+export interface AIAnalysisResponse {
+  legitimacyScore: number;
+  confidence: 'high' | 'medium' | 'low';
+  recommendedAction: 'approve' | 'approve_with_limits' | 'reject' | 'audit';
+  summary: string;
+  evidenceReview: string;
+  riskFlags: RiskFlagResponse[];
+}
+
+export interface AuditTrailEventResponse {
+  timestamp: Date;
+  action: string;
+  actor: string;
+  details: any;
+  status: 'success' | 'failed' | 'pending';
+}
+
+export interface VotingContextResponse {
+  votingStartsAt: Date;
+  votingEndsAt: Date;
+  estimatedCompletionBlocks: number;
+  estimatedCompletionSeconds: number;
+  currentBlockNumber: number;
+  currentBlockTimestamp: number;
+  onChainProposalState: string;
+  onChainProposalId: number;
+  quorumRequired: number;
+  approvalThreshold: number;
+}
+
+export interface AssessmentTransparencyResponse {
+  proposal: ProposalResponse;
+  institution: InstitutionTransparencyResponse;
+  poicScore: PoICScoreDetailResponse;
+  aiAnalysis: AIAnalysisResponse;
+  auditTrail: AuditTrailEventResponse[];
+  votingContext: VotingContextResponse;
+}
+
+export interface AssessmentHistoryEventResponse {
+  timestamp: Date;
+  event: 'created' | 'analyzed' | 'scored' | 'flagged' | 'revised';
+  changes: {
+    previousValue?: any;
+    newValue?: any;
+    reason?: string;
+  };
+}
+
+export interface AssessmentHistoryResponse {
+  proposalId: string;
+  assessmentTimeline: AssessmentHistoryEventResponse[];
+}
+
+export interface RiskAssessmentResponse {
+  proposalId: string;
+  institutionName: string;
+  overallRiskScore: number;
+  riskLevel: 'critical' | 'high' | 'medium' | 'low';
+  riskFactors: Array<{
+    category: 'credential_issuance' | 'institution_stability' | 'accreditation' | 'compliance' | 'governance';
+    risks: Array<{
+      description: string;
+      severity: 'critical' | 'high' | 'medium' | 'low';
+      mitigations: string[];
+      recommendedLimits?: {
+        dailyIssuanceLimit?: number;
+        monthlyIssuanceLimit?: number;
+        approvalDuration?: string;
+      };
+    }>;
+  }>;
+  recommendedAction: string;
+}
+
 class GovernanceApiService {
   private client: AxiosInstance;
   private readonly chainConfig: Record<number, {
@@ -597,6 +716,29 @@ class GovernanceApiService {
 
   async getPoICStatistics(): Promise<any> {
     const response = await this.client.get('/governance/analytics/poic-statistics');
+    return response.data;
+  }
+
+  // ============ TRANSPARENCY API ============
+
+  async getAssessmentTransparency(proposalId: string): Promise<AssessmentTransparencyResponse> {
+    const response = await this.client.get(
+      `/governance/proposals/${proposalId}/assessment-transparency`
+    );
+    return response.data;
+  }
+
+  async getAssessmentHistory(proposalId: string): Promise<AssessmentHistoryResponse> {
+    const response = await this.client.get(
+      `/governance/proposals/${proposalId}/assessment-history`
+    );
+    return response.data;
+  }
+
+  async getRiskAssessment(proposalId: string): Promise<RiskAssessmentResponse> {
+    const response = await this.client.get(
+      `/governance/proposals/${proposalId}/risk-assessment`
+    );
     return response.data;
   }
 

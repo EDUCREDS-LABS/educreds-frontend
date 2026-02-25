@@ -514,7 +514,7 @@ function AdminDashboardContent() {
 
               {activeTab === 'governance' && (
                 <div className="w-full h-full">
-                  <AdminGovernanceDashboard />
+                  <AdminGovernanceDashboard embedded />
                 </div>
               )}
 
