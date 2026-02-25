@@ -18,6 +18,13 @@ export function CertificateVerification() {
   const [disclaimerChecked, setDisclaimerChecked] = useState(false);
 
   const clearResult = () => setResult(null);
+  const parseTokenId = (value: string): number | null => {
+    const normalized = String(value || '').trim().replace(/^#/, '');
+    if (!normalized) return null;
+    if (!/^\d+$/.test(normalized)) return null;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
 
   const verifyW3CCredential = async () => {
     if (!disclaimerChecked) {
@@ -375,10 +382,3 @@ export function CertificateVerification() {
     </div>
   );
 }
-  const parseTokenId = (value: string): number | null => {
-    const normalized = String(value || '').trim().replace(/^#/, '');
-    if (!normalized) return null;
-    if (!/^\d+$/.test(normalized)) return null;
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : null;
-  };

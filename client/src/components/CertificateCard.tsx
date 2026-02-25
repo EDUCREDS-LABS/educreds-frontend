@@ -9,7 +9,9 @@ import {
   ExternalLink, 
   Calendar,
   Award,
-  Building
+  Building,
+  Copy,
+  Check
 } from 'lucide-react';
 import { CertificateShare } from './CertificateShare';
 
@@ -31,6 +33,7 @@ interface CertificateCardProps {
 
 export function CertificateCard({ certificate, showActions = true }: CertificateCardProps) {
   const [showSharing, setShowSharing] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -38,6 +41,43 @@ export function CertificateCard({ certificate, showActions = true }: Certificate
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const copyToClipboard = async (text: string, field: string) => {
+    const value = String(text ?? '').trim();
+    if (!value) return;
+
+    const fallbackCopy = (content: string) => {
+      const textarea = document.createElement('textarea');
+      textarea.value = content;
+      textarea.setAttribute('readonly', 'true');
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const success = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return success;
+    };
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const success = fallbackCopy(value);
+        if (!success) throw new Error('Clipboard API unavailable');
+      }
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (error) {
+      const success = fallbackCopy(value);
+      if (success) {
+        setCopiedField(field);
+        setTimeout(() => setCopiedField(null), 2000);
+      } else {
+        console.error('Failed to copy text to clipboard:', error);
+      }
+    }
   };
 
   if (showSharing) {
@@ -96,11 +136,67 @@ export function CertificateCard({ certificate, showActions = true }: Certificate
           </div>
         </div>
 
-        <div className="bg-gray-50 p-3 rounded text-xs space-y-1">
-          <div><strong>Certificate ID:</strong> {certificate.id}</div>
-          <div><strong>IPFS Hash:</strong> {certificate.ipfsHash}</div>
+        <div className="bg-gray-50 p-3 rounded text-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <strong>Certificate ID:</strong>
+              <div className="font-mono text-xs mt-1 break-all">{certificate.id}</div>
+            </div>
+            <Button 
+              size="sm" 
+              variant="ghost"
+              onClick={() => copyToClipboard(certificate.id, 'certificateId')}
+              className="ml-2 h-6 w-6 p-0"
+              title="Copy Certificate ID"
+            >
+              {copiedField === 'certificateId' ? (
+                <Check className="h-3 w-3 text-green-600" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
+            </Button>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div>
+              <strong>IPFS Hash:</strong>
+              <div className="font-mono text-xs mt-1 break-all">{certificate.ipfsHash}</div>
+            </div>
+            <Button 
+              size="sm" 
+              variant="ghost"
+              onClick={() => copyToClipboard(certificate.ipfsHash, 'ipfsHash')}
+              className="ml-2 h-6 w-6 p-0"
+              title="Copy IPFS Hash"
+            >
+              {copiedField === 'ipfsHash' ? (
+                <Check className="h-3 w-3 text-green-600" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
+            </Button>
+          </div>
+          
           {certificate.tokenId && (
-            <div><strong>Token ID:</strong> #{certificate.tokenId}</div>
+            <div className="flex items-center justify-between">
+              <div>
+                <strong>Token ID:</strong>
+                <div className="font-mono text-xs mt-1">#{certificate.tokenId}</div>
+              </div>
+              <Button 
+                size="sm" 
+                variant="ghost"
+                onClick={() => copyToClipboard(certificate.tokenId.toString(), 'tokenId')}
+                className="ml-2 h-6 w-6 p-0"
+                title="Copy Token ID"
+              >
+                {copiedField === 'tokenId' ? (
+                  <Check className="h-3 w-3 text-green-600" />
+                ) : (
+                  <Copy className="h-3 w-3" />
+                )}
+              </Button>
+            </div>
           )}
         </div>
 
