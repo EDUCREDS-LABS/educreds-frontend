@@ -601,7 +601,7 @@ export default function GovernanceWorkspace() {
                             <ArrowRight className="w-4 h-4 text-muted-foreground" />
                           </div>
                         </div>
-                        {proposal.state === "ACTIVE" && (
+                        {(proposal.state === "ACTIVE" || proposal.state === "PENDING") && (
                           <div className="mt-3 flex gap-2">
                             <Button
                               size="sm"

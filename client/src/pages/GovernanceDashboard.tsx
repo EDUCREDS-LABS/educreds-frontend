@@ -859,11 +859,14 @@ function ProposalDetailModal({
           {/* Action Buttons */}
           {proposal.status === 'pending' && (
             <div className="flex gap-3">
-              <Button className="flex-1" variant="default">
-                Approve
+              <Button className="flex-1" variant="outline">
+                Vote For
               </Button>
-              <Button className="flex-1" variant="destructive">
-                Reject
+              <Button className="flex-1" variant="outline">
+                Vote Against
+              </Button>
+              <Button className="flex-1" variant="outline">
+                Abstain
               </Button>
             </div>
           )}
@@ -876,8 +879,8 @@ function ProposalDetailModal({
               <Button className="flex-1" variant="outline">
                 Vote Against
               </Button>
-              <Button className="flex-1 text-yellow-600" variant="outline">
-                Initiate Veto
+              <Button className="flex-1" variant="outline">
+                Abstain
               </Button>
             </div>
           )}

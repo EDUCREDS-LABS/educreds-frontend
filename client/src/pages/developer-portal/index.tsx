@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { developerPortalApi } from "@/lib/developerPortalApi";
 import { ApiKeyCard } from "./components/ApiKeyCard";
 import { GenerateKeyDialog } from "./components/GenerateKeyDialog";
+import { JwtTokenDisplay } from "./components/JwtTokenDisplay";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ExternalLink, RefreshCw, Layers } from "lucide-react";
@@ -140,6 +141,11 @@ export default function DeveloperPortalPage() {
                         </p>
                     </CardContent>
                 </Card>
+            </div>
+
+            <div className="space-y-4">
+                <h2 className="text-xl font-semibold">Authentication Credentials</h2>
+                <JwtTokenDisplay />
             </div>
 
             <div className="space-y-4">

@@ -93,9 +93,9 @@ export default function PublicWalletVotingPage() {
       if (!canVote) {
         throw new Error("Connect wallet and configure VITE_GOVERNANCE_DAO_ADDRESS");
       }
-      if (!proposal?.metadata?.onChainProposalId) {
-        throw new Error("Proposal is not sponsored on-chain yet");
-      }
+      // ✅ Backend will auto-create proposal on-chain if needed
+      // No need to check onChainProposalId here
+
       const result = await governanceApiService.castVote(
         proposal.id || proposal.proposalId,
         support,

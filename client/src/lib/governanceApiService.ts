@@ -252,9 +252,6 @@ class GovernanceApiService {
 
     const raw = candidates.join(' | ');
 
-    if (raw.includes('DAO: not active')) {
-      return new Error('Vote blocked: proposal is not in ACTIVE on-chain state.');
-    }
     if (raw.includes('DAO: voted')) {
       return new Error('Vote blocked: this wallet already voted on this proposal.');
     }

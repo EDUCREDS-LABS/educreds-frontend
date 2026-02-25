@@ -6,9 +6,8 @@ export async function castDirectWalletVote(
   proposal: { id: string; metadata?: any },
   support: 0 | 1 | 2,
 ): Promise<{ txHash: string; voterAddress: string }> {
-  if (!proposal?.metadata?.onChainProposalId) {
-    throw new Error("Proposal is not sponsored on-chain yet");
-  }
+  // ✅ Backend will auto-create proposal on-chain if needed
+  // No need to check onChainProposalId here
 
   if (!walletService.isConnected()) {
     await walletService.connect();
