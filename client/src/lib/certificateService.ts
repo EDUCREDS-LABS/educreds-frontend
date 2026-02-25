@@ -104,31 +104,11 @@ export class CertificateService {
         status: 'pending'
       };
 
-      // Optional: Mint on blockchain with DID and IPFS references
-      try {
-        await blockchainService.connectWallet();
-        
-        // Use IPFS hash and DID references for blockchain storage
-        const completionTimestamp = Math.floor(
-          new Date(request.completionDate).getTime() / 1000
-        );
-        
-        // Use auto-generated DID for blockchain reference
-        const tokenId = await blockchainService.issueCertificate(
-          request.studentWalletAddress,
-          backendResponse.studentDID, // Use auto-generated DID
-          request.courseName,
-          request.grade,
-          backendResponse.w3cCredentialIPFSHash, // Use W3C credential hash
-          completionTimestamp,
-          request.certificateType
-        );
-
-        response.status = 'minted';
-      } catch (blockchainError) {
-        console.warn('Blockchain minting failed, certificate still valid on IPFS:', blockchainError);
-        // Certificate is still valid in backend/IPFS, just not on blockchain
-      }
+      // Do NOT auto-mint from the client in the privacy-first flow. The backend
+      // handles minting when appropriate (or provides wallet-direct transaction
+      // data). Leaving an explicit client-side mint here caused duplicate
+      // transactions (backend + frontend). If callers want to mint on-chain,
+      // call `blockchainService.issueCertificate` explicitly.
 
       return response;
     } catch (error: any) {
@@ -167,41 +147,10 @@ export class CertificateService {
         status: 'pending'
       };
 
-      // 3. Always attempt to mint on blockchain (institution wallet)
-      try {
-        // Connect wallet if not already connected
-        await blockchainService.connectWallet();
-        
-        // Convert completion date to timestamp
-        const completionTimestamp = Math.floor(new Date(request.completionDate).getTime() / 1000);
-        
-        // Use student wallet address if provided, otherwise use a default address
-        const studentAddress = request.studentWalletAddress || '0x0000000000000000000000000000000000000000';
-        
-        // Mint certificate on blockchain
-        const tokenId = await blockchainService.issueCertificate(
-          studentAddress,
-          request.studentName,
-          request.courseName,
-          request.grade,
-          backendResponse.ipfsHash,
-          completionTimestamp,
-          request.certificateType
-        );
-
-        // Update backend with blockchain data
-        await api.updateCertificateAfterMint(backendResponse.certificateId, {
-          tokenId,
-          walletAddress: studentAddress
-        });
-
-        response.tokenId = tokenId;
-        response.status = 'minted';
-      } catch (blockchainError) {
-        console.error('Blockchain minting failed:', blockchainError);
-        response.status = 'failed';
-        // Certificate is still valid in backend, just not on blockchain
-      }
+      // The API `api.issueCertificate` handles wallet-direct flows and backend fallback.
+      // Do not perform a separate client-side mint here to avoid duplicate transactions.
+      // The frontend may optionally call `blockchainService.issueCertificate` only when
+      // explicitly requested and outside this high-level helper.
 
       return response;
     } catch (error: any) {

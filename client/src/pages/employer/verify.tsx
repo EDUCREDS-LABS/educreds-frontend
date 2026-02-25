@@ -17,6 +17,14 @@ export default function Verify() {
   const [isSearching, setIsSearching] = useState(false);
   const [disclaimerChecked, setDisclaimerChecked] = useState(false);
 
+  const parseTokenId = (value: string): number | null => {
+    const normalized = String(value || '').trim().replace(/^#/, '');
+    if (!normalized) return null;
+    if (!/^\d+$/.test(normalized)) return null;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
   const { data: certificateData, isLoading, error, refetch } = useQuery({
     queryKey: ["certificate-verification", searchMethod, searchValue],
     queryFn: async () => {
@@ -29,7 +37,11 @@ export default function Verify() {
         if (searchMethod === "ipfs") {
           result = await api.verifyCertificateByIPFS(searchValue);
         } else if (searchMethod === "token") {
-          result = await api.verifyCertificateByToken(parseInt(searchValue));
+          const tokenId = parseTokenId(searchValue);
+          if (tokenId === null) {
+            throw new Error("Invalid token ID format. Use digits only (e.g., 5)");
+          }
+          result = await api.verifyCertificateByToken(tokenId);
         } else if (searchMethod === "w3c") {
           try {
             const credential = JSON.parse(w3cCredential);

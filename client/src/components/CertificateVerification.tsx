@@ -27,7 +27,7 @@ export function CertificateVerification() {
     setLoading(true);
     try {
       const credential = JSON.parse(w3cCredential);
-      const tokenIdNum = tokenId ? parseInt(tokenId) : undefined;
+      const tokenIdNum = parseTokenId(tokenId) ?? undefined;
 
       const result = await api.verifyHybridCredential({
         w3cCredential: credential,
@@ -57,7 +57,11 @@ export function CertificateVerification() {
       if (ipfsHash) {
         result = await api.verifyCertificateByIPFS(ipfsHash);
       } else if (tokenId) {
-        result = await api.verifyCertificateByToken(parseInt(tokenId));
+        const parsedTokenId = parseTokenId(tokenId);
+        if (parsedTokenId === null) {
+          throw new Error('Invalid token ID format. Use digits only (e.g., 5)');
+        }
+        result = await api.verifyCertificateByToken(parsedTokenId);
       } else if (certificateId) {
         result = await api.verifyCertificate(certificateId);
       } else {
@@ -371,3 +375,10 @@ export function CertificateVerification() {
     </div>
   );
 }
+  const parseTokenId = (value: string): number | null => {
+    const normalized = String(value || '').trim().replace(/^#/, '');
+    if (!normalized) return null;
+    if (!/^\d+$/.test(normalized)) return null;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  };

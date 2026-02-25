@@ -196,24 +196,38 @@ async function tryWalletDirectIssuance(formData: FormData, authHeaders: Record<s
   const prepared = await handleResponse(prepareResponse);
   const txHash = await submitWalletDirectIssuanceTx(prepared);
 
-  const confirmResponse = await fetch(`${API_CONFIG.CERT}/api/certificates/issue/wallet-direct/confirm`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeaders,
-    },
-    body: JSON.stringify({
-      issuanceRequestId: prepared.issuanceRequestId,
-      txHash,
-    }),
-  });
-  const confirmed = await handleResponse(confirmResponse);
+  try {
+    const confirmResponse = await fetch(`${API_CONFIG.CERT}/api/certificates/issue/wallet-direct/confirm`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+      },
+      body: JSON.stringify({
+        issuanceRequestId: prepared.issuanceRequestId,
+        txHash,
+      }),
+    });
+    const confirmed = await handleResponse(confirmResponse);
 
-  return {
-    ...confirmed,
-    onChainStatus: "minted_wallet_direct",
-    issuanceMode: "wallet_direct",
-  };
+    return {
+      ...confirmed,
+      onChainStatus: "minted_wallet_direct",
+      issuanceMode: "wallet_direct",
+    };
+  } catch (error) {
+    // Transaction is already mined at this point. Do not fall back to backend issuance,
+    // otherwise the same certificate request can be minted twice.
+    const walletError = error instanceof Error ? error.message : String(error);
+    return {
+      ...prepared,
+      blockchainTxHash: txHash,
+      onChainStatus: "pending_wallet_confirmation",
+      issuanceMode: "wallet_direct_pending_confirmation",
+      walletDirectAttempted: true,
+      walletDirectFailureReason: walletError,
+    };
+  }
 }
 
 async function confirmWalletDirectIssuanceIfNeeded(
@@ -693,7 +707,7 @@ export const api = {
     const response = await fetch(API_CONFIG.W3C.VERIFY, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ credential }),
+      body: JSON.stringify(credential),
     });
     return handleResponse(response);
   },
@@ -779,7 +793,22 @@ export const api = {
       headers: { "Content-Type": "application/json", ...authHeaders },
       body: JSON.stringify(data),
     });
-    return handleResponse(response);
+    const result = await handleResponse(response);
+    if (result?.walletDirectRequired && typeof window !== "undefined" && typeof window.ethereum !== "undefined") {
+      try {
+        return await confirmWalletDirectIssuanceIfNeeded(result, authHeaders);
+      } catch (error) {
+        const walletError = error instanceof Error ? error.message : String(error);
+        return {
+          ...result,
+          onChainStatus: "pending_wallet_signature",
+          issuanceMode: "wallet_direct_pending",
+          walletDirectAttempted: true,
+          walletDirectFailureReason: walletError,
+        };
+      }
+    }
+    return result;
   },
 
   bulkIssueFromTemplate: async (data: {

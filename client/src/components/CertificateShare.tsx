@@ -30,9 +30,40 @@ export function CertificateShare({ certificateId }: CertificateShareProps) {
   };
 
   const copyToClipboard = async (text: string, type: string) => {
-    await navigator.clipboard.writeText(text);
-    setCopied(type);
-    setTimeout(() => setCopied(null), 2000);
+    const value = String(text ?? '').trim();
+    if (!value) return;
+
+    const fallbackCopy = (content: string) => {
+      const textarea = document.createElement('textarea');
+      textarea.value = content;
+      textarea.setAttribute('readonly', 'true');
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const success = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return success;
+    };
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const success = fallbackCopy(value);
+        if (!success) throw new Error('Clipboard API unavailable');
+      }
+      setCopied(type);
+      setTimeout(() => setCopied(null), 2000);
+    } catch (error) {
+      const success = fallbackCopy(value);
+      if (success) {
+        setCopied(type);
+        setTimeout(() => setCopied(null), 2000);
+      } else {
+        console.error('Failed to copy text to clipboard:', error);
+      }
+    }
   };
 
   const downloadW3CCredential = async () => {
@@ -168,9 +199,9 @@ export function CertificateShare({ certificateId }: CertificateShareProps) {
               <div>
                 <label className="text-sm font-medium">Token ID</label>
                 <div className="flex items-center gap-2 mt-1">
-                  <code className="bg-gray-100 px-2 py-1 rounded text-sm flex-1">
-                    #{shareData.legacy.data.tokenId}
-                  </code>
+                <code className="bg-gray-100 px-2 py-1 rounded text-sm flex-1">
+                    {shareData.legacy.data.tokenId}
+                </code>
                   <Button 
                     size="sm" 
                     variant="outline"
