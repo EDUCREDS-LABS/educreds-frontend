@@ -11,6 +11,7 @@ export function StudentDashboard() {
   const [walletAddress, setWalletAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [error, setError] = useState('');
 
   const connectWallet = async () => {
     if (typeof window.ethereum !== 'undefined') {
@@ -26,9 +27,11 @@ export function StudentDashboard() {
         await api.connectWallet(address);
         
         // Load certificates
-        loadCertificates(address);
+        await loadCertificates(address);
       } catch (error: any) {
-        console.error('Failed to connect wallet:', error.message || 'Unknown error');
+        const message = error.message || 'Unknown error';
+        setError(`Failed to connect wallet: ${message}`);
+        console.error('Failed to connect wallet:', message);
       }
     } else {
       alert('Please install MetaMask to connect your wallet');
@@ -37,11 +40,19 @@ export function StudentDashboard() {
 
   const loadCertificates = async (address: string) => {
     setLoading(true);
+    setError('');
     try {
       const result = await api.getCertificatesByWallet(address);
-      setCertificates(result.certificates || []);
+      const normalizedCertificates = Array.isArray(result)
+        ? result
+        : Array.isArray(result?.certificates)
+          ? result.certificates
+          : [];
+      setCertificates(normalizedCertificates);
     } catch (error: any) {
-      console.error('Failed to load certificates:', error.message || 'Unknown error');
+      const message = error.message || 'Unknown error';
+      setError(`Failed to load certificates: ${message}`);
+      console.error('Failed to load certificates:', message);
     } finally {
       setLoading(false);
     }
@@ -153,6 +164,14 @@ export function StudentDashboard() {
                   {loading ? 'Loading...' : 'Refresh'}
                 </Button>
               </div>
+
+              {error && (
+                <Card className="mb-4 border-red-200 bg-red-50">
+                  <CardContent className="pt-4 text-sm text-red-700">
+                    {error}
+                  </CardContent>
+                </Card>
+              )}
 
               {loading ? (
                 <div className="text-center py-8">

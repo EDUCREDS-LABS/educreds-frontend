@@ -126,13 +126,11 @@ export function useWallet() {
     setIsLoading(true);
     setError("");
     try {
-      const { address } = await walletService.connect();
-      toast({
-        title: "Wallet connected",
-        description: `Connected to wallet: ${address.substring(0, 6)}...${address.substring(address.length - 4)}`,
-      });
+      // modal.open() resolves when the modal UI is visible (before the user connects).
+      // Actual connection state is updated via walletService subscribeProvider callback.
+      await walletService.connect();
     } catch (error: any) {
-      const errorMessage = error.message || "Failed to connect wallet";
+      const errorMessage = error.message || "Failed to open wallet";
       setError(errorMessage);
       toast({
         title: "Connection failed",
@@ -141,6 +139,7 @@ export function useWallet() {
       });
       console.error('Wallet connection error:', error);
     } finally {
+      // Reset loading after the modal opens so the button isn't stuck
       setIsLoading(false);
     }
   }, [toast]);

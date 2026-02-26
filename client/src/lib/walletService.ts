@@ -5,7 +5,7 @@ import { ethers, BrowserProvider, Signer, Eip1193Provider } from 'ethers';
 // 1. Get project ID from .env file
 const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
 if (!projectId) {
-  throw new Error('VITE_WALLETCONNECT_PROJECT_ID is not set in .env');
+  console.warn('VITE_WALLETCONNECT_PROJECT_ID is not set. Falling back to injected wallets only.');
 }
 
 // 2. Set up chains
@@ -41,7 +41,7 @@ const ethersConfig = defaultConfig({
 });
 
 class WalletService extends EventEmitter {
-  private modal: ReturnType<typeof createWeb3Modal>;
+  private modal: ReturnType<typeof createWeb3Modal> | null = null;
   private provider: BrowserProvider | null = null;
   private rawProvider: Eip1193Provider | null = null;
   private signer: Signer | null = null;
@@ -51,14 +51,39 @@ class WalletService extends EventEmitter {
 
   constructor() {
     super();
+  }
+
+  private ensureModal() {
+    if (this.modal || !projectId) return;
     this.modal = createWeb3Modal({
       ethersConfig,
       chains: [mainnet, testnet],
       projectId,
-      enableAnalytics: true
+      enableAnalytics: true,
     });
-
     this.modal.subscribeProvider(this.onProviderChange);
+  }
+
+  private async hydrateFromProvider(provider: Eip1193Provider) {
+    const browserProvider = new ethers.BrowserProvider(provider);
+    const signer = await browserProvider.getSigner();
+    const address = await signer.getAddress();
+    const network = await browserProvider.getNetwork();
+    const chainId = `0x${Number(network.chainId).toString(16)}`;
+    const wasConnected = this.isConnectedState;
+
+    this.provider = browserProvider;
+    this.rawProvider = provider;
+    this.signer = signer;
+    this.address = address;
+    this.chainId = chainId;
+    this.isConnectedState = true;
+
+    if (wasConnected) {
+      this.emit('change', { address: this.address, chainId: this.chainId });
+    } else {
+      this.emit('connect', { address: this.address, chainId: this.chainId });
+    }
   }
 
   private onProviderChange = async ({ provider, address, chainId, isConnected }: { provider?: Eip1193Provider, address?: string, chainId?: number, isConnected: boolean }) => {
@@ -97,12 +122,32 @@ class WalletService extends EventEmitter {
   };
 
   public async connect() {
+    // Prefer direct injected provider (MetaMask/Coinbase extension) to avoid
+    // modal conflicts and keep issuance flow responsive.
+    const injected = (globalThis as any)?.window?.ethereum as Eip1193Provider | undefined;
+    if (injected?.request) {
+      await injected.request({ method: 'eth_requestAccounts' });
+      await this.hydrateFromProvider(injected);
+      return;
+    }
+
+    // Fallback to WalletConnect modal when no injected provider exists.
+    this.ensureModal();
+    if (!this.modal) {
+      throw new Error('No injected wallet found and WalletConnect projectId is not configured.');
+    }
     return this.modal.open();
   }
 
   public async disconnect() {
-    await this.modal.disconnect();
-    // The subscription will trigger the cleanup.
+    if (this.modal) {
+      try {
+        await this.modal.disconnect();
+      } catch {
+        // Ignore modal disconnect errors and force local cleanup below.
+      }
+    }
+    this.handleDisconnectCleanup();
   }
 
   public isConnected(): boolean {
@@ -135,11 +180,10 @@ class WalletService extends EventEmitter {
   }
 
   public async getWalletState() {
-    const state = this.modal.getState();
     return {
-      address: state.address,
-      chainId: state.selectedNetworkId ? `0x${state.selectedNetworkId.toString(16)}` : null,
-      isConnected: state.open,
+      address: this.address,
+      chainId: this.chainId,
+      isConnected: this.isConnectedState,
     };
   }
 }

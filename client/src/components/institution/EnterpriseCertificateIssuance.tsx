@@ -73,6 +73,8 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { TemplateSelector } from './TemplateSelector';
 import { PDFUploader } from './PDFUploader';
 import { BulkCSVUploader } from './BulkCSVUploader';
+import { WalletConnectPanel } from './WalletConnectPanel';
+import { useWallet } from '@/hooks/useWallet';
 
 // Validation schemas
 const baseFieldsSchema = z.object({
@@ -143,7 +145,8 @@ export function EnterpriseCertificateIssuance() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+  const { isConnected: isWalletConnected } = useWallet();
+
   // State management
   const [activeMethod, setActiveMethod] = useState<'template' | 'pdf' | 'bulk'>('template');
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
@@ -378,6 +381,9 @@ export function EnterpriseCertificateIssuance() {
             </Button>
           </div>
         </div>
+
+        {/* ── Wallet Connection Panel ────────────────────────────── */}
+        <WalletConnectPanel />
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -646,6 +652,18 @@ export function EnterpriseCertificateIssuance() {
         </Card>
 
         {/* Issuance Forms */}
+        {/* ── Wallet required notice when not connected ──────────── */}
+        {!isWalletConnected && (
+          <Alert className="border-amber-200 bg-amber-50">
+            <AlertCircle className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-900">Wallet Connection Required</AlertTitle>
+            <AlertDescription className="text-amber-800">
+              Please connect your issuer wallet above before issuing certificates. 
+              Your wallet is needed to sign on-chain transactions.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {activeMethod === 'template' && (
           <TemplateSelector
             templates={templates}
@@ -654,7 +672,7 @@ export function EnterpriseCertificateIssuance() {
             form={templateForm}
             onSubmit={handleTemplateSubmit}
             isLoading={isLoading}
-            isLimitExceeded={isLimitExceeded}
+            isLimitExceeded={isLimitExceeded || !isWalletConnected}
           />
         )}
 
@@ -663,7 +681,7 @@ export function EnterpriseCertificateIssuance() {
             form={pdfForm}
             onSubmit={handlePDFSubmit}
             isLoading={isLoading}
-            isLimitExceeded={isLimitExceeded}
+            isLimitExceeded={isLimitExceeded || !isWalletConnected}
             uploadProgress={uploadProgress}
             setUploadProgress={setUploadProgress}
           />
@@ -672,7 +690,7 @@ export function EnterpriseCertificateIssuance() {
         {activeMethod === 'bulk' && (
           <BulkCSVUploader
             templates={templates}
-            isLimitExceeded={isLimitExceeded}
+            isLimitExceeded={isLimitExceeded || !isWalletConnected}
           />
         )}
 
