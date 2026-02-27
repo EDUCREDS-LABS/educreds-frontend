@@ -302,8 +302,24 @@ export function CertificateVerification() {
 
                 {result.checks && (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {(() => {
+                      const w3cSignatureOk = Boolean(
+                        result.checks.w3cSignature ??
+                        result.checks.w3cSignatureValid
+                      );
+                      const onChainMatchOk = Boolean(
+                        result.checks.onChainMatch ??
+                        result.checks.onChainMinted
+                      );
+                      const institutionAuthorizedOk = Boolean(
+                        result.checks.institutionAuthorized ??
+                        result.checks.notRevoked
+                      );
+
+                      return (
+                        <>
                     <div className="flex items-center gap-2">
-                      {result.checks.w3cSignature ? (
+                      {w3cSignatureOk ? (
                         <CheckCircle className="h-4 w-4 text-green-500" />
                       ) : (
                         <XCircle className="h-4 w-4 text-red-500" />
@@ -312,7 +328,7 @@ export function CertificateVerification() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {result.checks.onChainMatch ? (
+                      {onChainMatchOk ? (
                         <CheckCircle className="h-4 w-4 text-green-500" />
                       ) : (
                         <XCircle className="h-4 w-4 text-red-500" />
@@ -321,13 +337,16 @@ export function CertificateVerification() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {result.checks.institutionAuthorized ? (
+                      {institutionAuthorizedOk ? (
                         <CheckCircle className="h-4 w-4 text-green-500" />
                       ) : (
                         <XCircle className="h-4 w-4 text-red-500" />
                       )}
                       <span className="text-sm">Institution Authorized</span>
                     </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
 
