@@ -3,8 +3,7 @@
 import React, { ReactNode } from 'react'
 import { WagmiProvider } from 'wagmi'
 import { createAppKit } from '@reown/appkit/react'
-import { config, networks, projectId, wagmiAdapter } from './wagmi-config'
-import { mainnet } from '@reown/appkit/networks'
+import { config, networks, projectId, wagmiAdapter, defaultNetwork } from './wagmi-config'
 
 const metadata = {
   name: 'EduCreds',
@@ -20,7 +19,7 @@ if (typeof window !== 'undefined' && projectId && projectId !== 'YOUR_PROJECT_ID
       adapters: [wagmiAdapter],
       projectId: projectId,
       networks: networks,
-      defaultNetwork: mainnet,
+      defaultNetwork,
       metadata,
       features: {
         analytics: true,

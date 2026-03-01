@@ -1,12 +1,14 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MessageCircle, X, Send, Bot, User, Loader2, ExternalLink } from "lucide-react";
+import { MessageCircle, X, Send, Bot, User, Loader2, ExternalLink, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import { cn } from "@/lib/utils";
+import "./chat-widget.css";
 
-const TRUST_AGENT_BASE =
-    (import.meta.env.VITE_TRUST_AGENT_BASE ?? "").replace(/\/$/, "");
+const TRUST_AGENT_BASE = (import.meta.env.VITE_TRUST_AGENT_BASE ?? "").replace(/\/$/, "");
 
 interface Message {
     id: string;
@@ -14,6 +16,8 @@ interface Message {
     content: string;
     sources?: { title: string; url: string }[];
 }
+
+const MemoizedMarkdown = memo(ReactMarkdown);
 
 export function ChatWidget() {
     const [isOpen, setIsOpen] = useState(false);
@@ -23,213 +27,196 @@ export function ChatWidget() {
         {
             id: "welcome",
             role: "assistant",
-            content: "Hi! I'm the EduCreds Trust Agent. Ask me anything about the platform, documentation, or governance!"
+            content: "Hi! I'm the EduCreds Trust Agent. I can help with platform features, governance, and technical documentation. How can I assist you today?"
         }
     ]);
     const scrollRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
 
-    // Scroll to bottom when messages change
     useEffect(() => {
         if (scrollRef.current) {
-            scrollRef.current.scrollIntoView({ behavior: "smooth" });
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages, isOpen]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleStreamingSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!input.trim() || isLoading) return;
 
-        const userMessage: Message = {
-            id: Date.now().toString(),
-            role: "user",
-            content: input
-        };
-
+        const userMessage: Message = { id: Date.now().toString(), role: "user", content: input };
         setMessages(prev => [...prev, userMessage]);
         setInput("");
         setIsLoading(true);
 
+        const assistantMessageId = (Date.now() + 1).toString();
+        setMessages(prev => [...prev, { id: assistantMessageId, role: "assistant", content: "" }]);
+
         try {
-            const response = await axios.post(`${TRUST_AGENT_BASE}/api/trust-agent/chat`, {
-                message: userMessage.content
+            const response = await fetch(`${TRUST_AGENT_BASE}/api/trust-agent/chat-stream`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: input })
             });
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const data = response.data as any;
-            console.log("Chat response data:", data);
+            if (!response.body) throw new Error("No response body");
 
-            // Safer access to response content
-            const content = data.response
-                ? (typeof data.response === 'string' ? data.response : data.response.summary)
-                : (data.message || "No response received from agent.");
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let content = "";
+            let sources: any[] = [];
 
-            const assistantMessage: Message = {
-                id: (Date.now() + 1).toString(),
-                role: "assistant",
-                content: content,
-                sources: data.sources
-            };
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
 
-            setMessages(prev => [...prev, assistantMessage]);
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split("\n\n");
+
+                for (const line of lines) {
+                    if (line.startsWith("data: ")) {
+                        const dataPart = line.substring(6);
+                        if (dataPart === "[DONE]") {
+                            break;
+                        }
+                        try {
+                            const parsed = JSON.parse(dataPart);
+                            if (parsed.type === 'content') {
+                                content += parsed.data;
+                                setMessages(prev => prev.map(msg =>
+                                    msg.id === assistantMessageId ? { ...msg, content } : msg
+                                ));
+                            } else if (parsed.type === 'sources') {
+                                sources = parsed.data;
+                                setMessages(prev => prev.map(msg =>
+                                    msg.id === assistantMessageId ? { ...msg, sources } : msg
+                                ));
+                            }
+                        } catch (e) {
+                            // In case of incomplete JSON objects, just append the chunk.
+                            // This is a fallback and might not be perfect.
+                            content += dataPart;
+                             setMessages(prev => prev.map(msg =>
+                                    msg.id === assistantMessageId ? { ...msg, content } : msg
+                                ));
+                        }
+                    }
+                }
+            }
         } catch (error) {
-            console.error("Chat error:", error);
+            console.error("Chat streaming error:", error);
             toast({
                 title: "Error",
                 description: "Failed to get response from Trust Agent.",
                 variant: "destructive"
             });
-            setMessages(prev => [...prev, {
-                id: (Date.now() + 1).toString(),
-                role: "assistant",
-                content: "Sorry, I encountered an error while processing your request. Please try again later."
-            }]);
+            setMessages(prev => prev.map(msg =>
+                msg.id === assistantMessageId
+                    ? { ...msg, content: "Sorry, I encountered an error. Please try again." }
+                    : msg
+            ));
         } finally {
             setIsLoading(false);
         }
     };
 
+
     return (
-        <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end space-y-4 font-sans">
-            {/* Chat Window */}
+        <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[1000] flex flex-col items-end space-y-3 font-sans">
             {isOpen && (
-                <div className="w-screen sm:w-[420px] md:w-[500px] max-h-[90vh] sm:max-h-[600px] bg-white rounded-2xl sm:rounded-xl shadow-2xl border border-neutral-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 fade-in duration-300 mx-4 sm:mx-0">
-                    {/* Header */}
-                    <div className="bg-gradient-to-r from-primary to-primary/90 px-4 sm:px-6 py-4 flex justify-between items-center text-white shadow-sm">
+                <div className="w-[calc(100vw-2rem)] sm:w-[440px] max-h-[85vh] sm:max-h-[650px] bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-800 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 fade-in-25 duration-300">
+                    <div className="bg-white dark:bg-neutral-900 px-4 py-3 flex justify-between items-center border-b border-neutral-200 dark:border-neutral-800">
                         <div className="flex items-center space-x-3">
-                            <div className="bg-white/20 p-2 rounded-lg">
-                                <Bot className="h-5 w-5 text-white" />
+                            <div className="relative">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
+                                    <Bot className="h-6 w-6 text-white" />
+                                </div>
+                                <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-white dark:border-neutral-900" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-base sm:text-lg">EduCreds Assistant</h3>
-                                <p className="text-xs text-white/80">Online & Ready to Help</p>
+                                <h3 className="font-bold text-base text-neutral-800 dark:text-neutral-100">EduCreds Assistant</h3>
+                                <p className="text-xs text-neutral-500 dark:text-neutral-400">Online</p>
                             </div>
                         </div>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-white hover:bg-white/20 h-8 w-8 flex-shrink-0"
-                            onClick={() => setIsOpen(false)}
-                        >
+                        <Button variant="ghost" size="icon" className="text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 h-8 w-8" onClick={() => setIsOpen(false)}>
                             <X className="h-5 w-5" />
                         </Button>
                     </div>
 
-                    {/* Messages Area */}
-                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 sm:p-5 bg-neutral-50/50 scroll-smooth">
-                        <div className="space-y-4">
-                            {messages.map((msg) => (
-                                <div
-                                    key={msg.id}
-                                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}
-                                >
-                                    <div
-                                        className={`flex items-start gap-2 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
-                                    >
-                                        {/* Avatar */}
-                                        <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.role === "user"
-                                            ? "bg-primary/20"
-                                            : "bg-slate-200"
-                                            }`}>
-                                            {msg.role === "user" ? (
-                                                <User className="h-4 w-4 text-primary" />
-                                            ) : (
-                                                <Bot className="h-4 w-4 text-slate-600" />
-                                            )}
-                                        </div>
-
-                                        {/* Message Bubble */}
-                                        <div
-                                            className={`max-w-xs sm:max-w-sm md:max-w-md rounded-2xl px-4 py-3 shadow-sm transition-all ${msg.role === "user"
-                                                ? "bg-primary text-primary-foreground rounded-tr-sm"
-                                                : "bg-white text-slate-900 border border-slate-200 rounded-tl-sm"
-                                                }`}
-                                        >
-                                            <div className="break-words text-sm leading-relaxed mb-2 whitespace-pre-wrap">
-                                                {msg.content}
+                    <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-5 bg-neutral-50 dark:bg-neutral-950/50">
+                        {messages.map((msg) => (
+                            <div key={msg.id} className={cn("flex items-start gap-3", msg.role === "user" ? "justify-end" : "justify-start")}>
+                                {msg.role === "assistant" && (
+                                    <div className="h-8 w-8 rounded-full bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center flex-shrink-0">
+                                        <Bot className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
+                                    </div>
+                                )}
+                                <div className={cn("max-w-[85%] sm:max-w-[80%] rounded-2xl px-4 py-2.5 shadow-sm", msg.role === "user" ? "bg-primary text-primary-foreground rounded-br-lg" : "bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 rounded-bl-lg border border-neutral-200 dark:border-neutral-700")}>
+                                    <div className="prose prose-sm dark:prose-invert max-w-none break-words">
+                                        <MemoizedMarkdown remarkPlugins={[remarkGfm]}>
+                                            {msg.content}
+                                        </MemoizedMarkdown>
+                                    </div>
+                                     {msg.sources && msg.sources.length > 0 && (
+                                        <div className="mt-3 pt-3 border-t border-neutral-200 dark:border-neutral-700/50">
+                                            <p className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-2 flex items-center"><Sparkles className="w-3.5 h-3.5 mr-1.5 text-primary"/>Sources:</p>
+                                            <div className="flex flex-col space-y-1.5">
+                                                {msg.sources.map((source, idx) => (
+                                                    <a key={idx} href={source.url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium flex items-center gap-1.5 text-blue-600 dark:text-blue-400 hover:underline" title={source.title || source.url}>
+                                                        <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+                                                        <span className="line-clamp-1 break-all">{source.title || source.url}</span>
+                                                    </a>
+                                                ))}
                                             </div>
-
-                                            {/* Sources */}
-                                            {msg.sources && msg.sources.length > 0 && (
-                                                <div className="mt-3 pt-3 border-t border-slate-100/50">
-                                                    <p className="text-xs font-semibold text-slate-500 mb-2">📚 Sources:</p>
-                                                    <div className="flex flex-col space-y-1.5">
-                                                        {msg.sources.map((source, idx) => (
-                                                            <a
-                                                                key={idx}
-                                                                href={source.url}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className={`text-xs font-medium flex items-center gap-1.5 group ${msg.role === "user"
-                                                                    ? "text-white/90 hover:text-white"
-                                                                    : "text-blue-600 hover:text-blue-700"
-                                                                    } transition-colors`}
-                                                                title={source.title || source.url}
-                                                            >
-                                                                <ExternalLink className="h-3.5 w-3.5 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                                                                <span className="line-clamp-1 break-all">
-                                                                    {source.title || source.url}
-                                                                </span>
-                                                            </a>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
-                            ))}
-                            {isLoading && (
-                                <div className="flex justify-start animate-in fade-in duration-300">
-                                    <div className="flex items-start gap-2">
-                                        <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
-                                            <Bot className="h-4 w-4 text-slate-600" />
-                                        </div>
-                                        <div className="bg-white text-slate-800 border border-slate-200 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm flex items-center space-x-2">
-                                            <Loader2 className="h-4 w-4 animate-spin text-primary flex-shrink-0" />
-                                            <span className="text-sm text-slate-600">Thinking...</span>
-                                        </div>
+                                {msg.role === "user" && (
+                                    <div className="h-8 w-8 rounded-full bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center flex-shrink-0">
+                                        <User className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
                                     </div>
+                                )}
+                            </div>
+                        ))}
+                        {isLoading && messages[messages.length-1]?.role !== 'assistant' && (
+                             <div className="flex items-start gap-3 justify-start">
+                                <div className="h-8 w-8 rounded-full bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center flex-shrink-0">
+                                    <Bot className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
                                 </div>
-                            )}
-                            <div ref={scrollRef} />
-                        </div>
+                                <div className="bg-white dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100 border border-neutral-200 dark:border-neutral-700 rounded-2xl rounded-bl-lg px-4 py-3 shadow-sm flex items-center space-x-2">
+                                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                    <span className="text-sm">Thinking...</span>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Input Area */}
-                    <div className="p-3 sm:p-4 bg-white border-t border-slate-200">
-                        <form onSubmit={handleSubmit} className="flex gap-2">
+                    <div className="p-3 bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800">
+                        <form onSubmit={handleStreamingSubmit} className="flex gap-2 items-center">
                             <Input
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
-                                placeholder="Ask anything..."
-                                className="flex-1 text-sm placeholder:text-slate-400 focus-visible:ring-primary rounded-lg border-slate-300"
+                                placeholder="Ask the AI assistant..."
+                                className="flex-1 text-sm bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 rounded-lg focus-visible:ring-primary dark:focus-visible:ring-offset-neutral-900"
                                 disabled={isLoading}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                        handleStreamingSubmit(e);
+                                    }
+                                }}
                             />
-                            <Button
-                                type="submit"
-                                size="icon"
-                                className="bg-primary hover:bg-primary/90 text-white flex-shrink-0 rounded-lg transition-all duration-200"
-                                disabled={isLoading || !input.trim()}
-                            >
+                            <Button type="submit" size="icon" className="bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors flex-shrink-0" disabled={isLoading || !input.trim()}>
                                 <Send className="h-4 w-4" />
                             </Button>
                         </form>
+                         <p className="text-xs text-center text-neutral-400 dark:text-neutral-600 mt-2">
+                            Powered by EduCreds Trust Agent.
+                        </p>
                     </div>
                 </div>
             )}
 
-            {/* Toggle Button */}
-            <Button
-                onClick={() => setIsOpen(!isOpen)}
-                size="lg"
-                className="rounded-full h-14 w-14 shadow-lg bg-gradient-to-br from-primary to-primary/90 hover:bg-primary/85 text-white transition-all duration-300 hover:scale-110 flex-shrink-0"
-            >
-                {isOpen ? (
-                    <X className="h-6 w-6" />
-                ) : (
-                    <MessageCircle className="h-6 w-6" />
-                )}
+            <Button onClick={() => setIsOpen(!isOpen)} size="icon" className="rounded-full h-16 w-16 shadow-lg bg-gradient-to-br from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 text-white transition-all duration-300 hover:scale-105 flex-shrink-0">
+                {isOpen ? <X className="h-7 w-7" /> : <MessageCircle className="h-7 w-7" />}
             </Button>
         </div>
     );

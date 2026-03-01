@@ -38,16 +38,6 @@ export const API_CONFIG = {
     AUDIT_LOGS: `${MAIN_API_BASE}/api/admin/audit-logs`
   },
   
-  // Oracle endpoints (DEPRECATED - replaced by AI Intelligence Layer for PoIC scoring, proposals, and monitoring)
-  // ORACLE: {
-  //   BASE: `${MAIN_API_BASE}/api/oracle`,
-  //   SNAPSHOT_LATEST: `${MAIN_API_BASE}/api/oracle/snapshot/latest`,
-  //   SNAPSHOTS: `${MAIN_API_BASE}/api/oracle/snapshots`,
-  //   INSTITUTION: (walletAddress: string) => `${MAIN_API_BASE}/api/oracle/institution/${walletAddress}`,
-  //   SUBMIT_DOCUMENTS: (walletAddress: string) => `${MAIN_API_BASE}/api/oracle/institution/${walletAddress}/documents`,
-  //   INGEST: `${MAIN_API_BASE}/api/oracle/ingest`,
-  //   OVERRIDE: (walletAddress: string) => `${MAIN_API_BASE}/api/oracle/institution/${walletAddress}/override`
-  // },
   
   // Certificate endpoints (use CERT backend)
   CERTIFICATES: {

@@ -478,6 +478,7 @@ class GovernanceApiService {
       localStorage.getItem('walletAddress') ||
       localStorage.getItem('institutionWalletAddress') ||
       '';
+    const hasInstitutionToken = Boolean(localStorage.getItem('institution_token'));
     const walletDirectEnabled =
       String(import.meta.env.VITE_ENABLE_WALLET_DIRECT_VOTING ?? 'true').toLowerCase() !== 'false';
 
@@ -489,6 +490,12 @@ class GovernanceApiService {
           resolvedVoterAddress || undefined,
         );
       } catch (error) {
+        // Public wallet voting should not silently fall back to protected institution endpoint.
+        if (!hasInstitutionToken) {
+          throw error instanceof Error
+            ? error
+            : new Error(String(error || 'Wallet-direct voting failed'));
+        }
         console.warn('[Governance] Wallet-direct voting failed, falling back to backend vote:', error);
       }
     }
