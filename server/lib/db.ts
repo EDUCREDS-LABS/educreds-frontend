@@ -1,8 +1,8 @@
 import { neon, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-http';
+import { drizzle as drizzleNeon } from 'drizzle-orm/neon-http';
+import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
 import * as schema from '../../shared/schema';
-
-neonConfig.fetchConnectionCache = true;
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -10,7 +10,20 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const sql = neon(process.env.DATABASE_URL);
-export const db = drizzle(sql, { schema });
+const databaseUrl = process.env.DATABASE_URL;
+const isNeonHosted = databaseUrl.includes('neon.tech');
+
+// Use Neon HTTP driver only for Neon-hosted databases.
+// For local/standard Postgres URLs, use node-postgres to avoid TLS/fetch issues.
+if (isNeonHosted) {
+  neonConfig.fetchConnectionCache = true;
+}
+
+export const sql = isNeonHosted ? neon(databaseUrl) : null;
+const pgPool = isNeonHosted ? null : new Pool({ connectionString: databaseUrl });
+
+export const db = isNeonHosted
+  ? drizzleNeon(sql!, { schema })
+  : drizzlePg(pgPool!, { schema });
 
 export default db;

@@ -1,8 +1,5 @@
-import { randomBytes } from 'crypto';
-import bcrypt from 'bcrypt';
-
-const SALT_ROUNDS = 10;
-const KEY_PREFIX = 'sk_live_';
+import { createHash, randomBytes } from 'crypto';
+const KEY_PREFIX = process.env.NODE_ENV === 'production' ? 'sk_live_' : 'sk_test_';
 
 export interface GeneratedKey {
     apiKey: string;
@@ -11,7 +8,8 @@ export interface GeneratedKey {
 
 /**
  * Generates a secure random API key with a standard prefix
- * Format: sk_live_[32 random hex chars]
+ * Format: sk_live_[32 random hex chars] (production)
+ *         sk_test_[32 random hex chars] (non-production)
  */
 export const generateApiKey = (): GeneratedKey => {
     const randomPart = randomBytes(16).toString('hex');
@@ -24,7 +22,8 @@ export const generateApiKey = (): GeneratedKey => {
 
     return {
         apiKey,
-        prefix: apiKey.substring(0, 8) + '...'
+        // Display-friendly fingerprint for identifying keys in UI
+        prefix: `${apiKey.substring(0, 12)}...${apiKey.slice(-4)}`
     };
 };
 
@@ -32,12 +31,12 @@ export const generateApiKey = (): GeneratedKey => {
  * Hashes an API key for secure storage
  */
 export const hashApiKey = async (apiKey: string): Promise<string> => {
-    return await bcrypt.hash(apiKey, SALT_ROUNDS);
+    return createHash('sha256').update(apiKey).digest('hex');
 };
 
 /**
  * Compares a plain text API key with a hash
  */
 export const compareApiKey = async (apiKey: string, hash: string): Promise<boolean> => {
-    return await bcrypt.compare(apiKey, hash);
+    return createHash('sha256').update(apiKey).digest('hex') === hash;
 };

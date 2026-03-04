@@ -16,6 +16,27 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
+const buildUserFromTokenPayload = (decoded: any): AuthenticatedRequest['user'] | null => {
+  const id = decoded?.sub || decoded?.userId || decoded?.id;
+  const role =
+    decoded?.role ||
+    (decoded?.type === 'institution' ? 'institution' : decoded?.type);
+  const institutionId =
+    decoded?.institutionId ||
+    (decoded?.type === 'institution' ? decoded?.sub : undefined);
+
+  if (!id || !role) {
+    return null;
+  }
+
+  return {
+    id: String(id),
+    email: String(decoded?.email || ''),
+    role: String(role),
+    institutionId: institutionId ? String(institutionId) : undefined,
+  };
+};
+
 // Enhanced JWT token generation with refresh tokens
 export const generateTokens = (payload: any) => {
   const accessToken = jwt.sign(payload, JWT_SECRET, { 
@@ -50,28 +71,32 @@ export const verifyToken = (req: AuthenticatedRequest, res: Response, next: Next
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET, {
-      issuer: 'educreds',
-      audience: 'educreds-users'
-    }) as any;
-    
-    // Check if token is expired
-    if (decoded.exp && decoded.exp < Date.now() / 1000) {
-      return res.status(401).json({
-        error: 'Token expired',
-        message: 'Please login again'
+    let decoded: any;
+
+    try {
+      // Primary path for tokens minted by this frontend server.
+      decoded = jwt.verify(token, JWT_SECRET, {
+        issuer: 'educreds',
+        audience: 'educreds-users'
+      }) as any;
+    } catch {
+      // Fallback for valid cert_backend institution tokens that do not set iss/aud.
+      decoded = jwt.verify(token, JWT_SECRET) as any;
+    }
+
+    const user = buildUserFromTokenPayload(decoded);
+    if (!user) {
+      return res.status(403).json({
+        error: 'Invalid token',
+        message: 'Token payload missing required claims'
       });
     }
-    
-    req.user = {
-      id: decoded.sub,
-      email: decoded.email,
-      role: decoded.role,
-      institutionId: decoded.institutionId
-    };
+
+    req.user = user;
     
     next();
   } catch (error) {
+    console.warn('Token verification failed:', error);
     return res.status(403).json({
       error: 'Invalid token',
       message: 'Token verification failed'

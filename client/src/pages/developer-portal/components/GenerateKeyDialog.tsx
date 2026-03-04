@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { developerPortalApi, ApiKey } from "@/lib/developerPortalApi";
 import { Loader2, Copy, Check, Shield, AlertTriangle, Info } from "lucide-react";
@@ -220,7 +221,7 @@ export function GenerateKeyDialog({ onSuccess, trigger }: GenerateKeyDialogProps
                         <div className="p-8 space-y-8 bg-white dark:bg-neutral-950">
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between px-1">
-                                    <FormLabel className="text-base font-bold text-neutral-900 dark:text-neutral-100">Secret Key</FormLabel>
+                                    <p className="text-base font-bold text-neutral-900 dark:text-neutral-100">Secret Key</p>
                                     <Badge variant="outline" className="bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800 flex items-center gap-1.5 py-1">
                                         <Info className="h-3.5 w-3.5" />
                                         Visible only once

@@ -5,6 +5,7 @@ import "@fontsource/space-grotesk/700.css";
 import "@fontsource/source-sans-3/400.css";
 import "@fontsource/source-sans-3/600.css";
 import "./index.css";
+import { initializeGoogleAnalytics } from "./lib/analytics";
 
 // Display EDUCREDS banner
 console.log(`
@@ -15,5 +16,7 @@ console.log(`
 /* ███████╗██████╔╝╚██████╔╝╚██████╗██║  ██║███████╗██████╔╝███████║ */
 /* ╚══════╝╚═════╝  ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝╚═════╝ ╚══════╝ */
 `);
+
+initializeGoogleAnalytics();
 
 createRoot(document.getElementById("root")!).render(<App />);

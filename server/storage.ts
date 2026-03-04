@@ -1,6 +1,6 @@
 import { users, institutions, apiKeys, subscriptions, type User, type InsertUser, type ApiKey, type InsertApiKey, type Institution, type Subscription } from "@shared/schema";
 import { db } from "./lib/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, isNull, gt } from "drizzle-orm";
 
 // modify the interface with any CRUD methods
 // you might need
@@ -52,12 +52,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getApiKeys(institutionId: string): Promise<ApiKey[]> {
+    const now = new Date();
     return db.select()
       .from(apiKeys)
       .where(
         and(
           eq(apiKeys.institutionId, institutionId),
-          eq(apiKeys.isActive, true)
+          eq(apiKeys.isActive, true),
+          or(
+            isNull(apiKeys.expiresAt),
+            gt(apiKeys.expiresAt, now)
+          )
         )
       );
   }
