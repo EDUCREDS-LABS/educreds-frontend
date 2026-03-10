@@ -57,8 +57,8 @@ export default function ModernDashboard() {
   const [isCertificateModalOpen, setIsCertificateModalOpen] = useState(false);
 
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ["/api/stats"],
-    queryFn: api.getStats,
+    queryKey: ["/api/stats", user?.id],
+    queryFn: () => api.getStats(user?.id),
     enabled: !!user,
     refetchOnMount: true,
   });
@@ -78,15 +78,15 @@ export default function ModernDashboard() {
   });
 
   const { data: issuanceTrendData, isLoading: trendLoading } = useQuery({
-    queryKey: ["/api/stats/trend"],
-    queryFn: () => api.getIssuanceTrend(6),
+    queryKey: ["/api/stats/trend", user?.id, 6],
+    queryFn: () => api.getIssuanceTrend(6, user?.id),
     enabled: !!user,
     refetchOnMount: true,
   });
 
   const { data: distributionData, isLoading: distributionLoading } = useQuery({
-    queryKey: ["/api/stats/distribution"],
-    queryFn: api.getCertificateDistribution,
+    queryKey: ["/api/stats/distribution", user?.id],
+    queryFn: () => api.getCertificateDistribution(user?.id),
     enabled: !!user,
     refetchOnMount: true,
   });

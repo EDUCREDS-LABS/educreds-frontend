@@ -1,0 +1,28 @@
+services:
+  educreds_frontend:
+    image: educreds/frontend:prod
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+      args:
+        VITE_API_BASE: ${VITE_API_BASE:-https://api.educreds.xyz}
+        VITE_CERT_API_BASE: ${VITE_CERT_API_BASE:-https://api.educreds.xyz}
+        VITE_MARKETPLACE_API_BASE: ${VITE_MARKETPLACE_API_BASE:-https://api.educreds.xyz}
+    container_name: educreds-frontend
+    env_file:
+      - .env.production
+    environment:
+      - NODE_ENV=production
+      - PORT=5002
+    ports:
+      - "5002:5002"
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5002 >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s

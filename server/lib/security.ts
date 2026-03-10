@@ -48,7 +48,7 @@ export const securityHeaders = helmet({
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://va.vercel-scripts.com"],
-      connectSrc: ["'self'", "https:", "wss:", "ws:", "http://localhost:*", "https://Educreds-backend-avmj.onrender.com"],
+      connectSrc: ["'self'", "https:", "wss:", "ws:", "http://localhost:*", "https://Educreds-backend-"],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
@@ -67,27 +67,37 @@ export const securityHeaders = helmet({
 // CORS configuration
 export const corsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-    // Allow requests with no origin in development only
-    if (!origin && process.env.NODE_ENV === 'development') {
+    // Accept requests that don't provide an Origin header (curl, server-to-server, mobile apps, etc.)
+    if (!origin) {
       return callback(null, true);
     }
 
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:5002',
-      'http://localhost:5173',
-      'http://localhost:5002',
-      'https://educreds.xyz',
-      'https://www.educreds.xyz',
-      'https://app.educreds.xyz',
-      process.env.FRONTEND_URL,
-      process.env.ADMIN_URL,
-    ].filter(Boolean);
+    // Build allowed origins from environment variables
+    const allowedOrigins: string[] = [];
 
-    if (origin && allowedOrigins.includes(origin)) {
+    // Add frontend URL (required in production)
+    if (process.env.FRONTEND_URL) {
+      allowedOrigins.push(process.env.FRONTEND_URL);
+    }
+
+    // Add admin URL if configured
+    if (process.env.ADMIN_URL) {
+      allowedOrigins.push(process.env.ADMIN_URL);
+    }
+
+    // Add development localhost URLs only in development
+    if (process.env.NODE_ENV === 'development') {
+      allowedOrigins.push(
+        'http://localhost:3000',
+        'http://localhost:5002',
+        'http://localhost:5173'
+      );
+    }
+
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.warn(`CORS blocked origin: ${origin}`);
+      console.warn(`CORS blocked origin: ${origin}. Allowed origins: ${allowedOrigins.join(', ')}`);
       callback(new Error('Not allowed by CORS'), false);
     }
   },

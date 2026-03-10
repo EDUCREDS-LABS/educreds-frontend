@@ -4,6 +4,14 @@ FROM node:18-alpine AS builder
 # Set working directory
 WORKDIR /app
 
+# Build-time API configuration for Vite (must be present during npm run build)
+ARG VITE_API_BASE=https://api.educreds.xyz
+ARG VITE_CERT_API_BASE=https://api.educreds.xyz
+ARG VITE_MARKETPLACE_API_BASE=https://api.educreds.xyz
+ENV VITE_API_BASE=$VITE_API_BASE
+ENV VITE_CERT_API_BASE=$VITE_CERT_API_BASE
+ENV VITE_MARKETPLACE_API_BASE=$VITE_MARKETPLACE_API_BASE
+
 # Install build dependencies
 RUN apk add --no-cache python3 make g++ cairo-dev jpeg-dev pango-dev giflib-dev pixman-dev
 
@@ -51,12 +59,12 @@ RUN mkdir -p ./dist/public && \
 # Don't switch to nodejs user for development mode (vite needs write permissions)
 # USER nodejs
 
-# Expose port
-EXPOSE 3000
+# Expose production port
+EXPOSE 5002
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000 || exit 1
+  CMD curl -f http://localhost:5002 || exit 1
 
 # Start application with dumb-init
 ENTRYPOINT ["dumb-init", "--"]

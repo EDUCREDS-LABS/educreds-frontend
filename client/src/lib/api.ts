@@ -679,11 +679,192 @@ export const api = {
 
   bulkIssueCertificates: async (data: any) => {
     const authHeaders = getAuthHeaders();
-    const response = await fetch(`${API_CONFIG.CERT}/api/bulk/certificates/bulk-issue`, {
-      method: "POST",
-      headers: { ...authHeaders, "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
+    const institutionId = auth.getUser()?.sub;
+    const formatNetworkError = (error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.toLowerCase().includes("failed to fetch")) {
+        return `Network error reaching certificate API at ${API_CONFIG.CERT}. Ensure backend is running and CORS/origin is configured.`;
+      }
+      return message;
+    };
+
+    const parseCsvLine = (line: string): string[] => {
+      const values: string[] = [];
+      let current = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"' && line[i + 1] === '"') {
+          current += '"';
+          i++;
+          continue;
+        }
+        if (char === '"') {
+          inQuotes = !inQuotes;
+          continue;
+        }
+        if (char === "," && !inQuotes) {
+          values.push(current.trim());
+          current = "";
+          continue;
+        }
+        current += char;
+      }
+      values.push(current.trim());
+      return values;
+    };
+
+    const getValue = (
+      row: Record<string, string>,
+      aliases: string[],
+      defaultValue: string = "",
+    ): string => {
+      for (const alias of aliases) {
+        const normalized = alias.toLowerCase();
+        if (row[normalized] !== undefined && row[normalized] !== "") {
+          return row[normalized];
+        }
+      }
+      return defaultValue;
+    };
+
+    const parseRecipientsFromCsv = (csv: string) => {
+      const lines = csv
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      if (lines.length < 2) {
+        throw new Error("CSV must include a header row and at least one data row");
+      }
+
+      const headers = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
+      const recipients: Array<{
+        name: string;
+        email: string;
+        wallet: string;
+        customData?: Record<string, string>;
+      }> = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const cells = parseCsvLine(lines[i]);
+        const row: Record<string, string> = {};
+        headers.forEach((header, idx) => {
+          row[header] = (cells[idx] || "").trim();
+        });
+
+        const wallet = getValue(row, [
+          "recipientwallet",
+          "wallet",
+          "walletaddress",
+          "studentwalletaddress",
+          "studentwallet",
+        ]);
+        const name = getValue(row, ["recipientname", "name", "studentname"]);
+
+        if (!wallet || !name) {
+          continue;
+        }
+
+        const completionDate = getValue(row, ["completiondate", "date"]);
+        const certificateType = getValue(row, ["certificatetype", "type"], "Academic");
+        const grade = getValue(row, ["grade"], "N/A");
+        const courseName = getValue(row, ["coursename", "course", "courseid"], "Course");
+        const email = getValue(row, ["recipientemail", "email", "studentemail"], "");
+
+        recipients.push({
+          name,
+          email,
+          wallet,
+          customData: {
+            completionDate,
+            certificateType,
+            grade,
+            courseName,
+          },
+        });
+      }
+
+      if (recipients.length === 0) {
+        throw new Error(
+          "CSV has no valid rows. Required columns include recipientWallet (or wallet) and recipientName (or name).",
+        );
+      }
+
+      return recipients;
+    };
+
+    if (data instanceof FormData) {
+      const csvFile = data.get("file");
+      if (!(csvFile instanceof File)) {
+        throw new Error("CSV file is required");
+      }
+
+      const templateInput = data.get("templateId");
+      const templateId =
+        typeof templateInput === "string" &&
+        templateInput.trim() &&
+        templateInput !== "__none__"
+          ? templateInput.trim()
+          : undefined;
+
+      const csvText = await csvFile.text();
+      const recipients = parseRecipientsFromCsv(csvText);
+
+      let response: Response;
+      try {
+        response = await fetch(`${API_CONFIG.CERT}/api/v1/issue/batch`, {
+          method: "POST",
+          headers: {
+            ...authHeaders,
+            "Content-Type": "application/json",
+            ...(institutionId ? { "x-institution-id": institutionId } : {}),
+          },
+          body: JSON.stringify({
+            ...(templateId ? { templateId } : {}),
+            recipients,
+            ...(institutionId ? { institutionId } : {}),
+          }),
+        });
+      } catch (error) {
+        throw new Error(formatNetworkError(error));
+      }
+
+      const result = await handleResponse(response);
+      const successful = Number(result?.successful ?? 0);
+      const failed = Number(result?.failed ?? 0);
+      const errors = Array.isArray(result?.results)
+        ? result.results
+            .filter((item: any) => item?.status === "failed" || item?.error)
+            .map((item: any) => item?.error || "Certificate issuance failed")
+        : [];
+
+      return {
+        ...result,
+        successful,
+        failed,
+        errors,
+      };
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(`${API_CONFIG.CERT}/api/v1/issue/batch`, {
+        method: "POST",
+        headers: {
+          ...authHeaders,
+          "Content-Type": "application/json",
+          ...(institutionId ? { "x-institution-id": institutionId } : {}),
+        },
+        body: JSON.stringify({
+          ...(institutionId ? { institutionId } : {}),
+          ...data,
+        }),
+      });
+    } catch (error) {
+      throw new Error(formatNetworkError(error));
+    }
     return handleResponse(response);
   },
 
@@ -739,12 +920,63 @@ export const api = {
   },
 
   // Get statistics
-  getStats: async () => {
+  getStats: async (institutionId?: string) => {
     const authHeaders = getAuthHeaders();
-    const response = await fetch(`${API_CONFIG.CERT}/api/stats`, {
+    const resolvedInstitutionId = institutionId || auth.getUser()?.sub;
+    const params = new URLSearchParams();
+    if (resolvedInstitutionId) {
+      params.set("institutionId", resolvedInstitutionId);
+    }
+    const query = params.toString();
+    const response = await fetch(`${API_CONFIG.CERT}/api/stats${query ? `?${query}` : ""}`, {
       headers: authHeaders,
     });
     return handleResponse(response);
+  },
+
+  getIssuanceTrend: async (months: number = 6, institutionId?: string) => {
+    const authHeaders = getAuthHeaders();
+    const resolvedInstitutionId = institutionId || auth.getUser()?.sub;
+    const params = new URLSearchParams();
+    params.set("months", String(months));
+    if (resolvedInstitutionId) {
+      params.set("institutionId", resolvedInstitutionId);
+    }
+    const response = await fetch(`${API_CONFIG.CERT}/api/stats/trend?${params.toString()}`, {
+      headers: authHeaders,
+    });
+    const data = await handleResponse(response);
+    if (Array.isArray(data)) {
+      return data;
+    }
+    if (Array.isArray((data as any)?.data)) {
+      return (data as any).data;
+    }
+    return [];
+  },
+
+  getCertificateDistribution: async (institutionId?: string) => {
+    const authHeaders = getAuthHeaders();
+    const resolvedInstitutionId = institutionId || auth.getUser()?.sub;
+    const params = new URLSearchParams();
+    if (resolvedInstitutionId) {
+      params.set("institutionId", resolvedInstitutionId);
+    }
+    const query = params.toString();
+    const response = await fetch(
+      `${API_CONFIG.CERT}/api/stats/distribution${query ? `?${query}` : ""}`,
+      {
+        headers: authHeaders,
+      },
+    );
+    const data = await handleResponse(response);
+    if (Array.isArray(data)) {
+      return data;
+    }
+    if (Array.isArray((data as any)?.data)) {
+      return (data as any).data;
+    }
+    return [];
   },
 
   // Connect wallet

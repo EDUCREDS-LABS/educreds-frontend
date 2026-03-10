@@ -65,10 +65,12 @@ export function BulkCSVUploader({
   const [bulkResult, setBulkResult] = useState<BulkIssuanceResult | null>(null);
 
   const bulkIssueMutation = useMutation({
-    mutationFn: async (data: { file: File; templateId: string }) => {
+    mutationFn: async (data: { file: File; templateId?: string }) => {
       const formData = new FormData();
       formData.append('file', data.file);
-      formData.append('templateId', data.templateId);
+      if (data.templateId) {
+        formData.append('templateId', data.templateId);
+      }
       
       // Simulate progress
       const progressInterval = setInterval(() => {
@@ -133,10 +135,10 @@ export function BulkCSVUploader({
   }, [toast]);
 
   const handleSubmit = useCallback(() => {
-    if (!csvFile || !selectedTemplate) {
+    if (!csvFile) {
       toast({
         title: 'Missing Information',
-        description: 'Please select a template and upload a CSV file',
+        description: 'Please upload a CSV file',
         variant: 'destructive',
       });
       return;
@@ -153,7 +155,7 @@ export function BulkCSVUploader({
 
     bulkIssueMutation.mutate({
       file: csvFile,
-      templateId: selectedTemplate,
+      templateId: selectedTemplate && selectedTemplate !== '__none__' ? selectedTemplate : undefined,
     });
   }, [csvFile, selectedTemplate, isLimitExceeded, bulkIssueMutation, toast]);
 
@@ -222,14 +224,17 @@ export function BulkCSVUploader({
             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold">
               1
             </span>
-            Select Template
+            Select Template (Optional)
           </h3>
           
           <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
             <SelectTrigger className="h-11">
-              <SelectValue placeholder="Choose a template for bulk issuance..." />
+              <SelectValue placeholder="No template selected (optional)" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="__none__">
+                No template (use CSV fields only)
+              </SelectItem>
               {templates.length === 0 ? (
                 <SelectItem value="empty" disabled>
                   No templates available
@@ -413,8 +418,7 @@ export function BulkCSVUploader({
               disabled={
                 bulkIssueMutation.isPending ||
                 isLimitExceeded ||
-                !csvFile ||
-                !selectedTemplate
+                !csvFile
               }
               className="flex-1 h-12 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-base font-medium"
             >

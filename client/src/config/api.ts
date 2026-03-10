@@ -3,10 +3,28 @@
  * Centralizes all backend endpoints and environment variables
  */
 
+const resolveDefaultApiBase = () => {
+  if (typeof window === "undefined") {
+    return "http://localhost:3001";
+  }
+
+  const { protocol, hostname, origin } = window.location;
+  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
+
+  // Local dev expects backend on :3001. In deployed environments, default to same-origin.
+  if (isLocalhost && (protocol === "http:" || protocol === "https:")) {
+    return "http://localhost:3001";
+  }
+
+  return origin;
+};
+
+const DEFAULT_API_BASE = resolveDefaultApiBase();
+
 // Environment variables with fallbacks
-const MAIN_API_BASE = import.meta.env.VITE_API_BASE?.replace(/\/$/, "") || "http://localhost:3001";
-const CERT_API_BASE = import.meta.env.VITE_CERT_API_BASE?.replace(/\/$/, "") || "http://localhost:3001";
-const MARKETPLACE_API_BASE = import.meta.env.VITE_MARKETPLACE_API_BASE?.replace(/\/$/, "") || "http://localhost:3001";
+const MAIN_API_BASE = import.meta.env.VITE_API_BASE?.replace(/\/$/, "") || DEFAULT_API_BASE;
+const CERT_API_BASE = import.meta.env.VITE_CERT_API_BASE?.replace(/\/$/, "") || DEFAULT_API_BASE;
+const MARKETPLACE_API_BASE = import.meta.env.VITE_MARKETPLACE_API_BASE?.replace(/\/$/, "") || DEFAULT_API_BASE;
 
 export const API_CONFIG = {
   // Main backend (admin, oracle, unified services)

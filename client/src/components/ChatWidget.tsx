@@ -52,56 +52,25 @@ export function ChatWidget() {
         setMessages(prev => [...prev, { id: assistantMessageId, role: "assistant", content: "" }]);
 
         try {
-            const response = await fetch(`${TRUST_AGENT_BASE}/api/trust-agent/chat-stream`, {
+            // simple non-streaming call to /chat endpoint
+            const response = await fetch(`${TRUST_AGENT_BASE}/api/trust-agent/chat`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ message: input })
             });
 
-            if (!response.body) throw new Error("No response body");
-
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let content = "";
-            let sources: any[] = [];
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                const chunk = decoder.decode(value, { stream: true });
-                const lines = chunk.split("\n\n");
-
-                for (const line of lines) {
-                    if (line.startsWith("data: ")) {
-                        const dataPart = line.substring(6);
-                        if (dataPart === "[DONE]") {
-                            break;
-                        }
-                        try {
-                            const parsed = JSON.parse(dataPart);
-                            if (parsed.type === 'content') {
-                                content += parsed.data;
-                                setMessages(prev => prev.map(msg =>
-                                    msg.id === assistantMessageId ? { ...msg, content } : msg
-                                ));
-                            } else if (parsed.type === 'sources') {
-                                sources = parsed.data;
-                                setMessages(prev => prev.map(msg =>
-                                    msg.id === assistantMessageId ? { ...msg, sources } : msg
-                                ));
-                            }
-                        } catch (e) {
-                            // In case of incomplete JSON objects, just append the chunk.
-                            // This is a fallback and might not be perfect.
-                            content += dataPart;
-                             setMessages(prev => prev.map(msg =>
-                                    msg.id === assistantMessageId ? { ...msg, content } : msg
-                                ));
-                        }
-                    }
-                }
+            if (!response.ok) {
+                throw new Error(`Chat request failed: ${response.status}`);
             }
+
+            const data = await response.json();
+            const content = data.response || "";
+            const sources = data.sources || [];
+
+            // update final message content and sources once
+            setMessages(prev => prev.map(msg =>
+                msg.id === assistantMessageId ? { ...msg, content, sources } : msg
+            ));
         } catch (error) {
             console.error("Chat streaming error:", error);
             toast({
