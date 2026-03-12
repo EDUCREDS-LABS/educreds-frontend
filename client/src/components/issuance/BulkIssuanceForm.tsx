@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { EnhancedTemplate } from '@/store/editorStore';
+import { API_CONFIG } from '@/config/api';
+import { getAuthHeaders } from '@/lib/auth';
 
 interface Recipient {
   name: string;
@@ -239,17 +241,23 @@ export function BulkIssuanceForm({
       setIsProcessing(true);
       setProgress(0);
       setResults(null);
-      
-      const response = await fetch('/api/issuance/bulk', {
+
+      const authHeaders = getAuthHeaders();
+      const entries = recipients.map((recipient) => ({
+        recipientName: recipient.name,
+        recipientEmail: recipient.email,
+        recipientWalletAddress: recipient.walletAddress,
+        templateId: selectedTemplate.id,
+        placeholders: recipient.placeholders,
+      }));
+
+      const response = await fetch(`${API_CONFIG.CERT}/issuance/bulk`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders,
         },
-        body: JSON.stringify({
-          templateId: selectedTemplate.id,
-          recipients: recipients,
-          institutionId: 'current-institution-id', // This should come from auth context
-        }),
+        body: JSON.stringify(entries),
       });
       
       const data = await response.json();
@@ -278,27 +286,36 @@ export function BulkIssuanceForm({
   const pollJobStatus = async (jobId: string) => {
     const poll = async () => {
       try {
-        const response = await fetch(`/api/issuance/status/${jobId}`);
+        const response = await fetch(`${API_CONFIG.CERT}/issuance/jobs/${jobId}`);
         const data = await response.json();
         
         if (response.ok) {
-          setProgress(data.progress);
-          
-          if (data.status === 'completed') {
+          const progressValue = typeof data.progress === 'number' ? data.progress : 0;
+          setProgress(progressValue);
+
+          if (data.state === 'completed') {
+            const resultsArray = Array.isArray(data.result) ? data.result : [];
+            const completed = resultsArray.filter((r: any) => r?.success).length;
+            const failed = resultsArray.filter((r: any) => !r?.success).length;
+            const errors = resultsArray
+              .filter((r: any) => !r?.success)
+              .map((r: any) => r?.error)
+              .filter(Boolean);
+
             setResults({
-              completed: data.completed,
-              failed: data.failed,
-              total: data.total,
-              errors: data.errors || []
+              completed,
+              failed,
+              total: resultsArray.length,
+              errors,
             });
             setIsProcessing(false);
             setCurrentJob(null);
             onIssuanceComplete(data);
             toast({
               title: 'Bulk Issuance Complete',
-              description: `${data.completed} certificates issued successfully`,
+              description: `${completed} certificates issued successfully`,
             });
-          } else if (data.status === 'failed') {
+          } else if (data.state === 'failed') {
             setIsProcessing(false);
             setCurrentJob(null);
             toast({
@@ -324,13 +341,12 @@ export function BulkIssuanceForm({
   const cancelIssuance = async () => {
     if (currentJob) {
       try {
-        await fetch(`/api/issuance/cancel/${currentJob}`, { method: 'POST' });
         setIsProcessing(false);
         setCurrentJob(null);
         setProgress(0);
         toast({
           title: 'Issuance Cancelled',
-          description: 'Bulk issuance has been cancelled',
+          description: 'Bulk issuance has been cancelled locally',
         });
       } catch (error) {
         console.error('Error cancelling issuance:', error);

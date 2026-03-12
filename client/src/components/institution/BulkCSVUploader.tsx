@@ -47,8 +47,19 @@ interface BulkCSVUploaderProps {
 interface BulkIssuanceResult {
   successful: number;
   failed: number;
+  pending: number;
   errors: string[];
   totalProcessed: number;
+}
+
+interface PendingIssuance {
+  id: string;
+  recipientName: string;
+  recipientWallet: string;
+  status: 'pending' | 'minted' | 'failed';
+  error?: string;
+  issuanceRequestId?: string | null;
+  transactionData?: any;
 }
 
 export function BulkCSVUploader({
@@ -63,6 +74,8 @@ export function BulkCSVUploader({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [processingStatus, setProcessingStatus] = useState<string>('');
   const [bulkResult, setBulkResult] = useState<BulkIssuanceResult | null>(null);
+  const [pendingIssuances, setPendingIssuances] = useState<PendingIssuance[]>([]);
+  const [signingAll, setSigningAll] = useState(false);
 
   const bulkIssueMutation = useMutation({
     mutationFn: async (data: { file: File; templateId?: string }) => {
@@ -91,17 +104,31 @@ export function BulkCSVUploader({
       const result: BulkIssuanceResult = {
         successful: data.successful || 0,
         failed: data.failed || 0,
+        pending: data.pending || 0,
         errors: data.errors || [],
-        totalProcessed: (data.successful || 0) + (data.failed || 0),
+        totalProcessed: (data.successful || 0) + (data.failed || 0) + (data.pending || 0),
       };
       
       setBulkResult(result);
+      const pending = Array.isArray(data?.results)
+        ? data.results
+            .filter((item: any) => item?.walletDirectRequired || item?.status === 'pending_wallet_signature')
+            .map((item: any, index: number) => ({
+              id: item?.issuanceRequestId || item?.certificateId || `pending-${index}`,
+              recipientName: item?.recipient?.name || 'Unknown',
+              recipientWallet: item?.recipient?.wallet || 'Unknown',
+              status: 'pending' as const,
+              issuanceRequestId: item?.issuanceRequestId,
+              transactionData: item?.transactionData,
+            }))
+        : [];
+      setPendingIssuances(pending);
       
       toast({
         title: 'Bulk Issuance Complete',
-        description: `Successfully issued ${result.successful} certificates. ${
-          result.failed > 0 ? `${result.failed} failed.` : ''
-        }`,
+        description: `Minted ${result.successful} certificates. ${
+          result.pending > 0 ? `${result.pending} pending wallet signature. ` : ''
+        }${result.failed > 0 ? `${result.failed} failed.` : ''}`,
       });
       
       queryClient.invalidateQueries({ queryKey: ['/api/certificates/institution'] });
@@ -116,6 +143,41 @@ export function BulkCSVUploader({
       setUploadProgress(0);
     },
   });
+
+  const signPendingIssuance = useCallback(async (issuance: PendingIssuance) => {
+    if (!issuance.issuanceRequestId || !issuance.transactionData) {
+      return;
+    }
+    try {
+      await api.confirmWalletDirectIssuance({
+        issuanceRequestId: issuance.issuanceRequestId,
+        transactionData: issuance.transactionData,
+        walletDirectRequired: true,
+      });
+      setPendingIssuances((prev) =>
+        prev.map((item) =>
+          item.id === issuance.id ? { ...item, status: 'minted', error: undefined } : item,
+        ),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setPendingIssuances((prev) =>
+        prev.map((item) =>
+          item.id === issuance.id ? { ...item, status: 'failed', error: message } : item,
+        ),
+      );
+    }
+  }, []);
+
+  const signAllPending = useCallback(async () => {
+    if (pendingIssuances.length === 0) return;
+    setSigningAll(true);
+    for (const issuance of pendingIssuances) {
+      if (issuance.status !== 'pending') continue;
+      await signPendingIssuance(issuance);
+    }
+    setSigningAll(false);
+  }, [pendingIssuances, signPendingIssuance]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -360,7 +422,7 @@ export function BulkCSVUploader({
                 Issuance Complete
               </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <p className="text-sm font-medium text-green-900">Successful</p>
                   <p className="text-2xl font-bold text-green-600 mt-1">
@@ -368,6 +430,15 @@ export function BulkCSVUploader({
                   </p>
                 </div>
                 
+                {bulkResult.pending > 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <p className="text-sm font-medium text-amber-900">Pending Signatures</p>
+                    <p className="text-2xl font-bold text-amber-600 mt-1">
+                      {bulkResult.pending}
+                    </p>
+                  </div>
+                )}
+
                 {bulkResult.failed > 0 && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                     <p className="text-sm font-medium text-red-900">Failed</p>
@@ -384,6 +455,56 @@ export function BulkCSVUploader({
                   </p>
                 </div>
               </div>
+
+              {pendingIssuances.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-md font-semibold text-neutral-900">Pending Wallet Signatures</h4>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={signAllPending}
+                      disabled={signingAll}
+                    >
+                      {signingAll ? 'Signing...' : 'Sign All'}
+                    </Button>
+                  </div>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {pendingIssuances.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 border rounded-md p-3"
+                      >
+                        <div className="text-sm">
+                          <div className="font-medium text-neutral-900">{item.recipientName}</div>
+                          <div className="text-neutral-600">{item.recipientWallet}</div>
+                          {item.error && (
+                            <div className="text-red-600 mt-1">{item.error}</div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            className={
+                              item.status === 'minted'
+                                ? 'bg-green-100 text-green-800'
+                                : item.status === 'failed'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-amber-100 text-amber-800'
+                            }
+                          >
+                            {item.status}
+                          </Badge>
+                          {item.status === 'pending' && (
+                            <Button size="sm" onClick={() => signPendingIssuance(item)}>
+                              Sign
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {bulkResult.errors.length > 0 && (
                 <Alert className="border-red-200 bg-red-50">

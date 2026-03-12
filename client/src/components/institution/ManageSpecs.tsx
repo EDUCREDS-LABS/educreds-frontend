@@ -92,7 +92,7 @@ export default function ManageSpecs() {
 
   // Queries
   const { data: templatesData, isLoading: templatesLoading } = useQuery({
-    queryKey: ['/api/templates/specs', categoryFilter, statusFilter],
+    queryKey: ['/templates/specs', categoryFilter, statusFilter],
     queryFn: () =>
       api.getTemplateSpecs(categoryFilter, statusFilter),
   });
@@ -108,7 +108,7 @@ export default function ManageSpecs() {
         title: 'Success',
         description: 'Template deleted successfully',
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/templates/specs'] });
+      queryClient.invalidateQueries({ queryKey: ['/templates/specs'] });
     },
     onError: (error: any) => {
       toast({
@@ -127,7 +127,7 @@ export default function ManageSpecs() {
         title: 'Success',
         description: 'Template archived',
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/templates/specs'] });
+      queryClient.invalidateQueries({ queryKey: ['/templates/specs'] });
     },
     onError: (error: any) => {
       toast({
@@ -147,7 +147,7 @@ export default function ManageSpecs() {
         description: `${selectedTemplates.size} template(s) deleted`,
       });
       setSelectedTemplates(new Set());
-      queryClient.invalidateQueries({ queryKey: ['/api/templates/specs'] });
+      queryClient.invalidateQueries({ queryKey: ['/templates/specs'] });
     },
     onError: (error: any) => {
       toast({

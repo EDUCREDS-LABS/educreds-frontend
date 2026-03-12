@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { EnhancedTemplate } from '@/store/editorStore';
+import { API_CONFIG } from '@/config/api';
 
 interface TemplateDetailsProps {
   templateId: string;
@@ -58,11 +59,15 @@ export function TemplateDetails({
   const loadTemplateDetails = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/marketplace/templates/${templateId}`);
+      const response = await fetch(`${API_CONFIG.MARKETPLACE}/marketplace/templates/${templateId}`);
       const data = await response.json();
       
       if (response.ok) {
-        setTemplate(data.template);
+        const resolvedTemplate = data?.template || data;
+        setTemplate({
+          ...resolvedTemplate,
+          name: resolvedTemplate?.name || resolvedTemplate?.title,
+        });
         setIsLiked(userFavorites.includes(templateId));
         
         // Increment view count

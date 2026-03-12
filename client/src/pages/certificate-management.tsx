@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Eye, Edit, Trash2, CheckCircle, XCircle, Lock, Search, Filter } from 'lucide-react';
+import { API_CONFIG } from '@/config/api';
+import { AdminAuth } from '@/lib/admin-auth';
+import { getAuthHeaders } from '@/lib/auth';
 
 interface Certificate {
   id: string;
@@ -80,8 +83,9 @@ export const CertificateManagement: React.FC = () => {
 
   const approveTemplate = async (templateId: string) => {
     try {
-      await fetch(`/api/admin/templates/${templateId}/approve`, {
-        method: 'POST'
+      await fetch(`${API_CONFIG.MAIN}/api/admin/templates/${templateId}/approve`, {
+        method: 'POST',
+        headers: { 'admin-email': AdminAuth.getAdminEmail() },
       });
       fetchTemplates();
     } catch (error) {
@@ -91,9 +95,9 @@ export const CertificateManagement: React.FC = () => {
 
   const rejectTemplate = async (templateId: string, reason: string) => {
     try {
-      await fetch(`/api/admin/templates/${templateId}/reject`, {
+      await fetch(`${API_CONFIG.MAIN}/api/admin/templates/${templateId}/reject`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'admin-email': AdminAuth.getAdminEmail() },
         body: JSON.stringify({ reason })
       });
       fetchTemplates();
@@ -106,8 +110,9 @@ export const CertificateManagement: React.FC = () => {
 
   const revokeCertificate = async (certificateId: string) => {
     try {
-      await fetch(`/api/certificates/${certificateId}/revoke`, {
-        method: 'POST'
+      await fetch(`${API_CONFIG.CERT}/api/certificates/${certificateId}/revoke`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
       });
       fetchCertificates();
     } catch (error) {

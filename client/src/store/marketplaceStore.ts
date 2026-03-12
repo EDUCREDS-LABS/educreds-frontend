@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { EnhancedTemplate } from './editorStore';
+import { API_CONFIG } from '@/config/api';
+import { auth } from '@/lib/auth';
 
 export interface MarketplaceFilters {
   templateType: 'certificate' | 'logo' | 'banner' | 'other' | 'all';
@@ -121,32 +123,35 @@ export const useMarketplaceStore = create<MarketplaceState & MarketplaceActions>
         try {
           set({ loading: true });
           
-          // Build query parameters
           const params = new URLSearchParams({
-            page: page.toString(),
-            perPage: pagination.perPage.toString(),
-            ...(filters.templateType !== 'all' && { templateType: filters.templateType }),
-            ...(filters.sortBy && { sortBy: filters.sortBy }),
-            ...(filters.licenseType !== 'all' && { licenseType: filters.licenseType }),
-            ...(filters.isFeatured && { isFeatured: 'true' }),
+            ...(filters.templateType !== 'all' && { category: filters.templateType }),
             ...(searchQuery && { search: searchQuery }),
-            ...(filters.priceRange.min > 0 && { minPrice: filters.priceRange.min.toString() }),
-            ...(filters.priceRange.max < 1000 && { maxPrice: filters.priceRange.max.toString() }),
-            ...(filters.tags.length > 0 && { tags: filters.tags.join(',') }),
-            ...(filters.designerId && { designerId: filters.designerId }),
+            ...(filters.priceRange.min > 0 && { priceMin: filters.priceRange.min.toString() }),
+            ...(filters.priceRange.max < 1000 && { priceMax: filters.priceRange.max.toString() }),
+            ...(filters.isFeatured && { featured: 'true' }),
+            ...(filters.sortBy === 'popularity' && { trending: 'true' }),
           });
 
           // Make API call
-          const response = await fetch(`/api/marketplace/templates?${params}`);
+          const response = await fetch(`${API_CONFIG.MARKETPLACE}/marketplace/templates?${params}`);
           const data = await response.json();
           
           if (response.ok) {
+            const templates = (Array.isArray(data) ? data : (data.templates || [])).map((t: any) => ({
+              ...t,
+              name: t.name || t.title,
+            }));
+            const paginationPayload = data?.pagination || {
+              page,
+              perPage: pagination.perPage,
+              total: templates.length,
+            };
             set({ 
-              templates: data.templates,
+              templates,
               pagination: {
-                page: data.pagination.page,
-                perPage: data.pagination.perPage,
-                total: data.pagination.total,
+                page: paginationPayload.page ?? page,
+                perPage: paginationPayload.perPage ?? pagination.perPage,
+                total: paginationPayload.total ?? templates.length,
               }
             });
           } else {
@@ -168,13 +173,19 @@ export const useMarketplaceStore = create<MarketplaceState & MarketplaceActions>
         try {
           set({ loading: true });
           
-          const response = await fetch(`/api/marketplace/templates/${templateId}/purchase`, {
+          const institutionId = auth.getUser()?.sub;
+          if (!institutionId) {
+            console.error('Cannot purchase template: missing institutionId');
+            return false;
+          }
+
+          const response = await fetch(`${API_CONFIG.MARKETPLACE}/marketplace/templates/${templateId}/purchase`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              buyerId: 'current-user-id', // This should come from auth context
+              institutionId,
             }),
           });
           

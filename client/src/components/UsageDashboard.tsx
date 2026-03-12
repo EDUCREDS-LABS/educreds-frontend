@@ -4,6 +4,8 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, TrendingUp, Calendar, CreditCard } from 'lucide-react';
+import { API_CONFIG } from '@/config/api';
+import { getAuthHeaders } from '@/lib/auth';
 
 interface UsageData {
   current: {
@@ -37,17 +39,55 @@ export const UsageDashboard: React.FC = () => {
     fetchUsageData();
   }, []);
 
+  const normalizeUsage = (raw: any): UsageData | null => {
+    if (!raw) return null;
+    if (raw.current && raw.limits && raw.percentageUsed) {
+      return raw as UsageData;
+    }
+
+    const certificates = Number(raw.certificatesIssued ?? raw.certificatesThisMonth ?? 0);
+    const apiCalls = Number(raw.apiCallsMade ?? raw.apiCallsThisMonth ?? 0);
+    const storage = Number(raw.storageUsedMb ?? 0);
+    const limitsCertificates = Number(raw.certificateLimit ?? raw.limits?.certificates ?? -1);
+    const limitsApiCalls = Number(raw.apiCallLimit ?? raw.limits?.apiCalls ?? -1);
+
+    const percentCertificates =
+      raw.percentageUsed?.certificates ??
+      (limitsCertificates === -1 ? 0 : Math.round((certificates / Math.max(limitsCertificates, 1)) * 100));
+    const percentApiCalls =
+      raw.percentageUsed?.apiCalls ??
+      (limitsApiCalls === -1 ? 0 : Math.round((apiCalls / Math.max(limitsApiCalls, 1)) * 100));
+
+    return {
+      current: {
+        certificates,
+        apiCalls,
+        storage,
+        billingPeriod: raw.billingPeriod ?? raw.currentPeriodStart ?? "",
+      },
+      limits: {
+        certificates: limitsCertificates,
+        apiCalls: limitsApiCalls,
+      },
+      percentageUsed: {
+        certificates: Number(percentCertificates) || 0,
+        apiCalls: Number(percentApiCalls) || 0,
+      },
+    };
+  };
+
   const fetchUsageData = async () => {
     try {
+      const authHeaders = getAuthHeaders();
       const [usageRes, subRes] = await Promise.all([
-        fetch('/api/subscription/usage'),
-        fetch('/api/subscription/current')
+        fetch(`${API_CONFIG.CERT}/api/subscription/usage`, { headers: authHeaders }),
+        fetch(`${API_CONFIG.CERT}/api/subscription/current`, { headers: authHeaders })
       ]);
       
       const usageData = await usageRes.json();
       const subData = await subRes.json();
       
-      setUsage(usageData.usage);
+      setUsage(normalizeUsage(usageData?.usage ?? usageData));
       setSubscription(subData.subscription);
     } catch (error) {
       console.error('Failed to fetch usage data:', error);

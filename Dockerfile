@@ -50,11 +50,9 @@ RUN npm install --legacy-peer-deps && npm cache clean --force
 
 # Copy built application from builder stage
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
-# The server looks for vite output in dist/public, so we need to create that structure
-RUN mkdir -p ./dist/public && \
-    mv ./dist/index.html ./dist/assets ./dist/public/ 2>/dev/null || true && \
-    [ -f ./dist/index.js ] || true && \
-    chmod -R 775 ./node_modules
+
+# Set proper permissions on node_modules
+RUN chmod -R 775 ./node_modules
 
 # Don't switch to nodejs user for development mode (vite needs write permissions)
 # USER nodejs

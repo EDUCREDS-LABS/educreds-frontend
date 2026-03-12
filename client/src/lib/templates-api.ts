@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { getAuthHeaders } from './auth';
+import { API_CONFIG } from '@/config/api';
 
-const API_URL = '/api/templates'; // Adjust if your API is hosted elsewhere
+const API_URL = `${API_CONFIG.CERT}/templates`;
 
 export const getTemplates = async () => {
   const response = await axios.get(API_URL, { headers: getAuthHeaders() });

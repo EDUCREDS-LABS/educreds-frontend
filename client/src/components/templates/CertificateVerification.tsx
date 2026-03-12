@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle, XCircle, Search, Download, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
+import { API_CONFIG } from '@/config/api';
 
 interface VerificationResult {
   isValid: boolean;
@@ -15,6 +16,7 @@ interface VerificationResult {
     data: Record<string, string>;
     issuedAt: string;
     certificateHash: string;
+    ipfsHash?: string;
   };
   template?: {
     metadata: {
@@ -33,7 +35,7 @@ export function CertificateVerification() {
     queryFn: async () => {
       if (!certificateId) return null;
       
-      const response = await fetch(`/api/verify?certId=${encodeURIComponent(certificateId)}`);
+      const response = await fetch(`${API_CONFIG.CERT}/api/certificates/verify/${encodeURIComponent(certificateId)}`);
       if (!response.ok) {
         if (response.status === 404) {
           return { isValid: false };
@@ -42,7 +44,36 @@ export function CertificateVerification() {
       }
       
       const data = await response.json();
-      return data.data;
+      const cert = data?.certificate;
+      if (!data || !cert) {
+        return { isValid: false };
+      }
+
+      const derivedData: Record<string, string> = {
+        studentName: cert.studentName || '',
+        institutionName: cert.institutionName || '',
+        courseName: cert.courseName || '',
+        grade: cert.grade || '',
+        completionDate: cert.completionDate || '',
+        certificateType: cert.certificateType || '',
+      };
+
+      return {
+        isValid: Boolean(data.valid),
+        certificate: {
+          id: cert.id,
+          data: derivedData,
+          issuedAt: cert.issuedAt,
+          certificateHash: cert.ipfsHash,
+          ipfsHash: cert.ipfsHash,
+        },
+        template: {
+          metadata: {
+            name: cert.certificateType || 'Certificate',
+            category: 'certificate',
+          },
+        },
+      };
     },
     enabled: false, // Don't run automatically
   });
@@ -67,18 +98,12 @@ export function CertificateVerification() {
     if (!verificationResult?.certificate) return;
     
     try {
-      const response = await fetch(`/api/certificates/${verificationResult.certificate.id}/render`);
-      if (!response.ok) throw new Error('Failed to download certificate');
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `certificate-${verificationResult.certificate.id}.svg`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      const ipfsHash = (verificationResult.certificate as any).ipfsHash || verificationResult.certificate.certificateHash;
+      if (!ipfsHash) {
+        throw new Error('No IPFS hash available for this certificate');
+      }
+      const url = `https://ipfs.io/ipfs/${ipfsHash}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
     } catch (error) {
       toast.error('Failed to download certificate');
     }
@@ -210,7 +235,7 @@ export function CertificateVerification() {
                 </Button>
                 <Button variant="outline" asChild>
                   <a 
-                    href={`/api/certificates/${verificationResult.certificate.id}/render`}
+                    href={`https://ipfs.io/ipfs/${(verificationResult.certificate as any).ipfsHash || verificationResult.certificate.certificateHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >

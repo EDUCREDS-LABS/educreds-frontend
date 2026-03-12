@@ -11,6 +11,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Template, TemplateField } from '../../../shared/types/template';
 import { toast } from 'sonner';
 import { Loader2, CheckCircle } from 'lucide-react';
+import { API_CONFIG } from '@/config/api';
+import { getAuthHeaders } from '@/lib/auth';
 
 interface CertificateIssuanceFormProps {
   template: Template;
@@ -81,10 +83,12 @@ export function CertificateIssuanceForm({
 
   const issueCertificateMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const response = await fetch('/api/certificates/issue', {
+      const authHeaders = getAuthHeaders();
+      const response = await fetch(`${API_CONFIG.CERT}/api/certificates/issue`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders,
         },
         body: JSON.stringify({
           templateId: template.metadata.id,

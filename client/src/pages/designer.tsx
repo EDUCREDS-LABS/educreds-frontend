@@ -62,6 +62,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { API_CONFIG } from '@/config/api';
+import { getAuthHeaders } from '@/lib/auth';
 
 // ─── Safe SVG utilities ───────────────────────────────────────────────────────
 
@@ -173,6 +175,8 @@ const normalizeHexColor = (color: string): string => {
 interface FieldMapping {
   id: string;
   name: string;
+  /** Human-readable label shown in the inspector and used as placeholder label */
+  label?: string;
   x: number;
   y: number;
   width: number;
@@ -483,6 +487,7 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
     const newField: FieldMapping = {
       id: `field_${Date.now()}`,
       name: fieldName,
+      label: fieldInfo.label,
       x: 100,
       y: 100,
       width: 200,
@@ -636,10 +641,19 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
   const generateSvg = (): string => {
     const w = canvasWidth;
     const h = canvasHeight;
-    let svg = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">`;
+    const escapeXml = (value: string) =>
+      value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+
+    let svg = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`;
 
     if (backgroundImage) {
-      svg += `<image href="${backgroundImage}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" />`;
+      const safeImage = escapeXml(backgroundImage);
+      svg += `<image xlink:href="${safeImage}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" />`;
     } else {
       svg += `<rect width="${w}" height="${h}" fill="white" />`;
     }
@@ -650,8 +664,10 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
         svg += `<text x="${field.x + field.width / 2}" y="${field.y + field.height / 2 + 5}" text-anchor="middle" font-family="monospace" font-size="8" fill="#64748b">QR</text>`;
       } else {
         const content =
-          field.customText !== undefined ? field.customText : `{{${field.name}}}`;
-        svg += `<text x="${field.x + field.width / 2}" y="${field.y + field.height / 2 + 5}" text-anchor="middle" font-family="${field.fontFamily}" font-size="${field.fontSize}" font-weight="${field.fontWeight}" fill="${field.color}">${content}</text>`;
+          field.customText !== undefined ? String(field.customText) : `{{${field.name}}}`;
+        const safeContent = escapeXml(content);
+        const safeFont = escapeXml(field.fontFamily || 'sans-serif');
+        svg += `<text x="${field.x + field.width / 2}" y="${field.y + field.height / 2 + 5}" text-anchor="middle" font-family="${safeFont}" font-size="${field.fontSize}" font-weight="${field.fontWeight}" fill="${field.color}">${safeContent}</text>`;
       }
     });
 
@@ -708,45 +724,81 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
     setIsPublishing(true);
     try {
       const svg = generateSvg();
-      const response = await fetch('/api/templates', {
+
+      // Map designer fields → placeholders ({ key, label }) expected by backend.
+      // Exclude free-text (customText) elements — they are literals, not variables.
+      const placeholders = fields
+        .filter(f => f.customText === undefined && f.name)
+        .map(f => ({ key: f.name, label: f.label ?? f.name }));
+
+      // Store full designer state for round-trip editing
+      const grapesJsData = {
+        fields: fields.map(f => ({
+          name: f.name,
+          label: f.label ?? f.name,
+          type: f.type,
+          x: Math.round(f.x),
+          y: Math.round(f.y),
+          width: Math.round(f.width),
+          height: Math.round(f.height),
+          fontSize: f.fontSize,
+          fontFamily: f.fontFamily,
+          fontWeight: f.fontWeight ?? 'normal',
+          color: f.color,
+          required: f.required,
+          locked: f.locked ?? false,
+          ...(f.customText !== undefined && { customText: f.customText }),
+        })),
+        pageOrientation,
+        backgroundImage,
+        canvasWidth,
+        canvasHeight,
+      };
+
+      // Map UI type → backend templateType enum
+      const typeMap: Record<string, string> = {
+        certificate: 'certificate',
+        degree: 'certificate',
+        badge: 'other',
+        transcript: 'other',
+        other: 'other',
+      };
+      const templateType = typeMap[saveForm.type] ?? 'certificate';
+
+      const authHeaders = getAuthHeaders();
+      const response = await fetch(`${API_CONFIG.CERT}/templates`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
           name: saveForm.name.trim(),
-          description: saveForm.description.trim(),
-          type: saveForm.type,
+          description: saveForm.description.trim() || saveForm.name.trim(),
+          htmlContent: svg,
+          cssContent: '',
+          placeholders,
+          templateType,
           isPublished: mode === 'publish',
-          design: svg,
-          fields: fields.map(f => ({
-            name: f.name,
-            type: f.type,
-            x: Math.round(f.x),
-            y: Math.round(f.y),
-            width: Math.round(f.width),
-            height: Math.round(f.height),
-            fontSize: f.fontSize,
-            fontFamily: f.fontFamily,
-            fontWeight: f.fontWeight,
-            color: f.color,
-            required: f.required,
-            locked: f.locked,
-            ...(f.customText !== undefined && { customText: f.customText }),
-          })),
-          pageOrientation,
-          backgroundImage,
+          grapesJsData,
         }),
       });
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => ({}));
+        const msg = errBody?.message
+          ? Array.isArray(errBody.message)
+            ? errBody.message.join(', ')
+            : errBody.message
+          : `HTTP ${response.status}: ${response.statusText}`;
+        throw new Error(msg);
+      }
 
       setIsSaveDialogOpen(false);
       alert(
         mode === 'publish'
-          ? 'Template published to library!'
-          : 'Template saved as draft!'
+          ? '✅ Template published to library!'
+          : '✅ Template saved as draft!'
       );
     } catch (err) {
-      alert(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      alert(`Save failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setIsPublishing(false);
     }

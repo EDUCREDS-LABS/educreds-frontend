@@ -21,6 +21,7 @@ import {
   Fingerprint
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { API_CONFIG } from '@/config/api';
 
 interface CertificateData {
   id: string;
@@ -55,7 +56,7 @@ export const EnhancedVerification: React.FC = () => {
     setCertificate(null);
 
     try {
-      const response = await fetch(`/api/verify?certId=${encodeURIComponent(searchQuery)}`);
+      const response = await fetch(`${API_CONFIG.CERT}/api/certificates/verify/${encodeURIComponent(searchQuery)}`);
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -66,29 +67,28 @@ export const EnhancedVerification: React.FC = () => {
         throw new Error('Verification failed');
       }
       
-      const result = await response.json();
-      const verificationData = result.data;
+      const verificationData = await response.json();
 
-      if (!verificationData || !verificationData.isValid) {
+      if (!verificationData || !verificationData.valid) {
         setError('Certificate is not valid.');
         return;
       }
 
       const transformedCertificate: CertificateData = {
         id: verificationData.certificate.id,
-        recipientName: verificationData.certificate.data.recipientName || 'N/A',
-        recipientEmail: verificationData.certificate.data.recipientEmail || 'N/A',
-        institutionName: verificationData.template?.metadata.name || 'N/A',
-        certificateType: verificationData.template?.metadata.category || 'N/A',
+        recipientName: verificationData.certificate.studentName || 'N/A',
+        recipientEmail: verificationData.certificate.studentEmail || verificationData.w3cCredential?.credentialSubject?.email || 'N/A',
+        institutionName: verificationData.certificate.institutionName || 'N/A',
+        certificateType: verificationData.certificate.certificateType || 'N/A',
         issuedDate: verificationData.certificate.issuedAt,
         status: 'valid', // The API only returns valid certs, so this is hardcoded
-        blockchainTxHash: verificationData.certificate.certificateHash,
-        verificationUrl: `${window.location.origin}/verify/${verificationData.certificate.id}`,
+        blockchainTxHash: verificationData.certificate.tokenId ? `minted:${verificationData.certificate.tokenId}` : '',
+        verificationUrl: `${API_CONFIG.CERT}/api/certificates/verify/${verificationData.certificate.id}`,
         metadata: {
-          courseName: verificationData.certificate.data.courseName,
-          grade: verificationData.certificate.data.grade,
-          credits: verificationData.certificate.data.credits ? parseInt(verificationData.certificate.data.credits, 10) : undefined,
-          instructor: verificationData.certificate.data.instructor,
+          courseName: verificationData.certificate.courseName,
+          grade: verificationData.certificate.grade,
+          credits: undefined,
+          instructor: undefined,
         }
       };
 

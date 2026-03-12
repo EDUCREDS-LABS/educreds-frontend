@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { EnhancedTemplate } from '@/store/editorStore';
+import { API_CONFIG } from '@/config/api';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 interface DesignerDashboardProps {
@@ -56,19 +57,40 @@ export function DesignerDashboard({ designerId }: DesignerDashboardProps) {
       setLoading(true);
       
       // Load templates
-      const templatesResponse = await fetch(`/api/marketplace/designer/${designerId}/templates`);
+      const templatesResponse = await fetch(`${API_CONFIG.MARKETPLACE}/marketplace/designer/${designerId}/templates`);
       const templatesData = await templatesResponse.json();
       
       if (templatesResponse.ok) {
-        setTemplates(templatesData.templates);
+        const resolvedTemplates = Array.isArray(templatesData) ? templatesData : (templatesData.templates || []);
+        setTemplates(resolvedTemplates.map((t: any) => ({ ...t, name: t.name || t.title })));
       }
       
       // Load analytics
-      const analyticsResponse = await fetch(`/api/marketplace/designer/${designerId}/analytics`);
+      const analyticsResponse = await fetch(`${API_CONFIG.MARKETPLACE}/marketplace/analytics/designer/${designerId}`);
       const analyticsData = await analyticsResponse.json();
       
       if (analyticsResponse.ok) {
-        setAnalytics(analyticsData);
+        const totalRevenue = analyticsData?.revenue?.total || 0;
+        const totalSales = analyticsData?.revenue?.transactions || 0;
+        const stats = analyticsData?.templates?.stats || [];
+        setAnalytics({
+          totalTemplates: analyticsData?.templates?.total || 0,
+          totalRevenue,
+          totalSales,
+          averagePrice: totalSales > 0 ? totalRevenue / totalSales : 0,
+          monthlyRevenue: [],
+          topTemplates: stats.map((t: any) => ({
+            name: t.title,
+            sales: t.purchaseCount,
+            revenue: 0,
+          })),
+          templatePerformance: stats.map((t: any) => ({
+            name: t.title,
+            sales: t.purchaseCount,
+            revenue: 0,
+            views: t.viewCount,
+          })),
+        });
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -84,8 +106,10 @@ export function DesignerDashboard({ designerId }: DesignerDashboardProps) {
 
   const handlePublishTemplate = async (templateId: string) => {
     try {
-      const response = await fetch(`/api/marketplace/templates/${templateId}/publish`, {
-        method: 'POST',
+      const response = await fetch(`${API_CONFIG.MARKETPLACE}/marketplace/designer/templates/${templateId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'active' }),
       });
       
       if (response.ok) {
@@ -108,8 +132,10 @@ export function DesignerDashboard({ designerId }: DesignerDashboardProps) {
 
   const handleUnpublishTemplate = async (templateId: string) => {
     try {
-      const response = await fetch(`/api/marketplace/templates/${templateId}/unpublish`, {
-        method: 'POST',
+      const response = await fetch(`${API_CONFIG.MARKETPLACE}/marketplace/designer/templates/${templateId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'archived' }),
       });
       
       if (response.ok) {
@@ -136,14 +162,16 @@ export function DesignerDashboard({ designerId }: DesignerDashboardProps) {
     }
     
     try {
-      const response = await fetch(`/api/marketplace/templates/${templateId}`, {
-        method: 'DELETE',
+      const response = await fetch(`${API_CONFIG.MARKETPLACE}/marketplace/designer/templates/${templateId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'archived' }),
       });
       
       if (response.ok) {
         toast({
-          title: 'Template Deleted',
-          description: 'Template has been permanently deleted',
+          title: 'Template Archived',
+          description: 'Template has been archived',
         });
         loadDashboardData();
       } else {

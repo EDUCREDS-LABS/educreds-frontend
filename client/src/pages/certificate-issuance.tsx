@@ -21,6 +21,8 @@ import { PdfCertificateUpload } from '../components/PdfCertificateUpload';
 import QuickIssuance from '@/components/institution/QuickIssuance';
 import ManageSpecs from '@/components/institution/ManageSpecs';
 import { useLocation } from 'wouter';
+import { API_CONFIG } from '@/config/api';
+import { getAuthHeaders } from '@/lib/auth';
 
 interface Template {
   id: string;
@@ -54,14 +56,18 @@ export const CertificateIssuanceDashboard: React.FC = () => {
 
   const fetchDashboardData = async () => {
     try {
+      const authHeaders = getAuthHeaders();
       const [templatesRes, statsRes] = await Promise.all([
-        fetch('/api/templates?status=approved'),
-        fetch('/api/certificates/stats')
+        fetch(`${API_CONFIG.CERT}/templates/specs?status=active`, { headers: authHeaders }),
+        fetch(`${API_CONFIG.CERT}/api/stats`, { headers: authHeaders })
       ]);
 
       if (templatesRes.ok) {
         const templatesData = await templatesRes.json();
-        setTemplates(templatesData.templates || []);
+        const normalizedTemplates = Array.isArray(templatesData)
+          ? templatesData
+          : (templatesData.templates || []);
+        setTemplates(normalizedTemplates);
       }
       if (statsRes.ok) {
         const statsData = await statsRes.json();

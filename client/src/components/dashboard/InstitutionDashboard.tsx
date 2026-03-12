@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { EnhancedTemplate } from '@/store/editorStore';
 import { BulkIssuanceForm } from '../issuance/BulkIssuanceForm';
 import { Link } from 'react-router-dom';
+import { API_CONFIG } from '@/config/api';
 
 interface InstitutionDashboardProps {
   institutionId: string;
@@ -67,19 +68,41 @@ export function InstitutionDashboard({ institutionId }: InstitutionDashboardProp
       setLoading(true);
       
       // Load purchased templates
-      const templatesResponse = await fetch(`/api/marketplace/institution/${institutionId}/purchases`);
+      const templatesResponse = await fetch(`${API_CONFIG.MARKETPLACE}/marketplace/institutions/${institutionId}/templates`);
       const templatesData = await templatesResponse.json();
       
       if (templatesResponse.ok) {
-        setPurchasedTemplates(templatesData.purchases);
+        const rawPurchases = Array.isArray(templatesData)
+          ? templatesData
+          : (templatesData.purchases || templatesData.templates || []);
+        const normalized = rawPurchases.map((purchase: any) => {
+          const template = purchase.template || purchase;
+          return {
+            id: purchase.id,
+            template: {
+              ...template,
+              name: template.name || template.title,
+            },
+          purchasedAt: purchase.purchasedAt,
+          pricePaid: Number(purchase.purchasePrice ?? purchase.price ?? 0),
+          usageCount: purchase.usageCount ?? 0,
+          maxUses: purchase.maxUses,
+          };
+        });
+        setPurchasedTemplates(normalized);
       }
       
       // Load issuance stats
-      const statsResponse = await fetch(`/api/issuance/institution/${institutionId}/stats`);
+      const statsResponse = await fetch(`${API_CONFIG.CERT}/api/stats?institutionId=${encodeURIComponent(institutionId)}`);
       const statsData = await statsResponse.json();
       
       if (statsResponse.ok) {
-        setIssuanceStats(statsData);
+        setIssuanceStats({
+          totalIssued: statsData?.totalCertificates ?? 0,
+          thisMonth: 0,
+          pendingIssuance: 0,
+          completedIssuance: statsData?.mintedCertificates ?? 0,
+        });
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);

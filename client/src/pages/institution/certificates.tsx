@@ -18,6 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import axios from "axios";
 import { getAuthHeaders } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
+import { API_CONFIG } from "@/config/api";
 
 export default function Certificates() {
   const { user } = useAuth();
@@ -91,7 +92,7 @@ export default function Certificates() {
 
     try {
       await axios.post(
-        '/api/certificates/bulk-revoke',
+        `${API_CONFIG.CERT}/api/certificates/bulk-revoke`,
         { certificateIds: selectedCertificateIds },
         { headers: getAuthHeaders() }
       );
@@ -476,4 +477,3 @@ export default function Certificates() {
     </div>
   );
 }
-

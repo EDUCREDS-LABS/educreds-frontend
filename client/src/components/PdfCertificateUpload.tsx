@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Upload, FileText, X, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { API_CONFIG } from '@/config/api';
+import { auth } from '@/lib/auth';
 
 interface UploadedPdf {
   uploadId: string;
@@ -52,11 +54,12 @@ export const PdfCertificateUpload: React.FC = () => {
     try {
       const formData = new FormData();
       formData.append('pdf', file);
+      const institutionId = auth.getUser()?.sub || '';
 
-      const response = await fetch('/api/v1/standard/certificates/upload-pdf', {
+      const response = await fetch(`${API_CONFIG.CERT}/api/v1/standard/certificates/upload-pdf`, {
         method: 'POST',
         headers: {
-          'X-Institution-ID': 'your-institution-id' // Get from auth context
+          ...(institutionId ? { 'x-institution-id': institutionId } : {})
         },
         body: formData
       });
@@ -95,11 +98,12 @@ export const PdfCertificateUpload: React.FC = () => {
 
     setIssuing(true);
     try {
-      const response = await fetch('/api/v1/standard/certificates/issue-with-pdf', {
+      const institutionId = auth.getUser()?.sub || '';
+      const response = await fetch(`${API_CONFIG.CERT}/api/v1/standard/certificates/issue-with-pdf`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Institution-ID': 'your-institution-id'
+          ...(institutionId ? { 'x-institution-id': institutionId } : {})
         },
         body: JSON.stringify({
           pdfUploadId: selectedPdf,

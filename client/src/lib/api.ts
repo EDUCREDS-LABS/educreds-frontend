@@ -813,6 +813,9 @@ export const api = {
       const recipients = parseRecipientsFromCsv(csvText);
 
       let response: Response;
+      const walletDirectEnabled =
+        String(import.meta.env.VITE_ENABLE_WALLET_DIRECT_ISSUANCE ?? "true").toLowerCase() !== "false";
+
       try {
         response = await fetch(`${API_CONFIG.CERT}/api/v1/issue/batch`, {
           method: "POST",
@@ -825,6 +828,7 @@ export const api = {
             ...(templateId ? { templateId } : {}),
             recipients,
             ...(institutionId ? { institutionId } : {}),
+            ...(walletDirectEnabled ? {} : { forceBackendSigner: true }),
           }),
         });
       } catch (error) {
@@ -832,10 +836,35 @@ export const api = {
       }
 
       const result = await handleResponse(response);
-      const successful = Number(result?.successful ?? 0);
-      const failed = Number(result?.failed ?? 0);
-      const errors = Array.isArray(result?.results)
-        ? result.results
+      let results = Array.isArray(result?.results) ? result.results : [];
+
+      if (walletDirectEnabled && typeof window !== "undefined" && typeof window.ethereum !== "undefined") {
+        const updatedResults = [];
+        for (const item of results) {
+          if (item?.walletDirectRequired && item?.transactionData && item?.issuanceRequestId) {
+            try {
+              const confirmed = await confirmWalletDirectIssuanceIfNeeded(item, authHeaders);
+              updatedResults.push({ ...item, ...confirmed, walletDirectRequired: false, status: "minted" });
+              continue;
+            } catch (error) {
+              const message = error instanceof Error ? error.message : String(error);
+              updatedResults.push({ ...item, error: message });
+              continue;
+            }
+          }
+          updatedResults.push(item);
+        }
+        results = updatedResults;
+      }
+      const pending = results.filter((item: any) =>
+        item?.walletDirectRequired || item?.status === "pending_wallet_signature"
+      ).length;
+      const successful = results.filter((item: any) =>
+        item?.status === "minted" || item?.walletDirectRequired === false
+      ).length;
+      const failed = Math.max(0, Number(result?.failed ?? 0) + (results.length - successful - pending));
+      const errors = results.length
+        ? results
             .filter((item: any) => item?.status === "failed" || item?.error)
             .map((item: any) => item?.error || "Certificate issuance failed")
         : [];
@@ -844,11 +873,16 @@ export const api = {
         ...result,
         successful,
         failed,
+        pending,
+        results,
         errors,
       };
     }
 
     let response: Response;
+    const walletDirectEnabled =
+      String(import.meta.env.VITE_ENABLE_WALLET_DIRECT_ISSUANCE ?? "true").toLowerCase() !== "false";
+
     try {
       response = await fetch(`${API_CONFIG.CERT}/api/v1/issue/batch`, {
         method: "POST",
@@ -860,12 +894,18 @@ export const api = {
         body: JSON.stringify({
           ...(institutionId ? { institutionId } : {}),
           ...data,
+          ...(walletDirectEnabled ? {} : { forceBackendSigner: true }),
         }),
       });
     } catch (error) {
       throw new Error(formatNetworkError(error));
     }
     return handleResponse(response);
+  },
+
+  confirmWalletDirectIssuance: async (payload: any) => {
+    const authHeaders = getAuthHeaders();
+    return confirmWalletDirectIssuanceIfNeeded(payload, authHeaders);
   },
 
   // Verification Methods
@@ -1074,6 +1114,40 @@ export const api = {
   },
 
   // Template management methods
+  getTemplates: async () => {
+    const response = await fetch(`${API_CONFIG.CERT}/templates`);
+    const data = await handleResponse(response);
+    const templates = Array.isArray(data) ? data : (data.templates || []);
+    const categoryMap: Record<string, string> = {
+      certificate: 'academic',
+      logo: 'corporate',
+      banner: 'corporate',
+      other: 'workshop',
+    };
+
+    const mapped = templates.map((t: any) => ({
+        metadata: {
+          id: t.id,
+          name: t.name,
+          description: t.description,
+          category: categoryMap[t.templateType] || 'academic',
+          fields: (t.placeholders || []).map((p: any) => ({
+            name: p.key,
+            label: p.label,
+            required: true,
+          })),
+        },
+        content: t.htmlContent,
+        styles: t.cssContent,
+      }));
+
+    // Keep both keys for backward compatibility across components.
+    return {
+      templates: mapped,
+      data: mapped,
+    };
+  },
+
   getTemplateSpecs: async (category?: string, status?: string) => {
     const params = new URLSearchParams();
     if (category) params.append('category', category);
@@ -1081,7 +1155,9 @@ export const api = {
     
     const query = params.toString() ? `?${params.toString()}` : '';
     const response = await fetch(`${API_CONFIG.CERT}/templates/specs${query}`);
-    return handleResponse(response);
+    const specs = await handleResponse(response);
+    const templates = Array.isArray(specs) ? specs : (specs?.templates || []);
+    return { templates };
   },
 
   deleteTemplate: async (templateId: string) => {

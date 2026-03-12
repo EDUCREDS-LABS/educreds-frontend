@@ -33,7 +33,7 @@ export function TemplateGallery({ onTemplateSelect, showCustomizeButton = true }
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   const { data: templatesData, isLoading, error } = useQuery({
-    queryKey: ['/api/templates'],
+    queryKey: ['/templates'],
     queryFn: api.getTemplates,
   });
 

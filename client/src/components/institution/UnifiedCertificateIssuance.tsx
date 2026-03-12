@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -35,6 +35,8 @@ export default function UnifiedCertificateIssuance() {
   const [activeTab, setActiveTab] = useState("single");
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [pendingIssuances, setPendingIssuances] = useState<any[]>([]);
+  const [signingAll, setSigningAll] = useState(false);
 
   const form = useForm<SingleCertForm>({
     resolver: zodResolver(singleCertSchema),
@@ -51,7 +53,7 @@ export default function UnifiedCertificateIssuance() {
   });
 
   const { data: templatesData } = useQuery({
-    queryKey: ["/api/templates"],
+    queryKey: ["/templates"],
   });
 
   const templates = (templatesData as any)?.templates || [];
@@ -83,8 +85,23 @@ export default function UnifiedCertificateIssuance() {
     onSuccess: (data: any) => {
       toast({ 
         title: "Bulk Issue Complete", 
-        description: `${data.successful} certificates issued successfully.` 
+        description: `Minted ${data.successful || 0} certificates. ${
+          data.pending > 0 ? `${data.pending} pending wallet signature.` : ''
+        }` 
       });
+      const pending = Array.isArray(data?.results)
+        ? data.results
+            .filter((item: any) => item?.walletDirectRequired || item?.status === "pending_wallet_signature")
+            .map((item: any, index: number) => ({
+              id: item?.issuanceRequestId || item?.certificateId || `pending-${index}`,
+              recipientName: item?.recipient?.name || "Unknown",
+              recipientWallet: item?.recipient?.wallet || "Unknown",
+              status: "pending" as const,
+              issuanceRequestId: item?.issuanceRequestId,
+              transactionData: item?.transactionData,
+            }))
+        : [];
+      setPendingIssuances(pending);
       queryClient.invalidateQueries({ queryKey: ["/api/certificates/institution"] });
       setBulkFile(null);
       setUploadProgress(0);
@@ -93,6 +110,37 @@ export default function UnifiedCertificateIssuance() {
       toast({ title: "Bulk Issue Failed", description: error.message, variant: "destructive" });
     },
   });
+
+  const signPendingIssuance = useCallback(async (issuance: any) => {
+    if (!issuance?.issuanceRequestId || !issuance?.transactionData) {
+      return;
+    }
+    try {
+      await api.confirmWalletDirectIssuance({
+        issuanceRequestId: issuance.issuanceRequestId,
+        transactionData: issuance.transactionData,
+        walletDirectRequired: true,
+      });
+      setPendingIssuances((prev) =>
+        prev.map((item) => (item.id === issuance.id ? { ...item, status: "minted" } : item)),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setPendingIssuances((prev) =>
+        prev.map((item) => (item.id === issuance.id ? { ...item, status: "failed", error: message } : item)),
+      );
+    }
+  }, []);
+
+  const signAllPending = useCallback(async () => {
+    if (pendingIssuances.length === 0) return;
+    setSigningAll(true);
+    for (const issuance of pendingIssuances) {
+      if (issuance.status !== "pending") continue;
+      await signPendingIssuance(issuance);
+    }
+    setSigningAll(false);
+  }, [pendingIssuances, signPendingIssuance]);
 
   const handleBulkFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -388,6 +436,54 @@ export default function UnifiedCertificateIssuance() {
                   <li>Maximum 100 certificates per upload</li>
                 </ul>
               </div>
+
+              {pendingIssuances.length > 0 && (
+                <div className="border border-amber-200 bg-amber-50 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-amber-900">Pending Wallet Signatures</h4>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={signAllPending}
+                      disabled={signingAll}
+                    >
+                      {signingAll ? "Signing..." : "Sign All"}
+                    </Button>
+                  </div>
+                  <div className="space-y-2 max-h-56 overflow-y-auto">
+                    {pendingIssuances.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 bg-white border rounded-md p-3"
+                      >
+                        <div className="text-sm">
+                          <div className="font-medium text-neutral-900">{item.recipientName}</div>
+                          <div className="text-neutral-600">{item.recipientWallet}</div>
+                          {item.error && <div className="text-red-600 mt-1">{item.error}</div>}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            className={
+                              item.status === "minted"
+                                ? "bg-green-100 text-green-800"
+                                : item.status === "failed"
+                                  ? "bg-red-100 text-red-800"
+                                  : "bg-amber-100 text-amber-800"
+                            }
+                          >
+                            {item.status}
+                          </Badge>
+                          {item.status === "pending" && (
+                            <Button size="sm" onClick={() => signPendingIssuance(item)}>
+                              Sign
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
+import { API_CONFIG } from '@/config/api';
 
 interface TemplateGridProps {
   onTemplateSelect?: (template: any) => void;
@@ -61,10 +62,11 @@ export function TemplateGrid({
   useEffect(() => {
     const loadFeaturedTemplates = async () => {
       try {
-        const response = await fetch('/api/marketplace/templates/featured');
+        const response = await fetch(`${API_CONFIG.MARKETPLACE}/marketplace/templates?featured=true`);
         const data = await response.json();
         if (response.ok) {
-          useMarketplaceStore.getState().setFeaturedTemplates(data.templates);
+          const templates = Array.isArray(data) ? data : (data.templates || []);
+          useMarketplaceStore.getState().setFeaturedTemplates(templates);
         }
       } catch (error) {
         console.error('Error loading featured templates:', error);
@@ -73,10 +75,11 @@ export function TemplateGrid({
 
     const loadPopularTemplates = async () => {
       try {
-        const response = await fetch('/api/marketplace/templates/popular');
+        const response = await fetch(`${API_CONFIG.MARKETPLACE}/marketplace/templates?trending=true`);
         const data = await response.json();
         if (response.ok) {
-          useMarketplaceStore.getState().setPopularTemplates(data.templates);
+          const templates = Array.isArray(data) ? data : (data.templates || []);
+          useMarketplaceStore.getState().setPopularTemplates(templates);
         }
       } catch (error) {
         console.error('Error loading popular templates:', error);

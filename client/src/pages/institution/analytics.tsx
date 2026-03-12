@@ -3,6 +3,7 @@ import axios from 'axios';
 import { getAuthHeaders } from '@/lib/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { API_CONFIG } from '@/config/api';
 
 interface StatsData {
   totalCertificates: number;
@@ -20,7 +21,7 @@ const AnalyticsPage = () => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('/api/stats', { headers: getAuthHeaders() });
+        const response = await axios.get(`${API_CONFIG.CERT}/api/stats`, { headers: getAuthHeaders() });
         setStats(response.data);
       } catch (err) {
         console.error('Error fetching analytics:', err);

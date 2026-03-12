@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Upload, Download, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { API_CONFIG } from '@/config/api';
+import { auth } from '@/lib/auth';
 
 interface BulkCertificate {
   studentName: string;
@@ -73,11 +75,12 @@ export const BulkCertificateIssuance: React.FC = () => {
 
     setProcessing(true);
     try {
-      const response = await fetch('/api/v1/standard/certificates/issue/bulk', {
+      const institutionId = auth.getUser()?.sub || '';
+      const response = await fetch(`${API_CONFIG.CERT}/api/v1/standard/certificates/issue/bulk`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Institution-ID': 'your-institution-id' // Get from auth context
+          ...(institutionId ? { 'x-institution-id': institutionId } : {})
         },
         body: JSON.stringify({
           certificates: csvData.map(cert => ({
