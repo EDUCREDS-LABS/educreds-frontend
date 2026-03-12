@@ -323,7 +323,11 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
           <div
             ref={canvasRef}
             className="relative border-2 border-dashed border-gray-300 bg-white"
-            style={{ width: '595px', height: '842px', minHeight: '600px' }} // A4 dimensions
+            style={{
+              width: orientation === 'portrait' ? '595px' : '842px',
+              height: orientation === 'portrait' ? '842px' : '595px',
+              minHeight: '595px',
+            }}
             onClick={handleCanvasClick}
           >
             {/* PDF Background */}

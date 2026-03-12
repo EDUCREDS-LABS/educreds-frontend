@@ -1,4 +1,4 @@
-@reference "./theme.css";
+@import "./theme.css";
 
 @import "tailwindcss";
 

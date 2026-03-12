@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { Building2, Mail, Phone, Globe, MapPin, Edit, Save, X, CheckCircle, AlertCircle, Users, Award, TrendingUp } from "lucide-react";
-import { api } from "@/lib/api";
+import { Building2, Mail, Phone, Globe, MapPin, Edit, Save, X, CheckCircle, AlertCircle, Users, Award, TrendingUp, Fingerprint, Wallet } from "lucide-react";
+import { API_CONFIG } from "@/config/api";
+import { getAuthHeaders } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -25,6 +26,7 @@ interface ProfileData {
   country: string;
   description: string;
   institutionType: string;
+  registrationNumber: string;
 }
 
 export default function InstitutionProfile() {
@@ -42,31 +44,58 @@ export default function InstitutionProfile() {
     state: '',
     country: '',
     description: '',
-    institutionType: ''
+    institutionType: '',
+    registrationNumber: ''
   });
 
   const { data: profileData, isLoading } = useQuery({
     queryKey: ["/api/institutions/profile"],
+    queryFn: async () => {
+      const response = await fetch(API_CONFIG.INSTITUTIONS.PROFILE, {
+        headers: getAuthHeaders()
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || response.statusText);
+      }
+      return response.json();
+    },
     enabled: !!user,
     onSuccess: (data: any) => {
-      const profile = data?.institution || {};
+      const profile = data || {};
+      const contactInfo = profile.contactInfo || {};
       setFormData({
         name: profile.name || '',
         email: profile.email || '',
-        phone: profile.phone || '',
-        website: profile.website || '',
-        address: profile.address || '',
-        city: profile.city || '',
-        state: profile.state || '',
-        country: profile.country || '',
+        phone: profile.phone || contactInfo.phone || '',
+        website: profile.website || contactInfo.website || '',
+        address: profile.address || contactInfo.address || '',
+        city: profile.city || contactInfo.city || '',
+        state: profile.state || contactInfo.state || '',
+        country: profile.country || contactInfo.country || '',
         description: profile.description || '',
-        institutionType: profile.institutionType || ''
+        institutionType: profile.institutionType || '',
+        registrationNumber: profile.registrationNumber || ''
       });
     }
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: ProfileData) => api.post('/api/institutions/profile', data),
+    mutationFn: async (data: ProfileData) => {
+      const response = await fetch(API_CONFIG.INSTITUTIONS.PROFILE, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify(data)
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || response.statusText);
+      }
+      return response.json();
+    },
     onSuccess: () => {
       toast({ title: "Profile updated successfully" });
       setIsEditing(false);
@@ -77,7 +106,8 @@ export default function InstitutionProfile() {
     }
   });
 
-  const profile = profileData?.institution || {};
+  const profile = profileData || {};
+  const contactInfo = profile.contactInfo || {};
   const stats = profileData?.stats || {};
 
   const handleSave = () => {
@@ -85,18 +115,20 @@ export default function InstitutionProfile() {
   };
 
   const handleCancel = () => {
-    const profile = profileData?.institution || {};
+    const profile = profileData || {};
+    const contactInfo = profile.contactInfo || {};
     setFormData({
       name: profile.name || '',
       email: profile.email || '',
-      phone: profile.phone || '',
-      website: profile.website || '',
-      address: profile.address || '',
-      city: profile.city || '',
-      state: profile.state || '',
-      country: profile.country || '',
+      phone: profile.phone || contactInfo.phone || '',
+      website: profile.website || contactInfo.website || '',
+      address: profile.address || contactInfo.address || '',
+      city: profile.city || contactInfo.city || '',
+      state: profile.state || contactInfo.state || '',
+      country: profile.country || contactInfo.country || '',
       description: profile.description || '',
-      institutionType: profile.institutionType || ''
+      institutionType: profile.institutionType || '',
+      registrationNumber: profile.registrationNumber || ''
     });
     setIsEditing(false);
   };
@@ -228,6 +260,15 @@ export default function InstitutionProfile() {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="registrationNumber">Registration Number</Label>
+                <Input
+                  id="registrationNumber"
+                  value={formData.registrationNumber}
+                  onChange={(e) => setFormData({ ...formData, registrationNumber: e.target.value })}
+                  placeholder="Enter registration number"
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="phone">Phone</Label>
                 <Input
                   id="phone"
@@ -312,6 +353,16 @@ export default function InstitutionProfile() {
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex items-center gap-2 text-sm">
+                  <Fingerprint className="w-4 h-4 text-neutral-600" />
+                  <span className="font-medium">Institution ID:</span>
+                  <span className="font-mono">{profile.id || "Not available"}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Building2 className="w-4 h-4 text-neutral-600" />
+                  <span className="font-medium">Registration No:</span>
+                  <span>{profile.registrationNumber || "Not provided"}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
                   <Building2 className="w-4 h-4 text-neutral-600" />
                   <span className="font-medium">Name:</span>
                   <span>{profile.name || 'Not provided'}</span>
@@ -324,14 +375,19 @@ export default function InstitutionProfile() {
                 <div className="flex items-center gap-2 text-sm">
                   <Phone className="w-4 h-4 text-neutral-600" />
                   <span className="font-medium">Phone:</span>
-                  <span>{profile.phone || 'Not provided'}</span>
+                  <span>{profile.phone || contactInfo.phone || 'Not provided'}</span>
                 </div>
-                {profile.website && (
+                {(profile.website || contactInfo.website) && (
                   <div className="flex items-center gap-2 text-sm">
                     <Globe className="w-4 h-4 text-neutral-600" />
                     <span className="font-medium">Website:</span>
-                    <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                      {profile.website.replace(/^https?:\/\//, "")}
+                    <a
+                      href={profile.website || contactInfo.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      {(profile.website || contactInfo.website).replace(/^https?:\/\//, "")}
                     </a>
                   </div>
                 )}
@@ -340,24 +396,40 @@ export default function InstitutionProfile() {
                   <span className="font-medium">Type:</span>
                   <span>{profile.institutionType || 'Not specified'}</span>
                 </div>
-                {(profile.city || profile.state || profile.country) && (
+                {(profile.city || profile.state || profile.country || contactInfo.city || contactInfo.state || contactInfo.country) && (
                   <div className="flex items-center gap-2 text-sm">
                     <MapPin className="w-4 h-4 text-neutral-600" />
                     <span className="font-medium">Location:</span>
                     <span>
-                      {[profile.city, profile.state, profile.country].filter(Boolean).join(', ')}
+                      {[profile.city || contactInfo.city, profile.state || contactInfo.state, profile.country || contactInfo.country]
+                        .filter(Boolean)
+                        .join(', ')}
                     </span>
                   </div>
                 )}
+                {profile.walletAddress && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Wallet className="w-4 h-4 text-neutral-600" />
+                    <span className="font-medium">Wallet:</span>
+                    <span className="font-mono">{profile.walletAddress}</span>
+                  </div>
+                )}
+                {profile.did && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Fingerprint className="w-4 h-4 text-neutral-600" />
+                    <span className="font-medium">DID:</span>
+                    <span className="font-mono">{profile.did}</span>
+                  </div>
+                )}
               </div>
-              {profile.address && (
+              {(profile.address || contactInfo.address) && (
                 <>
                   <Separator />
                   <div className="flex items-start gap-2 text-sm">
                     <MapPin className="w-4 h-4 text-neutral-600 mt-0.5" />
                     <div>
                       <span className="font-medium">Address:</span>
-                      <p className="mt-1">{profile.address}</p>
+                      <p className="mt-1">{profile.address || contactInfo.address}</p>
                     </div>
                   </div>
                 </>

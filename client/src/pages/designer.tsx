@@ -1,14 +1,19 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { useLocation } from 'wouter';
 import { defaultTemplates } from '../../../shared/templates/default-templates';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Trash2,
   Save,
@@ -19,24 +24,151 @@ import {
   MousePointer2,
   Plus,
   Settings2,
-  ChevronRight,
   Maximize2,
   Undo2,
   Redo2,
   Download,
   Shield,
   Award,
-  Image as ImageIcon,
-  Smartphone
+  Smartphone,
+  ArrowLeft,
+  ZoomIn,
+  ZoomOut,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignVerticalJustifyStart,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
+  Copy,
+  ChevronRight,
+  ChevronLeft,
+  Lock,
+  Unlock,
+  Magnet,
 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
+// ─── Safe SVG utilities ───────────────────────────────────────────────────────
+
+const renderSvgSafely = (svgString: string): HTMLElement | null => {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(svgString, 'image/svg+xml');
+    if (doc.getElementsByTagName('parsererror').length > 0) return null;
+    doc.querySelectorAll('script').forEach(s => s.remove());
+    doc.querySelectorAll('*').forEach(el => {
+      Array.from(el.attributes).forEach(attr => {
+        if (attr.name.startsWith('on')) el.removeAttribute(attr.name);
+      });
+    });
+    return doc.documentElement;
+  } catch {
+    return null;
+  }
+};
+
+const parseTemplateFields = (svgContent: string, fields: any[]): FieldMapping[] => {
+  const loaded: FieldMapping[] = [];
+  try {
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(svgContent, 'image/svg+xml');
+    if (xmlDoc.getElementsByTagName('parsererror').length > 0) return loaded;
+
+    fields.forEach((f, idx) => {
+      let found = false;
+      xmlDoc.querySelectorAll('text').forEach(textEl => {
+        if (found) return;
+        if (!textEl.textContent?.includes(`{{${f.name}}}`)) return;
+        const x = parseFloat(textEl.getAttribute('x') || '0');
+        const y = parseFloat(textEl.getAttribute('y') || '0');
+        if (!isNaN(x) && !isNaN(y) && isFinite(x) && isFinite(y)) {
+          const fontSize = parseFloat(textEl.getAttribute('font-size') || '16');
+          const color = textEl.getAttribute('fill') || '#1a1a1a';
+          const fontFamily = textEl.getAttribute('font-family') || 'serif';
+          loaded.push({
+            id: `field_${Date.now()}_${idx}`,
+            name: f.name,
+            x: (x * 595) / 800 - 50,
+            y: (y * 595) / 800 - 15,
+            width: 200,
+            height: 30,
+            fontSize: (fontSize * 595) / 800,
+            fontFamily: fontFamily.includes('serif') ? 'Playfair Display' : 'Outfit',
+            fontWeight: '600',
+            color: normalizeHexColor(color.startsWith('url') ? '#1e40af' : color),
+            required: f.required,
+            locked: false,
+            type: f.type || 'text',
+          });
+          found = true;
+        }
+      });
+      if (!found) {
+        loaded.push({
+          id: `field_${Date.now()}_${idx}`,
+          name: f.name,
+          x: 100,
+          y: 100 + idx * 40,
+          width: 200,
+          height: 30,
+          fontSize: 16,
+          fontFamily: 'Outfit',
+          fontWeight: '600',
+          color: '#1a1a1a',
+          required: f.required,
+          locked: false,
+          type: f.type || 'text',
+        });
+      }
+    });
+  } catch (err) {
+    console.error('Error parsing SVG template:', err);
+  }
+  return loaded;
+};
+
+// ─── Validation helpers ───────────────────────────────────────────────────────
+
+const validatePosition = (value: string, min: number, max: number): number => {
+  const n = parseInt(value, 10);
+  return Math.max(min, Math.min(max, isNaN(n) ? 0 : n));
+};
+
+const validateDimension = (value: string, min = 1, max = 842): number => {
+  const n = parseInt(value, 10);
+  return Math.max(min, Math.min(max, isNaN(n) ? 30 : n));
+};
+
+const validateFontSize = (value: string, min = 8, max = 96): number => {
+  const n = parseInt(value, 10);
+  return Math.max(min, Math.min(max, isNaN(n) ? 16 : n));
+};
+
+const normalizeHexColor = (color: string): string => {
+  const t = (color ?? '').trim();
+  const short3 = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i;
+  if (short3.test(t))
+    return t.replace(short3, (_, r, g, b) => `#${r}${r}${g}${g}${b}${b}`).toUpperCase();
+  if (/^#[0-9a-f]{6}$/i.test(t)) return t.toUpperCase();
+  return '#000000';
+};
+
+// ─── Interfaces ───────────────────────────────────────────────────────────────
 
 interface FieldMapping {
   id: string;
@@ -52,154 +184,297 @@ interface FieldMapping {
   required: boolean;
   locked: boolean;
   type: 'text' | 'date' | 'number' | 'qr' | 'signature';
+  /** When set, this is a user-placed free text element (literal content, not a variable) */
+  customText?: string;
 }
 
-export const TemplateDesigner: React.FC = () => {
+interface AvailableField {
+  name: string;
+  label: string;
+  required: boolean;
+  locked: boolean;
+  type?: 'text' | 'date' | 'number' | 'qr' | 'signature';
+  icon: React.ReactNode;
+}
+
+interface TemplateDesignerProps {
+  backHref?: string;
+  backLabel?: string;
+}
+
+interface SaveForm {
+  name: string;
+  description: string;
+  type: string;
+}
+
+// ─── ToolBtn (pure, outside component) ───────────────────────────────────────
+
+interface ToolBtnProps {
+  icon: React.ReactNode;
+  label: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
+}
+
+const ToolBtn: React.FC<ToolBtnProps> = ({ icon, label, active, disabled, onClick }) => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        className={`h-7 w-7 flex items-center justify-center rounded-lg transition-all select-none ${
+          active
+            ? 'bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-500/30'
+            : disabled
+            ? 'text-slate-700 cursor-not-allowed'
+            : 'text-slate-500 hover:text-slate-200 hover:bg-white/[0.08]'
+        }`}
+      >
+        {icon}
+      </button>
+    </TooltipTrigger>
+    <TooltipContent
+      side="bottom"
+      className="bg-[#1a1a22] border-white/10 text-[11px] text-slate-300 px-2 py-1"
+    >
+      {label}
+    </TooltipContent>
+  </Tooltip>
+);
+
+// ─── InspectorAlignBtn ────────────────────────────────────────────────────────
+
+const InspectorAlignBtn: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+}> = ({ icon, label, disabled, onClick }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    title={label}
+    className="h-8 flex items-center justify-center bg-[#18181f] border border-white/5 rounded-lg
+               hover:border-indigo-500/30 hover:bg-indigo-500/5 text-slate-500 hover:text-indigo-400
+               transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+  >
+    {icon}
+  </button>
+);
+
+// ─── Helper: canvas preview text ──────────────────────────────────────────────
+
+const PREVIEW_TEXT: Record<string, string> = {
+  studentName: 'John Doe',
+  courseName: 'Bachelor of Computer Science',
+  institutionName: 'EduCreds University',
+  issueDate: 'Jan 24, 2024',
+  completionDate: 'Dec 15, 2023',
+  certificateId: 'CERT-123456',
+  grade: 'Distinction',
+  certificateType: 'Degree Certificate',
+  verificationUrl: 'verify.educreds.xyz/…',
+};
+
+const getPreviewText = (field: FieldMapping): string =>
+  field.customText !== undefined
+    ? field.customText || '…'
+    : (PREVIEW_TEXT[field.name] ?? field.name);
+
+// ─── TemplateDesigner ─────────────────────────────────────────────────────────
+
+export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
+  backHref,
+  backLabel = 'Back',
+}) => {
+  // ── State ──────────────────────────────────────────────────────────────────
   const [fields, setFields] = useState<FieldMapping[]>([]);
   const [history, setHistory] = useState<FieldMapping[][]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [selectedField, setSelectedField] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(true);
+  const [snapToGrid, setSnapToGrid] = useState(false);
   const [zoom, setZoom] = useState(100);
   const [activeTab, setActiveTab] = useState<'fields' | 'layers'>('fields');
+  const [activeTool, setActiveTool] = useState<'select' | 'text'>('select');
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const [pageOrientation, setPageOrientation] = useState<'portrait' | 'landscape'>('portrait');
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewSvg, setPreviewSvg] = useState('');
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [saveForm, setSaveForm] = useState<SaveForm>({
+    name: '',
+    description: '',
+    type: 'certificate',
+  });
+  const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
+
+  // ── Refs ───────────────────────────────────────────────────────────────────
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [location] = useLocation();
+  const previewRef = useRef<HTMLDivElement>(null);
+  const dragStartPosition = useRef<{ x: number; y: number } | null>(null);
+  /** Always reflects the latest fields value — safe to read inside event callbacks */
+  const fieldsRef = useRef<FieldMapping[]>(fields);
 
+  // ── Computed ───────────────────────────────────────────────────────────────
+  const canvasWidth = pageOrientation === 'portrait' ? 595 : 842;
+  const canvasHeight = pageOrientation === 'portrait' ? 842 : 595;
+  const selectedFieldData = selectedField ? fields.find(f => f.id === selectedField) ?? null : null;
+
+  // ── Effects ────────────────────────────────────────────────────────────────
+
+  // Keep fieldsRef in sync
+  useEffect(() => {
+    fieldsRef.current = fields;
+  }, [fields]);
+
+  // Load template from URL params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const templateId = params.get('templateId');
-    if (templateId) {
-      const template = defaultTemplates.find(t => t.metadata.id === templateId);
-      if (template) {
-        // Load background (the SVG without placeholders)
-        let cleanDesign = template.design;
-        template.metadata.fields.forEach(f => {
-          cleanDesign = cleanDesign.replace(new RegExp(`{{${f.name}}}`, 'g'), '');
-        });
-        const svgBlob = new Blob([cleanDesign], { type: 'image/svg+xml' });
-        const url = URL.createObjectURL(svgBlob);
-        setBackgroundImage(url);
+    if (!templateId) return;
+    const template = defaultTemplates.find(t => t.metadata.id === templateId);
+    if (!template) return;
 
-        // Try to extract field positions from SVG
-        const loadedFields: FieldMapping[] = [];
-        template.metadata.fields.forEach((f, idx) => {
-          // Find <text ...>{{fieldName}}</text>
-          const regex = new RegExp(`<text[^>]*x="([^"]*)"[^>]*y="([^"]*)"[^>]*>.*?{{${f.name}}}.*?<\/text>`, 'i');
-          const match = template.design.match(regex);
+    let cleanDesign = template.design;
+    template.metadata.fields.forEach(f => {
+      cleanDesign = cleanDesign.replace(new RegExp(`{{${f.name}}}`, 'g'), '');
+    });
 
-          let x = 100;
-          let y = 100 + (idx * 40);
-          let fontSize = 16;
-          let color = '#1a1a1a';
-          let fontFamily = 'serif';
+    const svgBlob = new Blob([cleanDesign], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(svgBlob);
+    setBackgroundImage(url);
 
-          if (match) {
-            x = parseFloat(match[1]);
-            y = parseFloat(match[2]);
-            // Extract more properties if needed
-            const fontMatch = match[0].match(/font-size="([^"]*)"/);
-            if (fontMatch) fontSize = parseFloat(fontMatch[1]);
-            const fillMatch = match[0].match(/fill="([^"]*)"/);
-            if (fillMatch) color = fillMatch[1];
-            const familyMatch = match[0].match(/font-family="([^"]*)"/);
-            if (familyMatch) fontFamily = familyMatch[1];
-
-            // Adjust x/y because our editor uses center-based placement for the text span
-            // The SVG text x/y is the baseline. 
-            // We'll just use them as is for now and let user adjust.
-            // SVG width is 800, our canvas is 595. We need to scale.
-            const scale = 595 / 800;
-            x = x * scale;
-            y = y * scale;
-            fontSize = fontSize * scale;
-          }
-
-          loadedFields.push({
-            id: `field_${Date.now()}_${idx}`,
-            name: (f.name as any),
-            x: x - 50, // basic adjustment
-            y: y - 15,
-            width: 200,
-            height: 30,
-            fontSize: fontSize === 16 ? 16 : fontSize,
-            fontFamily: fontFamily.includes('serif') ? 'Playfair Display' : 'Outfit',
-            fontWeight: '600',
-            color: color.startsWith('url') ? '#1e40af' : color,
-            required: (f.required as any),
-            locked: false,
-            type: (f.type as any) || 'text'
-          });
-        });
-
-        // Add QR code if exists in SVG
-        if (template.design.includes('QR')) {
-          const qrMatch = template.design.match(/<rect[^>]*x="([^"]*)"[^>]*y="([^"]*)"[^>]*width="([^"]*)"[^>]*height="([^"]*)"[^>]*>/);
-          if (qrMatch) {
-            const scale = 595 / 800;
-            loadedFields.push({
-              id: `field_qr_${Date.now()}`,
-              name: 'qrCode',
-              x: parseFloat(qrMatch[1]) * scale,
-              y: parseFloat(qrMatch[2]) * scale,
-              width: parseFloat(qrMatch[3]) * scale,
-              height: parseFloat(qrMatch[4]) * scale,
-              fontSize: 12,
-              fontFamily: 'Outfit',
-              fontWeight: '400',
-              color: '#000000',
-              required: true,
-              locked: true,
-              type: 'qr'
-            });
-          }
-        }
-
-        setFields(loadedFields);
-        setHistory([loadedFields]);
-        setHistoryIndex(0);
-      }
-    }
+    const loadedFields = parseTemplateFields(cleanDesign, template.metadata.fields);
+    setFields(loadedFields);
+    setHistory([loadedFields]);
+    setHistoryIndex(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const availableFields = [
-    { name: 'studentName', label: 'Student Name', required: true, locked: false, icon: <Type className="w-4 h-4" /> },
-    { name: 'institutionName', label: 'Institution Name', required: true, locked: true, icon: <Plus className="w-4 h-4" /> },
-    { name: 'courseName', label: 'Course Name', required: true, locked: false, icon: <Type className="w-4 h-4" /> },
-    { name: 'grade', label: 'Grade', required: true, locked: false, icon: <Type className="w-4 h-4" /> },
-    { name: 'completionDate', label: 'Completion Date', required: true, locked: false, type: 'date', icon: <Plus className="w-4 h-4" /> },
-    { name: 'certificateType', label: 'Certificate Type', required: true, locked: false, icon: <Plus className="w-4 h-4" /> },
-    { name: 'issueDate', label: 'Issue Date', required: true, locked: true, type: 'date', icon: <Plus className="w-4 h-4" /> },
-    { name: 'certificateId', label: 'Certificate ID', required: true, locked: true, icon: <Plus className="w-4 h-4" /> },
-    { name: 'qrCode', label: 'QR Code', required: true, locked: true, type: 'qr', icon: <Maximize2 className="w-4 h-4" /> },
-    { name: 'verificationUrl', label: 'Verification URL', required: true, locked: true, icon: <Plus className="w-4 h-4" /> }
+  // Render SVG preview safely after dialog opens
+  useEffect(() => {
+    if (!isPreviewOpen || !previewRef.current || !previewSvg) return;
+    const el = renderSvgSafely(previewSvg);
+    if (el) {
+      previewRef.current.replaceChildren(el);
+    } else {
+      previewRef.current.innerHTML =
+        '<div class="text-red-500 p-4 text-sm">Error rendering preview</div>';
+    }
+  }, [isPreviewOpen, previewSvg]);
+
+  // Cleanup blob URLs
+  useEffect(() => {
+    return () => {
+      if (backgroundImage?.startsWith('blob:')) URL.revokeObjectURL(backgroundImage);
+    };
+  }, [backgroundImage]);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return;
+
+      if (e.key === 'Escape') {
+        setSelectedField(null);
+        setActiveTool('select');
+        return;
+      }
+      if (!e.ctrlKey && !e.metaKey) {
+        if (e.key === 'v') { setActiveTool('select'); return; }
+        if (e.key === 't') { setActiveTool('text'); return; }
+        if (e.key === 'g') { setShowGrid(g => !g); return; }
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const sel = selectedField;
+        if (!sel) return;
+        const field = fieldsRef.current.find(f => f.id === sel);
+        if (field && !field.locked) {
+          const next = fieldsRef.current.filter(f => f.id !== sel);
+          setFields(next);
+          setSelectedField(null);
+          addToHistoryDirect(next);
+        }
+        return;
+      }
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); undoAction(); return; }
+        if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) { e.preventDefault(); redoAction(); return; }
+        if (e.key === 'd') { e.preventDefault(); duplicateFieldAction(); return; }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedField]);
+
+  // ── Available fields catalogue ─────────────────────────────────────────────
+
+  const availableFields: AvailableField[] = [
+    { name: 'studentName',     label: 'Student Name',      required: true,  locked: false, icon: <Type className="w-4 h-4" /> },
+    { name: 'institutionName', label: 'Institution Name',  required: true,  locked: true,  icon: <Plus className="w-4 h-4" /> },
+    { name: 'courseName',      label: 'Course Name',       required: true,  locked: false, icon: <Type className="w-4 h-4" /> },
+    { name: 'grade',           label: 'Grade',             required: true,  locked: false, icon: <Type className="w-4 h-4" /> },
+    { name: 'completionDate',  label: 'Completion Date',   required: true,  locked: false, type: 'date', icon: <Plus className="w-4 h-4" /> },
+    { name: 'certificateType', label: 'Certificate Type',  required: true,  locked: false, icon: <Plus className="w-4 h-4" /> },
+    { name: 'issueDate',       label: 'Issue Date',        required: true,  locked: true,  type: 'date', icon: <Plus className="w-4 h-4" /> },
+    { name: 'certificateId',   label: 'Certificate ID',    required: true,  locked: true,  icon: <Plus className="w-4 h-4" /> },
+    { name: 'qrCode',          label: 'QR Code',           required: true,  locked: true,  type: 'qr',   icon: <Maximize2 className="w-4 h-4" /> },
+    { name: 'verificationUrl', label: 'Verification URL',  required: true,  locked: true,  icon: <Plus className="w-4 h-4" /> },
   ];
 
-  const addToHistory = useCallback((currentFields: FieldMapping[]) => {
-    const newHistory = history.slice(0, historyIndex + 1);
+  // ── History helpers (using refs to avoid stale closures) ───────────────────
+
+  const historyRef = useRef(history);
+  const historyIndexRef = useRef(historyIndex);
+
+  useEffect(() => { historyRef.current = history; }, [history]);
+  useEffect(() => { historyIndexRef.current = historyIndex; }, [historyIndex]);
+
+  const addToHistoryDirect = (currentFields: FieldMapping[]) => {
+    const prevHistory = historyRef.current;
+    const prevIndex = historyIndexRef.current;
+    let newHistory = prevHistory.slice(0, prevIndex + 1);
     newHistory.push([...currentFields]);
-    if (newHistory.length > 50) newHistory.shift();
+    if (newHistory.length > 50) newHistory = newHistory.slice(-50);
+    const newIndex = newHistory.length - 1;
     setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  }, [history, historyIndex]);
+    setHistoryIndex(newIndex);
+  };
 
-  const undo = () => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      setFields([...history[newIndex]]);
+  const addToHistory = useCallback((currentFields: FieldMapping[]) => {
+    addToHistoryDirect(currentFields);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const undoAction = () => {
+    const idx = historyIndexRef.current;
+    const hist = historyRef.current;
+    if (idx > 0) {
+      const newIndex = idx - 1;
+      setFields([...hist[newIndex]]);
       setHistoryIndex(newIndex);
     }
   };
 
-  const redo = () => {
-    if (historyIndex < history.length - 1) {
-      const newIndex = historyIndex + 1;
-      setFields([...history[newIndex]]);
+  const redoAction = () => {
+    const idx = historyIndexRef.current;
+    const hist = historyRef.current;
+    if (idx < hist.length - 1) {
+      const newIndex = idx + 1;
+      setFields([...hist[newIndex]]);
       setHistoryIndex(newIndex);
     }
   };
+
+  // ── Field CRUD ─────────────────────────────────────────────────────────────
 
   const addField = (fieldName: string) => {
     const fieldInfo = availableFields.find(f => f.name === fieldName);
@@ -215,76 +490,168 @@ export const TemplateDesigner: React.FC = () => {
       fontSize: 16,
       fontFamily: 'Outfit',
       fontWeight: '500',
-      color: '#1a1a1a',
+      color: normalizeHexColor('#1a1a1a'),
       required: fieldInfo.required,
       locked: fieldInfo.locked,
-      type: (fieldInfo.type as any) || 'text'
+      type: fieldInfo.type || 'text',
     };
 
-    const newFields = [...fields, newField];
-    setFields(newFields);
+    const next = [...fields, newField];
+    setFields(next);
     setSelectedField(newField.id);
-    addToHistory(newFields);
+    addToHistory(next);
   };
 
-  const updateField = (fieldId: string, updates: Partial<FieldMapping>, saveToHistory = true) => {
-    const newFields = fields.map(field =>
-      field.id === fieldId ? { ...field, ...updates } : field
-    );
-    setFields(newFields);
-    if (saveToHistory) {
-      addToHistory(newFields);
-    }
-  };
+  const updateField = useCallback(
+    (fieldId: string, updates: Partial<FieldMapping>, saveHistory = true) => {
+      setFields(prev => {
+        const next = prev.map(f => (f.id === fieldId ? { ...f, ...updates } : f));
+        if (saveHistory) addToHistoryDirect(next);
+        return next;
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
 
   const removeField = (fieldId: string) => {
-    const newFields = fields.filter(field => field.id !== fieldId);
-    setFields(newFields);
-    if (selectedField === fieldId) {
-      setSelectedField(null);
-    }
-    addToHistory(newFields);
+    const next = fields.filter(f => f.id !== fieldId);
+    setFields(next);
+    if (selectedField === fieldId) setSelectedField(null);
+    addToHistory(next);
   };
+
+  // ── Duplicate ──────────────────────────────────────────────────────────────
+
+  const duplicateFieldAction = () => {
+    const sel = selectedField;
+    if (!sel) return;
+    const field = fieldsRef.current.find(f => f.id === sel);
+    if (!field) return;
+
+    const newField: FieldMapping = {
+      ...field,
+      id: `field_${Date.now()}`,
+      x: field.x + 20,
+      y: field.y + 20,
+      locked: false,
+      // For system fields that don't allow duplicates by name, give a unique name
+      ...(field.customText === undefined && { name: `${field.name}_${Date.now()}` }),
+    };
+
+    const next = [...fieldsRef.current, newField];
+    setFields(next);
+    setSelectedField(newField.id);
+    addToHistoryDirect(next);
+  };
+
+  // ── Alignment ─────────────────────────────────────────────────────────────
+
+  type AlignDir = 'left' | 'center-h' | 'right' | 'top' | 'middle-v' | 'bottom';
+
+  const alignField = (dir: AlignDir) => {
+    if (!selectedField) return;
+    const field = fieldsRef.current.find(f => f.id === selectedField);
+    if (!field || field.locked) return;
+
+    const updates: Partial<FieldMapping> = {};
+    switch (dir) {
+      case 'left':     updates.x = 0; break;
+      case 'center-h': updates.x = Math.round((canvasWidth - field.width) / 2); break;
+      case 'right':    updates.x = Math.max(0, canvasWidth - field.width); break;
+      case 'top':      updates.y = 0; break;
+      case 'middle-v': updates.y = Math.round((canvasHeight - field.height) / 2); break;
+      case 'bottom':   updates.y = Math.max(0, canvasHeight - field.height); break;
+    }
+
+    updateField(selectedField, updates);
+  };
+
+  // ── Z-order ────────────────────────────────────────────────────────────────
+
+  const bringForward = () => {
+    if (!selectedField) return;
+    const idx = fields.findIndex(f => f.id === selectedField);
+    if (idx < fields.length - 1) {
+      const next = [...fields];
+      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+      setFields(next);
+      addToHistory(next);
+    }
+  };
+
+  const sendBackward = () => {
+    if (!selectedField) return;
+    const idx = fields.findIndex(f => f.id === selectedField);
+    if (idx > 0) {
+      const next = [...fields];
+      [next[idx], next[idx - 1]] = [next[idx - 1], next[idx]];
+      setFields(next);
+      addToHistory(next);
+    }
+  };
+
+  // ── Lock/unlock ────────────────────────────────────────────────────────────
+
+  const toggleLock = () => {
+    if (!selectedFieldData) return;
+    updateField(selectedFieldData.id, { locked: !selectedFieldData.locked });
+  };
+
+  // ── Image upload ───────────────────────────────────────────────────────────
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setBackgroundImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert(`File must be < 5 MB. Got: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+      return;
     }
+
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      alert(`Allowed types: JPEG, PNG, WebP`);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      const arr = new Uint8Array(e.target?.result as ArrayBuffer).subarray(0, 4);
+      let header = '';
+      arr.forEach(b => (header += b.toString(16).padStart(2, '0')));
+      const validSigs = ['89504e47', 'ffd8ffe0', 'ffd8ffe1', 'ffd8ffe2', 'ffd8ffe3', 'ffd8ffe8', '52494646'];
+      if (!validSigs.includes(header)) {
+        alert('Invalid image — signature mismatch');
+        return;
+      }
+      if (backgroundImage?.startsWith('blob:')) URL.revokeObjectURL(backgroundImage);
+      setBackgroundImage(URL.createObjectURL(file));
+    };
+    reader.readAsArrayBuffer(file);
   };
 
-  const generateSvg = () => {
-    const width = 595;
-    const height = 842;
-    let svg = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">`;
+  // ── SVG generation ─────────────────────────────────────────────────────────
 
-    // Background
+  const generateSvg = (): string => {
+    const w = canvasWidth;
+    const h = canvasHeight;
+    let svg = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">`;
+
     if (backgroundImage) {
-      svg += `<image href="${backgroundImage}" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" />`;
+      svg += `<image href="${backgroundImage}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" />`;
     } else {
-      svg += `<rect width="${width}" height="${height}" fill="white" />`;
+      svg += `<rect width="${w}" height="${h}" fill="white" />`;
     }
 
-    // Fields
     fields.forEach(field => {
       if (field.type === 'qr') {
         svg += `<rect x="${field.x}" y="${field.y}" width="${field.width}" height="${field.height}" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>`;
         svg += `<text x="${field.x + field.width / 2}" y="${field.y + field.height / 2 + 5}" text-anchor="middle" font-family="monospace" font-size="8" fill="#64748b">QR</text>`;
       } else {
-        const placeholder = `{{${field.name}}}`;
-        svg += `<text 
-          x="${field.x + field.width / 2}" 
-          y="${field.y + field.height / 2 + 5}" 
-          text-anchor="middle" 
-          font-family="${field.fontFamily}" 
-          font-size="${field.fontSize}" 
-          font-weight="${field.fontWeight}" 
-          fill="${field.color}"
-        >${placeholder}</text>`;
+        const content =
+          field.customText !== undefined ? field.customText : `{{${field.name}}}`;
+        svg += `<text x="${field.x + field.width / 2}" y="${field.y + field.height / 2 + 5}" text-anchor="middle" font-family="${field.fontFamily}" font-size="${field.fontSize}" font-weight="${field.fontWeight}" fill="${field.color}">${content}</text>`;
       }
     });
 
@@ -292,8 +659,7 @@ export const TemplateDesigner: React.FC = () => {
     return svg;
   };
 
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewSvg, setPreviewSvg] = useState('');
+  // ── Preview ────────────────────────────────────────────────────────────────
 
   const handlePreview = () => {
     const svg = generateSvg();
@@ -302,10 +668,11 @@ export const TemplateDesigner: React.FC = () => {
       courseName: 'Bachelor of Computer Science',
       institutionName: 'EduCreds Academy',
       issueDate: 'January 24, 2024',
+      completionDate: 'December 15, 2023',
       certificateId: 'EC-2024-001',
       grade: 'Distinction',
       certificateType: 'Degree',
-      verificationUrl: 'https://verify.educreds.xyz/c/EC-2024-001'
+      verificationUrl: 'https://verify.educreds.xyz/c/EC-2024-001',
     };
 
     let rendered = svg;
@@ -317,50 +684,171 @@ export const TemplateDesigner: React.FC = () => {
     setIsPreviewOpen(true);
   };
 
-  const handlePublish = async () => {
-    const svg = generateSvg();
-    console.log('Publishing template SVG:', svg);
-    // TODO: Call API to save template
-    alert('Template design generated! check console for SVG.');
+  // ── Publish / Save flow ────────────────────────────────────────────────────
+
+  const handlePublishClick = () => {
+    if (fields.length === 0) {
+      alert('Please add at least one field to the template.');
+      return;
+    }
+    const requiredFields = ['studentName', 'institutionName', 'certificateId'];
+    const missing = requiredFields.filter(rf => !fields.some(f => f.name === rf));
+    if (missing.length) {
+      alert(`Missing required fields: ${missing.join(', ')}`);
+      return;
+    }
+    setIsSaveDialogOpen(true);
   };
 
+  const handleSaveConfirm = async (mode: 'draft' | 'publish') => {
+    if (!saveForm.name.trim()) {
+      alert('Please enter a template name.');
+      return;
+    }
+    setIsPublishing(true);
+    try {
+      const svg = generateSvg();
+      const response = await fetch('/api/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: saveForm.name.trim(),
+          description: saveForm.description.trim(),
+          type: saveForm.type,
+          isPublished: mode === 'publish',
+          design: svg,
+          fields: fields.map(f => ({
+            name: f.name,
+            type: f.type,
+            x: Math.round(f.x),
+            y: Math.round(f.y),
+            width: Math.round(f.width),
+            height: Math.round(f.height),
+            fontSize: f.fontSize,
+            fontFamily: f.fontFamily,
+            fontWeight: f.fontWeight,
+            color: f.color,
+            required: f.required,
+            locked: f.locked,
+            ...(f.customText !== undefined && { customText: f.customText }),
+          })),
+          pageOrientation,
+          backgroundImage,
+        }),
+      });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+      setIsSaveDialogOpen(false);
+      alert(
+        mode === 'publish'
+          ? 'Template published to library!'
+          : 'Template saved as draft!'
+      );
+    } catch (err) {
+      alert(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  // ── Canvas interaction ─────────────────────────────────────────────────────
+
+  const snap = (v: number) => (snapToGrid ? Math.round(v / 15) * 15 : v);
+
   const handleCanvasClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (event.target === canvasRef.current) {
+    if (event.target !== canvasRef.current) return;
+
+    if (activeTool === 'text') {
+      const rect = canvasRef.current!.getBoundingClientRect();
+      const scale = zoom / 100;
+      const rawX = (event.clientX - rect.left) / scale;
+      const rawY = (event.clientY - rect.top) / scale;
+
+      const newField: FieldMapping = {
+        id: `field_${Date.now()}`,
+        name: `customText_${Date.now()}`,
+        x: Math.max(0, snap(rawX - 100)),
+        y: Math.max(0, snap(rawY - 18)),
+        width: 200,
+        height: 36,
+        fontSize: 18,
+        fontFamily: 'Outfit',
+        fontWeight: '500',
+        color: '#1a1a1a',
+        required: false,
+        locked: false,
+        type: 'text',
+        customText: 'Custom Text',
+      };
+
+      const next = [...fieldsRef.current, newField];
+      setFields(next);
+      setSelectedField(newField.id);
+      addToHistoryDirect(next);
+      setActiveTool('select');
+    } else {
       setSelectedField(null);
     }
   };
 
-  const selectedFieldData = selectedField ? fields.find(f => f.id === selectedField) : null;
+  // ─────────────────────────────────────────────────────────────────────────
+  // JSX
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const canZoomIn = zoom < 200;
+  const canZoomOut = zoom > 25;
 
   return (
     <div className="flex flex-col h-screen bg-[#0a0a0c] text-slate-200 overflow-hidden select-none font-sans">
-      {/* Premium Top Navigation Bar */}
-      <header className="h-14 border-b border-white/5 bg-[#121217]/80 backdrop-blur-xl flex items-center justify-between px-6 z-50">
+
+      {/* ── Top Navigation Bar ──────────────────────────────────────────────── */}
+      <header className="h-14 border-b border-white/5 bg-[#121217]/90 backdrop-blur-xl flex items-center justify-between px-6 z-50 shrink-0">
         <div className="flex items-center gap-4">
+          {backHref && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs hover:bg-white/5 text-slate-400 gap-1.5 -ml-2"
+                onClick={() => { window.location.href = backHref; }}
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                {backLabel}
+              </Button>
+              <Separator orientation="vertical" className="h-4 bg-white/5" />
+            </>
+          )}
+
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
             <Award className="w-5 h-5 text-white" />
           </div>
           <div>
             <h1 className="text-sm font-semibold tracking-tight">EduCreds Designer</h1>
-            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-widest">Premium Workspace</p>
+            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-widest">
+              Premium Workspace
+            </p>
           </div>
+
           <Separator orientation="vertical" className="h-4 mx-2 bg-white/5" />
+
+          {/* Undo / Redo */}
           <div className="flex items-center gap-1">
             <Button
-              variant="ghost"
-              size="icon"
+              variant="ghost" size="icon"
               className="h-8 w-8 hover:bg-white/5 disabled:opacity-30"
-              onClick={undo}
+              onClick={undoAction}
               disabled={historyIndex <= 0}
+              title="Undo (Ctrl+Z)"
             >
               <Undo2 className="h-4 w-4 text-slate-400" />
             </Button>
             <Button
-              variant="ghost"
-              size="icon"
+              variant="ghost" size="icon"
               className="h-8 w-8 hover:bg-white/5 disabled:opacity-30"
-              onClick={redo}
+              onClick={redoAction}
               disabled={historyIndex >= history.length - 1}
+              title="Redo (Ctrl+Y)"
             >
               <Redo2 className="h-4 w-4 text-slate-400" />
             </Button>
@@ -368,89 +856,68 @@ export const TemplateDesigner: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Hidden file input */}
           <input
             type="file"
             ref={fileInputRef}
             onChange={handleImageUpload}
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp"
             className="hidden"
           />
+
           <Button
-            variant="ghost"
-            size="sm"
+            variant="ghost" size="sm"
             className="h-8 text-xs hover:bg-white/5 text-slate-400"
             onClick={() => fileInputRef.current?.click()}
           >
             <Upload className="w-4 h-4 mr-2" />
             Background
           </Button>
-          
-          {/* Page Orientation Toggle */}
-          <div className="flex items-center bg-[#18181f] rounded-lg border border-white/5 p-0.5">
-            <Button
-              variant="ghost"
-              size="sm"
-              className={`h-7 px-3 text-xs flex items-center gap-1.5 ${pageOrientation === 'portrait' ? 'bg-white/10 text-white' : 'text-slate-400'}`}
-              onClick={() => setPageOrientation('portrait')}
-              title="Portrait Orientation (595×842)"
-            >
-              <Smartphone className="w-3.5 h-3.5" style={{ transform: 'rotate(90deg)' }} />
-              Portrait
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className={`h-7 px-3 text-xs flex items-center gap-1.5 ${pageOrientation === 'landscape' ? 'bg-white/10 text-white' : 'text-slate-400'}`}
-              onClick={() => setPageOrientation('landscape')}
-              title="Landscape Orientation (842×595)"
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              Landscape
-            </Button>
-          </div>
 
+          {/* Zoom control */}
           <div className="flex items-center bg-[#18181f] rounded-lg border border-white/5 p-0.5">
             <Button
-              variant="ghost"
-              size="sm"
-              className={`h-7 px-3 text-xs ${zoom === 100 ? 'bg-white/10 text-white' : 'text-slate-400'}`}
-              onClick={() => setZoom(100)}
+              variant="ghost" size="icon"
+              className="h-7 w-7 text-slate-400 hover:text-white disabled:opacity-30"
+              onClick={() => setZoom(z => Math.max(25, z - 25))}
+              disabled={!canZoomOut}
             >
-              100%
+              <ZoomOut className="h-3.5 w-3.5" />
             </Button>
-            <Select value={zoom.toString()} onValueChange={(v) => setZoom(parseInt(v))}>
-              <SelectTrigger className="h-7 w-16 bg-transparent border-none focus:ring-0 text-xs text-slate-300">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-[#18181f] border-white/10 text-slate-300">
-                <SelectItem value="50">50%</SelectItem>
-                <SelectItem value="75">75%</SelectItem>
-                <SelectItem value="100">100%</SelectItem>
-                <SelectItem value="125">125%</SelectItem>
-                <SelectItem value="150">150%</SelectItem>
-              </SelectContent>
-            </Select>
+            <button
+              onClick={() => setZoom(100)}
+              className="h-7 px-2 text-[11px] font-mono text-slate-300 hover:text-white min-w-[40px] text-center"
+            >
+              {zoom}%
+            </button>
+            <Button
+              variant="ghost" size="icon"
+              className="h-7 w-7 text-slate-400 hover:text-white disabled:opacity-30"
+              onClick={() => setZoom(z => Math.min(200, z + 25))}
+              disabled={!canZoomIn}
+            >
+              <ZoomIn className="h-3.5 w-3.5" />
+            </Button>
           </div>
 
           <Separator orientation="vertical" className="h-4 bg-white/5" />
 
+          {/* Orientation */}
           <div className="flex items-center bg-[#18181f] rounded-lg border border-white/5 p-0.5">
             <Button
-              variant="ghost"
-              size="sm"
+              variant="ghost" size="sm"
               className={`h-7 px-3 text-xs flex items-center gap-1 ${pageOrientation === 'portrait' ? 'bg-white/10 text-white' : 'text-slate-400'}`}
               onClick={() => setPageOrientation('portrait')}
-              title="Portrait Orientation (595×842)"
+              title="Portrait (595×842)"
             >
-              <Smartphone className="w-4 h-4" style={{ transform: 'rotate(0deg)' }} />
+              <Smartphone className="w-4 h-4" />
               <span className="hidden sm:inline">Portrait</span>
             </Button>
             <Button
-              variant="ghost"
-              size="sm"
+              variant="ghost" size="sm"
               className={`h-7 px-3 text-xs flex items-center gap-1 ${pageOrientation === 'landscape' ? 'bg-white/10 text-white' : 'text-slate-400'}`}
               onClick={() => setPageOrientation('landscape')}
-              title="Landscape Orientation (842×595)"
+              title="Landscape (842×595)"
             >
               <Smartphone className="w-4 h-4" style={{ transform: 'rotate(90deg)' }} />
               <span className="hidden sm:inline">Landscape</span>
@@ -460,192 +927,407 @@ export const TemplateDesigner: React.FC = () => {
           <Separator orientation="vertical" className="h-4 bg-white/5" />
 
           <Button
-            variant="ghost"
-            size="sm"
+            variant="ghost" size="sm"
             className="h-8 text-xs hover:bg-white/5 text-slate-400"
             onClick={handlePreview}
           >
             <Eye className="w-4 h-4 mr-2" />
             Preview
           </Button>
+
           <Button
-            size="sm"
-            className="h-8 text-xs bg-indigo-600 hover:bg-indigo-500 text-white border-0 shadow-lg shadow-indigo-500/20"
-            onClick={handlePublish}
+            variant="outline" size="sm"
+            className="h-8 text-xs border-indigo-500/30 hover:bg-indigo-500/10 text-indigo-400"
+            onClick={() => {
+              if (fields.length === 0) { alert('Add at least one field first.'); return; }
+              setIsSaveDialogOpen(true);
+            }}
           >
             <Save className="w-4 h-4 mr-2" />
-            Publish Template
+            Save Draft
+          </Button>
+
+          <Button
+            size="sm"
+            className="h-8 text-xs bg-indigo-600 hover:bg-indigo-500 text-white border-0 shadow-lg shadow-indigo-500/20 disabled:opacity-50"
+            onClick={handlePublishClick}
+            disabled={isPublishing}
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            {isPublishing ? 'Saving…' : 'Publish Template'}
           </Button>
         </div>
       </header>
 
-
+      {/* ── Body ─────────────────────────────────────────────────────────────── */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Interactive Sidebar */}
-        <aside className="w-72 border-r border-white/5 bg-[#121217] flex flex-col z-40">
-          <div className="p-4">
-            <div className="flex items-center gap-2 p-1 bg-[#18181f] rounded-xl border border-white/5 mb-6">
-              <button
-                onClick={() => setActiveTab('fields')}
-                className={`flex-1 flex items-center justify-center py-2 text-[11px] font-semibold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'fields' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-              >
-                Elements
-              </button>
-              <button
-                onClick={() => setActiveTab('layers')}
-                className={`flex-1 flex items-center justify-center py-2 text-[11px] font-semibold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'layers' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-              >
-                Layers
-              </button>
+
+        {/* ── Left Sidebar ──────────────────────────────────────────────────── */}
+        <aside className="w-72 border-r border-white/5 bg-[#121217] flex flex-col z-40 shrink-0">
+          <div className="p-4 flex flex-col h-full overflow-hidden">
+            {/* Tab switcher */}
+            <div className="flex items-center gap-2 p-1 bg-[#18181f] rounded-xl border border-white/5 mb-5">
+              {(['fields', 'layers'] as const).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-1 py-2 text-[11px] font-semibold uppercase tracking-wider rounded-lg transition-all ${
+                    activeTab === tab
+                      ? 'bg-indigo-600 text-white shadow-lg'
+                      : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  {tab === 'fields' ? 'Elements' : 'Layers'}
+                </button>
+              ))}
             </div>
 
-            <AnimatePresence mode="wait">
-              {activeTab === 'fields' ? (
-                <motion.div
-                  key="fields"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  className="space-y-6"
-                >
-                  <div>
-                    <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3 ml-1">Standard Fields</h3>
-                    <div className="grid grid-cols-1 gap-2">
-                      {availableFields.map(field => (
-                        <motion.button
-                          key={field.name}
-                          whileHover={{ x: 4 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => addField(field.name)}
-                          disabled={fields.some(f => f.name === field.name)}
-                          className={`flex items-center justify-between w-full p-2.5 rounded-xl border transition-all text-left ${fields.some(f => f.name === field.name)
-                            ? 'bg-white/[0.02] border-white/5 opacity-50 cursor-not-allowed'
-                            : 'bg-white/[0.03] border-white/5 hover:border-indigo-500/50 hover:bg-indigo-500/[0.05]'
-                            }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg transition-colors ${fields.some(f => f.name === field.name) ? 'bg-slate-800 text-slate-600' : 'bg-indigo-500/10 text-indigo-400'}`}>
-                              {field.icon}
-                            </div>
-                            <span className="text-xs font-medium text-slate-300">{field.label}</span>
-                          </div>
-                          {!fields.some(f => f.name === field.name) && (
-                            <Plus className="w-3.5 h-3.5 text-slate-600" />
-                          )}
-                        </motion.button>
-                      ))}
-                    </div>
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="layers"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  className="space-y-2"
-                >
-                  <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3 ml-1">Canvas Layers</h3>
-                  {fields.length === 0 ? (
-                    <div className="py-8 text-center text-slate-600 italic text-xs">No active layers</div>
-                  ) : (
-                    fields.map(field => (
-                      <div
-                        key={field.id}
-                        onClick={() => setSelectedField(field.id)}
-                        className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-all ${selectedField === field.id ? 'bg-indigo-500/10 border-indigo-500/50 text-indigo-400' : 'bg-transparent border-transparent text-slate-400 hover:bg-white/5'}`}
+            <ScrollArea className="flex-1 -mr-2 pr-2">
+              <AnimatePresence mode="wait">
+                {activeTab === 'fields' ? (
+                  <motion.div
+                    key="fields"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    className="space-y-6"
+                  >
+                    {/* Custom text button */}
+                    <div>
+                      <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3 ml-1">
+                        Tools
+                      </h3>
+                      <motion.button
+                        whileHover={{ x: 4 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setActiveTool('text')}
+                        className={`flex items-center gap-3 w-full p-2.5 rounded-xl border transition-all text-left ${
+                          activeTool === 'text'
+                            ? 'bg-indigo-500/10 border-indigo-500/40'
+                            : 'bg-white/[0.03] border-white/5 hover:border-indigo-500/40 hover:bg-indigo-500/[0.05]'
+                        }`}
                       >
-                        <Type className="w-4 h-4" />
-                        <span className="text-xs font-medium">{field.name}</span>
+                        <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
+                          <Type className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-slate-300">Add Custom Text</p>
+                          <p className="text-[10px] text-slate-600">Click canvas to place (T)</p>
+                        </div>
+                      </motion.button>
+                    </div>
+
+                    {/* Standard fields */}
+                    <div>
+                      <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3 ml-1">
+                        Standard Fields
+                      </h3>
+                      <div className="grid grid-cols-1 gap-2">
+                        {availableFields.map(field => {
+                          const inUse = fields.some(f => f.name === field.name);
+                          return (
+                            <motion.button
+                              key={field.name}
+                              whileHover={!inUse ? { x: 4 } : {}}
+                              whileTap={!inUse ? { scale: 0.98 } : {}}
+                              onClick={() => addField(field.name)}
+                              disabled={inUse}
+                              className={`flex items-center justify-between w-full p-2.5 rounded-xl border transition-all text-left ${
+                                inUse
+                                  ? 'bg-white/[0.02] border-white/5 opacity-50 cursor-not-allowed'
+                                  : 'bg-white/[0.03] border-white/5 hover:border-indigo-500/50 hover:bg-indigo-500/[0.05]'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${inUse ? 'bg-slate-800 text-slate-600' : 'bg-indigo-500/10 text-indigo-400'}`}>
+                                  {field.icon}
+                                </div>
+                                <span className="text-xs font-medium text-slate-300">
+                                  {field.label}
+                                </span>
+                              </div>
+                              {!inUse && <Plus className="w-3.5 h-3.5 text-slate-600" />}
+                            </motion.button>
+                          );
+                        })}
                       </div>
-                    ))
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="layers"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    className="space-y-2"
+                  >
+                    <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3 ml-1">
+                      Canvas Layers
+                    </h3>
+                    {fields.length === 0 ? (
+                      <div className="py-8 text-center text-slate-600 text-xs italic">
+                        No active layers
+                      </div>
+                    ) : (
+                      [...fields].reverse().map((field, revIdx) => {
+                        const idx = fields.length - 1 - revIdx;
+                        return (
+                          <div
+                            key={field.id}
+                            onClick={() => setSelectedField(field.id)}
+                            className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-all ${
+                              selectedField === field.id
+                                ? 'bg-indigo-500/10 border-indigo-500/50 text-indigo-400'
+                                : 'bg-transparent border-transparent text-slate-400 hover:bg-white/5'
+                            }`}
+                          >
+                            {field.type === 'qr' ? (
+                              <Grid className="w-4 h-4 shrink-0" />
+                            ) : (
+                              <Type className="w-4 h-4 shrink-0" />
+                            )}
+                            <span className="text-xs font-medium truncate flex-1">
+                              {field.customText !== undefined
+                                ? `"${field.customText || 'Custom Text'}"`
+                                : field.name}
+                            </span>
+                            <span className="text-[10px] text-slate-700">#{idx + 1}</span>
+                            {field.locked && <Lock className="w-3 h-3 text-slate-600 shrink-0" />}
+                          </div>
+                        );
+                      })
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </ScrollArea>
           </div>
         </aside>
 
-        {/* Central Workspace Canvas */}
+        {/* ── Canvas Area ──────────────────────────────────────────────────── */}
         <main className="flex-1 bg-[#0a0a0c] relative overflow-hidden flex items-center justify-center">
-          {/* Workspace Controls Overlay */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-[#121217]/60 backdrop-blur-md border border-white/10 rounded-full px-4 py-1.5 flex items-center gap-4 z-10 shadow-2xl">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={`h-7 w-7 rounded-full ${showGrid ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-500'}`}
-                    onClick={() => setShowGrid(!showGrid)}
-                  >
-                    <Grid className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="bg-slate-900 border-white/10">Show Grid</TooltipContent>
-              </Tooltip>
-              <Separator orientation="vertical" className="h-3 bg-white/10" />
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-slate-500 hover:text-white">
-                    <MousePointer2 className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="bg-slate-900 border-white/10">Select Tool</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-slate-500 hover:text-white">
-                    <Type className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="bg-slate-900 border-white/10">Text Tool</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
 
+          {/* Floating Toolbar */}
+          <TooltipProvider>
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 pointer-events-none">
+
+              {/* Primary row */}
+              <div className="pointer-events-auto bg-[#121217]/80 backdrop-blur-xl border border-white/10 rounded-xl px-2.5 py-1.5 flex items-center gap-1 shadow-2xl">
+                {/* Tool mode */}
+                <ToolBtn
+                  icon={<MousePointer2 className="h-3.5 w-3.5" />}
+                  label="Select (V)"
+                  active={activeTool === 'select'}
+                  onClick={() => setActiveTool('select')}
+                />
+                <ToolBtn
+                  icon={<Type className="h-3.5 w-3.5" />}
+                  label="Text Tool — click canvas to place (T)"
+                  active={activeTool === 'text'}
+                  onClick={() => setActiveTool('text')}
+                />
+
+                <Separator orientation="vertical" className="h-4 bg-white/10 mx-0.5" />
+
+                {/* View */}
+                <ToolBtn
+                  icon={<Grid className="h-3.5 w-3.5" />}
+                  label="Toggle Grid (G)"
+                  active={showGrid}
+                  onClick={() => setShowGrid(g => !g)}
+                />
+                <ToolBtn
+                  icon={<Magnet className="h-3.5 w-3.5" />}
+                  label="Snap to Grid"
+                  active={snapToGrid}
+                  onClick={() => setSnapToGrid(s => !s)}
+                />
+
+                <Separator orientation="vertical" className="h-4 bg-white/10 mx-0.5" />
+
+                {/* Zoom */}
+                <ToolBtn
+                  icon={<ZoomOut className="h-3.5 w-3.5" />}
+                  label="Zoom Out"
+                  disabled={!canZoomOut}
+                  onClick={() => setZoom(z => Math.max(25, z - 25))}
+                />
+                <button
+                  onClick={() => setZoom(100)}
+                  className="h-7 px-2 text-[11px] font-mono text-slate-400 hover:text-white hover:bg-white/[0.08] rounded-lg transition-colors min-w-[42px] text-center"
+                  title="Reset to 100%"
+                >
+                  {zoom}%
+                </button>
+                <ToolBtn
+                  icon={<ZoomIn className="h-3.5 w-3.5" />}
+                  label="Zoom In"
+                  disabled={!canZoomIn}
+                  onClick={() => setZoom(z => Math.min(200, z + 25))}
+                />
+
+                {/* Contextual: manipulation (when field selected) */}
+                <AnimatePresence>
+                  {selectedField && (
+                    <motion.div
+                      initial={{ opacity: 0, width: 0, marginLeft: 0 }}
+                      animate={{ opacity: 1, width: 'auto', marginLeft: 4 }}
+                      exit={{ opacity: 0, width: 0, marginLeft: 0 }}
+                      className="flex items-center gap-1 overflow-hidden"
+                    >
+                      <Separator orientation="vertical" className="h-4 bg-white/10 mx-0.5" />
+                      <ToolBtn
+                        icon={<Copy className="h-3.5 w-3.5" />}
+                        label="Duplicate (Ctrl+D)"
+                        onClick={duplicateFieldAction}
+                      />
+                      <ToolBtn
+                        icon={<ChevronRight className="h-3.5 w-3.5 -rotate-90" />}
+                        label="Bring Forward"
+                        onClick={bringForward}
+                      />
+                      <ToolBtn
+                        icon={<ChevronRight className="h-3.5 w-3.5 rotate-90" />}
+                        label="Send Backward"
+                        onClick={sendBackward}
+                      />
+                      <Separator orientation="vertical" className="h-4 bg-white/10 mx-0.5" />
+                      {selectedFieldData?.locked ? (
+                        <ToolBtn
+                          icon={<Unlock className="h-3.5 w-3.5" />}
+                          label="Unlock Element"
+                          active
+                          onClick={toggleLock}
+                        />
+                      ) : (
+                        <ToolBtn
+                          icon={<Lock className="h-3.5 w-3.5" />}
+                          label="Lock Element"
+                          onClick={toggleLock}
+                        />
+                      )}
+                      <ToolBtn
+                        icon={<Trash2 className="h-3.5 w-3.5 text-red-400" />}
+                        label="Delete"
+                        disabled={selectedFieldData?.locked}
+                        onClick={() => selectedField && removeField(selectedField)}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Secondary row: alignment (only when field selected) */}
+              <AnimatePresence>
+                {selectedField && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    className="pointer-events-auto bg-[#121217]/80 backdrop-blur-xl border border-white/10 rounded-xl px-2.5 py-1.5 flex items-center gap-1 shadow-xl"
+                  >
+                    <span className="text-[10px] text-slate-600 uppercase tracking-widest font-bold mr-1">
+                      Align
+                    </span>
+                    <ToolBtn icon={<AlignLeft className="h-3.5 w-3.5" />} label="Align Left" disabled={selectedFieldData?.locked} onClick={() => alignField('left')} />
+                    <ToolBtn icon={<AlignCenter className="h-3.5 w-3.5" />} label="Align Center H" disabled={selectedFieldData?.locked} onClick={() => alignField('center-h')} />
+                    <ToolBtn icon={<AlignRight className="h-3.5 w-3.5" />} label="Align Right" disabled={selectedFieldData?.locked} onClick={() => alignField('right')} />
+                    <Separator orientation="vertical" className="h-4 bg-white/10 mx-0.5" />
+                    <ToolBtn icon={<AlignVerticalJustifyStart className="h-3.5 w-3.5" />} label="Align Top" disabled={selectedFieldData?.locked} onClick={() => alignField('top')} />
+                    <ToolBtn icon={<AlignVerticalJustifyCenter className="h-3.5 w-3.5" />} label="Align Middle V" disabled={selectedFieldData?.locked} onClick={() => alignField('middle-v')} />
+                    <ToolBtn icon={<AlignVerticalJustifyEnd className="h-3.5 w-3.5" />} label="Align Bottom" disabled={selectedFieldData?.locked} onClick={() => alignField('bottom')} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+            </div>
+          </TooltipProvider>
+
+          {/* Canvas scroll wrapper */}
           <ScrollArea className="w-full h-full">
             <div className="min-w-full min-h-full flex items-center justify-center p-24">
               <motion.div
                 initial={{ scale: 0.95, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className="relative bg-white shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] overflow-hidden"
+                className="relative bg-white shadow-[0_32px_64px_-12px_rgba(0,0,0,0.55)] overflow-hidden"
                 style={{
-                  width: `${(pageOrientation === 'portrait' ? 595 : 842) * (zoom / 100)}px`,
-                  height: `${(pageOrientation === 'portrait' ? 842 : 595) * (zoom / 100)}px`,
-                  backgroundImage: backgroundImage ? `url(${backgroundImage})` : (showGrid ?
-                    `radial-gradient(circle, #f0f0f0 1px, transparent 1px)` : 'none'),
-                  backgroundSize: backgroundImage ? 'contain' : (showGrid ? `${15 * (zoom / 100)}px ${15 * (zoom / 100)}px` : 'auto'),
+                  width: `${canvasWidth * (zoom / 100)}px`,
+                  height: `${canvasHeight * (zoom / 100)}px`,
+                  backgroundImage: backgroundImage
+                    ? `url(${backgroundImage})`
+                    : showGrid
+                    ? `radial-gradient(circle, #e0e0e0 1px, transparent 1px)`
+                    : 'none',
+                  backgroundSize: backgroundImage
+                    ? 'cover'
+                    : showGrid
+                    ? `${15 * (zoom / 100)}px ${15 * (zoom / 100)}px`
+                    : 'auto',
                   backgroundPosition: 'center',
-                  backgroundRepeat: 'no-repeat'
+                  cursor: activeTool === 'text' ? 'crosshair' : 'default',
                 }}
                 ref={canvasRef}
                 onClick={handleCanvasClick}
               >
-                {/* Secondary Grid Overlay if background exists */}
+                {/* Grid overlay when background image is active */}
                 {backgroundImage && showGrid && (
                   <div
                     className="absolute inset-0 pointer-events-none opacity-20"
                     style={{
                       backgroundImage: `radial-gradient(circle, #000 1px, transparent 1px)`,
-                      backgroundSize: `${15 * (zoom / 100)}px ${15 * (zoom / 100)}px`
+                      backgroundSize: `${15 * (zoom / 100)}px ${15 * (zoom / 100)}px`,
                     }}
                   />
                 )}
 
-                {/* Field Elements */}
+                {/* Text-tool hint */}
+                {activeTool === 'text' && fields.length === 0 && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <p className="text-slate-400 text-sm font-medium bg-black/20 px-4 py-2 rounded-lg backdrop-blur-sm">
+                      Click anywhere to place text
+                    </p>
+                  </div>
+                )}
+
+                {/* Field elements */}
                 {fields.map(field => (
                   <motion.div
                     key={field.id}
-                    layoutId={field.id}
-                    drag
+                    drag={!field.locked && activeTool === 'select'}
                     dragMomentum={false}
-                    onDragStart={() => setSelectedField(field.id)}
-                    whileHover={{ scale: 1.01 }}
-                    className={`absolute select-none group ${selectedField === field.id
-                      ? 'ring-2 ring-indigo-500 ring-offset-0 bg-indigo-50/10'
-                      : 'hover:ring-1 hover:ring-indigo-300 ring-offset-0'
-                      } ${field.locked ? 'cursor-not-allowed opacity-80' : 'cursor-grab active:cursor-grabbing'}`}
+                    dragElastic={0}
+                    onDragStart={() => {
+                      setSelectedField(field.id);
+                      setDraggedFieldId(field.id);
+                      dragStartPosition.current = { x: field.x, y: field.y };
+                    }}
+                    onDragEnd={(_e, info) => {
+                      if (!dragStartPosition.current) return;
+                      const scale = zoom / 100;
+                      const rawX = dragStartPosition.current.x + info.offset.x / scale;
+                      const rawY = dragStartPosition.current.y + info.offset.y / scale;
+                      const newX = snap(rawX);
+                      const newY = snap(rawY);
+                      const latestFields = fieldsRef.current.map(f =>
+                        f.id === field.id ? { ...f, x: newX, y: newY } : f
+                      );
+                      setFields(latestFields);
+                      addToHistoryDirect(latestFields);
+                      setDraggedFieldId(null);
+                      dragStartPosition.current = null;
+                    }}
+                    whileHover={!field.locked && activeTool === 'select' ? { scale: 1.01 } : {}}
+                    className={`absolute select-none ${
+                      selectedField === field.id
+                        ? 'ring-2 ring-indigo-500 bg-indigo-50/10'
+                        : 'hover:ring-1 hover:ring-indigo-300'
+                    } ${
+                      field.locked
+                        ? 'cursor-not-allowed opacity-80'
+                        : activeTool === 'text'
+                        ? 'cursor-crosshair'
+                        : 'cursor-grab active:cursor-grabbing'
+                    } ${draggedFieldId === field.id ? 'z-10' : ''}`}
                     style={{
                       left: field.x * (zoom / 100),
                       top: field.y * (zoom / 100),
@@ -658,46 +1340,37 @@ export const TemplateDesigner: React.FC = () => {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      border: selectedField === field.id ? 'none' : '1px dashed #e2e8f0'
+                      border: selectedField === field.id ? 'none' : '1px dashed #cbd5e1',
                     }}
-                    onDrag={(e, info) => {
-                      updateField(field.id, {
-                        x: field.x + info.delta.x / (zoom / 100),
-                        y: field.y + info.delta.y / (zoom / 100)
-                      }, false);
-                    }}
-                    onDragEnd={() => {
-                      addToHistory(fields);
+                    onClick={e => {
+                      e.stopPropagation();
+                      if (activeTool === 'select') setSelectedField(field.id);
                     }}
                   >
                     {field.type === 'qr' ? (
                       <div className="w-full h-full flex flex-col items-center justify-center bg-white border border-slate-200">
                         <Grid className="w-1/2 h-1/2 text-slate-300" />
-                        <span className="text-[8px] uppercase font-bold text-slate-400 mt-1">QR Code</span>
+                        <span className="text-[8px] uppercase font-bold text-slate-400 mt-1">
+                          QR Code
+                        </span>
                       </div>
                     ) : (
-                      <span className="truncate px-2">
-                        {field.name === 'studentName' ? 'John Doe' :
-                          field.name === 'courseName' ? 'Bachelor of Science' :
-                            field.name === 'institutionName' ? 'EduCreds University' :
-                              field.name === 'issueDate' ? 'Jan 24, 2024' :
-                                field.name === 'certificateId' ? 'CERT-123456' :
-                                  field.name}
+                      <span className="truncate px-2 text-center leading-tight">
+                        {getPreviewText(field)}
                       </span>
                     )}
 
+                    {/* Quick-delete handle */}
                     {selectedField === field.id && !field.locked && (
-                      <div className="absolute -top-6 -right-2 flex gap-1">
-                        <button
-                          className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white shadow-xl"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeField(field.id);
-                          }}
-                        >
-                          <Trash2 className="w-2.5 h-2.5" />
-                        </button>
-                      </div>
+                      <button
+                        className="absolute -top-6 -right-1 w-5 h-5 bg-red-500 hover:bg-red-400 rounded-full flex items-center justify-center text-white shadow-xl transition-colors"
+                        onClick={e => {
+                          e.stopPropagation();
+                          removeField(field.id);
+                        }}
+                      >
+                        <Trash2 className="w-2.5 h-2.5" />
+                      </button>
                     )}
                   </motion.div>
                 ))}
@@ -706,176 +1379,372 @@ export const TemplateDesigner: React.FC = () => {
           </ScrollArea>
         </main>
 
-        {/* Right Dynamic Property Inspector */}
-        <aside className="w-80 border-l border-white/5 bg-[#121217] flex flex-col z-40 overflow-y-auto">
-          <div className="p-5">
-            {selectedFieldData ? (
-              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Inspector</h2>
-                  <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-white/5 border-white/10 text-slate-500 py-0 h-5">
-                    {selectedFieldData.type}
-                  </Badge>
-                </div>
+        {/* ── Right Inspector Panel ─────────────────────────────────────────── */}
+        <aside
+          className="relative border-l border-white/5 bg-[#121217] flex flex-col z-40 shrink-0 transition-all duration-300 overflow-hidden"
+          style={{ width: isRightPanelOpen ? 320 : 40 }}
+        >
+          {/* Panel toggle button */}
+          <button
+            onClick={() => setIsRightPanelOpen(o => !o)}
+            className="absolute top-4 left-2 z-10 w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/10 text-slate-500 hover:text-white transition-colors"
+            title={isRightPanelOpen ? 'Collapse panel' : 'Expand panel'}
+          >
+            {isRightPanelOpen ? (
+              <ChevronRight className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronLeft className="w-3.5 h-3.5" />
+            )}
+          </button>
 
-                <div className="space-y-5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
-                      <Settings2 className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-white">{selectedFieldData.name}</p>
-                      <p className="text-[10px] text-slate-500 font-medium tracking-tight">Geometry & Positioning</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-[10px] text-slate-500 font-bold uppercase ml-0.5">X Position</Label>
-                      <Input
-                        type="number"
-                        value={Math.round(selectedFieldData.x)}
-                        onChange={(e) => updateField(selectedFieldData.id, { x: parseInt(e.target.value) || 0 })}
-                        disabled={selectedFieldData.locked}
-                        className="h-9 bg-[#18181f] border-white/10 text-xs focus-visible:ring-indigo-600"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-[10px] text-slate-500 font-bold uppercase ml-0.5">Y Position</Label>
-                      <Input
-                        type="number"
-                        value={Math.round(selectedFieldData.y)}
-                        onChange={(e) => updateField(selectedFieldData.id, { y: parseInt(e.target.value) || 0 })}
-                        disabled={selectedFieldData.locked}
-                        className="h-9 bg-[#18181f] border-white/10 text-xs focus-visible:ring-indigo-600"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-[10px] text-slate-500 font-bold uppercase ml-0.5">Width</Label>
-                      <Input
-                        type="number"
-                        value={Math.round(selectedFieldData.width)}
-                        onChange={(e) => updateField(selectedFieldData.id, { width: parseInt(e.target.value) || 0 })}
-                        disabled={selectedFieldData.locked}
-                        className="h-9 bg-[#18181f] border-white/10 text-xs focus-visible:ring-indigo-600"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-[10px] text-slate-500 font-bold uppercase ml-0.5">Height</Label>
-                      <Input
-                        type="number"
-                        value={Math.round(selectedFieldData.height)}
-                        onChange={(e) => updateField(selectedFieldData.id, { height: parseInt(e.target.value) || 0 })}
-                        disabled={selectedFieldData.locked}
-                        className="h-9 bg-[#18181f] border-white/10 text-xs focus-visible:ring-indigo-600"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="h-[1px] flex-1 bg-white/5" />
-                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest whitespace-nowrap">Typography</span>
-                    <div className="h-[1px] flex-1 bg-white/5" />
-                  </div>
-
-                  <div className="space-y-5">
-                    <div className="space-y-1.5">
-                      <Label className="text-[10px] text-slate-500 font-bold uppercase ml-0.5">Font Style</Label>
-                      <Select
-                        value={selectedFieldData.fontFamily}
-                        onValueChange={(value) => updateField(selectedFieldData.id, { fontFamily: value })}
-                        disabled={selectedFieldData.locked}
+          <AnimatePresence>
+            {isRightPanelOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="absolute inset-0 overflow-y-auto pt-12 pb-4 px-5"
+                style={{ width: 320 }}
+              >
+                {selectedFieldData ? (
+                  <div className="space-y-6">
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">
+                        Inspector
+                      </h2>
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] uppercase tracking-wider bg-white/5 border-white/10 text-slate-500 py-0 h-5"
                       >
-                        <SelectTrigger className="h-9 bg-[#18181f] border-white/10 text-xs focus:ring-indigo-600">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-[#18181f] border-white/10 text-slate-200">
-                          <SelectItem value="Outfit">Outfit (Modern)</SelectItem>
-                          <SelectItem value="Inter">Inter (Sans)</SelectItem>
-                          <SelectItem value="Playfair Display">Playfair (Serif)</SelectItem>
-                          <SelectItem value="JetBrains Mono">JetBrains (Mono)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        {selectedFieldData.customText !== undefined ? 'text' : selectedFieldData.type}
+                      </Badge>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Field identity */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+                        <Settings2 className="w-5 h-5" />
+                      </div>
+                      <div className="overflow-hidden">
+                        <p className="text-xs font-semibold text-white truncate">
+                          {selectedFieldData.customText !== undefined
+                            ? `"${selectedFieldData.customText || 'Custom Text'}"`
+                            : selectedFieldData.name}
+                        </p>
+                        <p className="text-[10px] text-slate-500 font-medium">
+                          Geometry & Positioning
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Custom text input */}
+                    {selectedFieldData.customText !== undefined && (
                       <div className="space-y-1.5">
-                        <Label className="text-[10px] text-slate-500 font-bold uppercase ml-0.5">Size</Label>
+                        <Label className="text-[10px] text-slate-500 font-bold uppercase ml-0.5">
+                          Text Content
+                        </Label>
                         <Input
-                          type="number"
-                          value={selectedFieldData.fontSize}
-                          onChange={(e) => updateField(selectedFieldData.id, { fontSize: parseInt(e.target.value) || 12 })}
+                          value={selectedFieldData.customText}
+                          onChange={e =>
+                            updateField(selectedFieldData.id, { customText: e.target.value })
+                          }
                           disabled={selectedFieldData.locked}
+                          placeholder="Enter text…"
                           className="h-9 bg-[#18181f] border-white/10 text-xs focus-visible:ring-indigo-600"
                         />
                       </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] text-slate-500 font-bold uppercase ml-0.5">Color</Label>
-                        <div className="flex items-center gap-2 h-9 px-2 bg-[#18181f] border border-white/10 rounded-md">
-                          <input
-                            type="color"
-                            value={selectedFieldData.color}
-                            onChange={(e) => updateField(selectedFieldData.id, { color: e.target.value })}
+                    )}
+
+                    {/* Position */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { label: 'X', key: 'x' as const, max: canvasWidth },
+                        { label: 'Y', key: 'y' as const, max: canvasHeight },
+                        { label: 'W', key: 'width' as const, max: canvasWidth },
+                        { label: 'H', key: 'height' as const, max: canvasHeight },
+                      ].map(({ label, key, max }) => (
+                        <div key={key} className="space-y-1.5">
+                          <Label className="text-[10px] text-slate-500 font-bold uppercase ml-0.5">
+                            {label}
+                          </Label>
+                          <Input
+                            type="number"
+                            value={Math.round(selectedFieldData[key])}
+                            onChange={e => {
+                              const fn = key === 'x' || key === 'y' ? validatePosition : validateDimension;
+                              updateField(selectedFieldData.id, {
+                                [key]: fn(e.target.value, 0, max),
+                              });
+                            }}
                             disabled={selectedFieldData.locked}
-                            className="w-5 h-5 bg-transparent border-0 cursor-pointer rounded overflow-hidden"
+                            className="h-9 bg-[#18181f] border-white/10 text-xs focus-visible:ring-indigo-600"
                           />
-                          <span className="text-[10px] font-mono text-slate-400 uppercase">{selectedFieldData.color}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Alignment */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="h-px flex-1 bg-white/5" />
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest whitespace-nowrap">
+                          Alignment
+                        </span>
+                        <div className="h-px flex-1 bg-white/5" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <InspectorAlignBtn icon={<AlignLeft className="w-3.5 h-3.5" />} label="Align Left" disabled={selectedFieldData.locked} onClick={() => alignField('left')} />
+                        <InspectorAlignBtn icon={<AlignCenter className="w-3.5 h-3.5" />} label="Align Center" disabled={selectedFieldData.locked} onClick={() => alignField('center-h')} />
+                        <InspectorAlignBtn icon={<AlignRight className="w-3.5 h-3.5" />} label="Align Right" disabled={selectedFieldData.locked} onClick={() => alignField('right')} />
+                        <InspectorAlignBtn icon={<AlignVerticalJustifyStart className="w-3.5 h-3.5" />} label="Align Top" disabled={selectedFieldData.locked} onClick={() => alignField('top')} />
+                        <InspectorAlignBtn icon={<AlignVerticalJustifyCenter className="w-3.5 h-3.5" />} label="Align Middle" disabled={selectedFieldData.locked} onClick={() => alignField('middle-v')} />
+                        <InspectorAlignBtn icon={<AlignVerticalJustifyEnd className="w-3.5 h-3.5" />} label="Align Bottom" disabled={selectedFieldData.locked} onClick={() => alignField('bottom')} />
+                      </div>
+                    </div>
+
+                    {/* Typography */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="h-px flex-1 bg-white/5" />
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest whitespace-nowrap">
+                          Typography
+                        </span>
+                        <div className="h-px flex-1 bg-white/5" />
+                      </div>
+
+                      <div className="space-y-4">
+                        {/* Font family */}
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] text-slate-500 font-bold uppercase ml-0.5">
+                            Font
+                          </Label>
+                          <Select
+                            value={selectedFieldData.fontFamily}
+                            onValueChange={v => updateField(selectedFieldData.id, { fontFamily: v })}
+                            disabled={selectedFieldData.locked}
+                          >
+                            <SelectTrigger className="h-9 bg-[#18181f] border-white/10 text-xs focus:ring-indigo-600">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-[#18181f] border-white/10 text-slate-200">
+                              <SelectItem value="Outfit">Outfit (Modern)</SelectItem>
+                              <SelectItem value="Inter">Inter (Sans)</SelectItem>
+                              <SelectItem value="Playfair Display">Playfair (Serif)</SelectItem>
+                              <SelectItem value="JetBrains Mono">JetBrains (Mono)</SelectItem>
+                              <SelectItem value="Georgia">Georgia (Classic)</SelectItem>
+                              <SelectItem value="Arial">Arial (Universal)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Font size + color */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-[10px] text-slate-500 font-bold uppercase ml-0.5">
+                              Size
+                            </Label>
+                            <Input
+                              type="number"
+                              value={selectedFieldData.fontSize}
+                              onChange={e =>
+                                updateField(selectedFieldData.id, {
+                                  fontSize: validateFontSize(e.target.value),
+                                })
+                              }
+                              disabled={selectedFieldData.locked}
+                              className="h-9 bg-[#18181f] border-white/10 text-xs focus-visible:ring-indigo-600"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-[10px] text-slate-500 font-bold uppercase ml-0.5">
+                              Color
+                            </Label>
+                            <div className="flex items-center gap-2 h-9 px-2 bg-[#18181f] border border-white/10 rounded-md">
+                              <input
+                                type="color"
+                                value={normalizeHexColor(selectedFieldData.color)}
+                                onChange={e =>
+                                  updateField(selectedFieldData.id, {
+                                    color: normalizeHexColor(e.target.value),
+                                  })
+                                }
+                                disabled={selectedFieldData.locked}
+                                className="w-5 h-5 bg-transparent border-0 cursor-pointer rounded overflow-hidden"
+                              />
+                              <span className="text-[10px] font-mono text-slate-400 uppercase">
+                                {normalizeHexColor(selectedFieldData.color)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Font weight */}
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] text-slate-500 font-bold uppercase ml-0.5">
+                            Weight
+                          </Label>
+                          <div className="grid grid-cols-4 gap-1">
+                            {[
+                              { value: '400', label: 'Reg' },
+                              { value: '500', label: 'Med' },
+                              { value: '600', label: 'Semi' },
+                              { value: '700', label: 'Bold' },
+                            ].map(({ value, label }) => (
+                              <button
+                                key={value}
+                                onClick={() =>
+                                  !selectedFieldData.locked &&
+                                  updateField(selectedFieldData.id, { fontWeight: value })
+                                }
+                                disabled={selectedFieldData.locked}
+                                className={`h-9 text-xs rounded-md border transition-all ${
+                                  selectedFieldData.fontWeight === value
+                                    ? 'bg-indigo-600 border-indigo-500 text-white'
+                                    : 'bg-[#18181f] border-white/10 text-slate-400 hover:border-white/20 hover:text-slate-200'
+                                } disabled:opacity-40 disabled:cursor-not-allowed`}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                {selectedFieldData.locked && (
-                  <div className="mt-8 p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/20 flex flex-col items-center text-center gap-2">
-                    <Shield className="w-6 h-6 text-indigo-400 opacity-50 mb-1" />
-                    <p className="text-[11px] font-semibold text-indigo-300">Protected System Field</p>
-                    <p className="text-[10px] text-slate-600 leading-relaxed">
-                      This element is governed by protocol security and cannot be manually adjusted.
-                    </p>
+                    {/* Actions */}
+                    <div className="flex gap-2 pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-8 text-xs border-white/10 hover:bg-white/5 text-slate-400"
+                        onClick={duplicateFieldAction}
+                      >
+                        <Copy className="w-3.5 h-3.5 mr-1.5" />
+                        Duplicate
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={`flex-1 h-8 text-xs border-white/10 hover:bg-white/5 ${
+                          selectedFieldData.locked ? 'text-amber-400' : 'text-slate-400'
+                        }`}
+                        onClick={toggleLock}
+                      >
+                        {selectedFieldData.locked ? (
+                          <><Unlock className="w-3.5 h-3.5 mr-1.5" />Unlock</>
+                        ) : (
+                          <><Lock className="w-3.5 h-3.5 mr-1.5" />Lock</>
+                        )}
+                      </Button>
+                    </div>
+
+                    {/* Protected notice */}
+                    {selectedFieldData.locked && (
+                      <div className="p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/20 flex flex-col items-center text-center gap-2">
+                        <Shield className="w-6 h-6 text-indigo-400 opacity-50" />
+                        <p className="text-[11px] font-semibold text-indigo-300">
+                          Protected Field
+                        </p>
+                        <p className="text-[10px] text-slate-600 leading-relaxed">
+                          This element is locked. Unlock it to make changes.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* No selection state */
+                  <div className="space-y-6">
+                    <div className="flex flex-col items-center text-center py-8 px-2">
+                      <div className="w-12 h-12 rounded-full bg-white/[0.02] border border-white/5 flex items-center justify-center mb-4">
+                        <MousePointer2 className="h-5 w-5 text-slate-700" />
+                      </div>
+                      <h3 className="text-xs font-semibold text-slate-500 mb-1">No Selection</h3>
+                      <p className="text-[10px] text-slate-600 leading-relaxed">
+                        Click any element on the canvas to inspect and edit its properties.
+                      </p>
+                    </div>
+
+                    {/* Canvas info */}
+                    <div className="space-y-2">
+                      <div className="h-px bg-white/5" />
+                      <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest ml-0.5">
+                        Canvas
+                      </p>
+                      {[
+                        { label: 'Size', value: `${canvasWidth} × ${canvasHeight} px` },
+                        { label: 'Orientation', value: pageOrientation.charAt(0).toUpperCase() + pageOrientation.slice(1) },
+                        { label: 'Zoom', value: `${zoom}%` },
+                        { label: 'Layers', value: `${fields.length}` },
+                        { label: 'Grid', value: showGrid ? 'On' : 'Off' },
+                        { label: 'Snap', value: snapToGrid ? 'On' : 'Off' },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="flex items-center justify-between">
+                          <span className="text-[10px] text-slate-600">{label}</span>
+                          <span className="text-[10px] text-slate-400 font-medium">{value}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Tips */}
+                    <div className="space-y-2">
+                      <div className="h-px bg-white/5" />
+                      <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest ml-0.5">
+                        Shortcuts
+                      </p>
+                      {[
+                        { key: 'V', desc: 'Select tool' },
+                        { key: 'T', desc: 'Text tool' },
+                        { key: 'G', desc: 'Toggle grid' },
+                        { key: 'Del', desc: 'Delete selected' },
+                        { key: 'Ctrl+D', desc: 'Duplicate' },
+                        { key: 'Ctrl+Z', desc: 'Undo' },
+                        { key: 'Esc', desc: 'Deselect' },
+                      ].map(({ key, desc }) => (
+                        <div key={key} className="flex items-center justify-between">
+                          <span className="text-[10px] text-slate-600">{desc}</span>
+                          <kbd className="text-[9px] text-slate-500 bg-white/5 border border-white/10 rounded px-1.5 py-0.5 font-mono">
+                            {key}
+                          </kbd>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
-              </div>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-center py-20 px-4">
-                <div className="w-16 h-16 rounded-full bg-white/[0.02] border border-white/5 flex items-center justify-center mb-6">
-                  <MousePointer2 className="h-6 w-6 text-slate-700" />
-                </div>
-                <h3 className="text-sm font-semibold text-slate-300 mb-2">Editor Inactive</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Select a layer on the canvas to inspect its properties and modify attributes.
-                </p>
-              </div>
+              </motion.div>
             )}
-          </div>
+          </AnimatePresence>
         </aside>
       </div>
 
-      {/* Dynamic Status Bar */}
-      <footer className="h-8 border-t border-white/5 bg-[#0a0a0c] flex items-center justify-between px-4 text-[10px] font-medium text-slate-600 uppercase tracking-widest">
+      {/* ── Status Bar ────────────────────────────────────────────────────────── */}
+      <footer className="h-8 border-t border-white/5 bg-[#0a0a0c] flex items-center justify-between px-4 text-[10px] font-medium text-slate-600 uppercase tracking-widest shrink-0">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            <span>Systems Ready</span>
+            <span>Ready</span>
           </div>
           <Separator orientation="vertical" className="h-2.5 bg-white/10" />
-          <span>EduCreds V2.0.0</span>
+          <span>EduCreds Designer v2</span>
+          {activeTool === 'text' && (
+            <>
+              <Separator orientation="vertical" className="h-2.5 bg-white/10" />
+              <span className="text-indigo-400">Text Tool Active — click canvas to place</span>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-4">
-          <span>{fields.length} Active Layer{fields.length !== 1 ? 's' : ''}</span>
+          <span>{fields.length} Layer{fields.length !== 1 ? 's' : ''}</span>
           <Separator orientation="vertical" className="h-2.5 bg-white/10" />
           <div className="flex items-center gap-1 text-indigo-400 font-bold">
             <Maximize2 className="w-3 h-3" />
-            <span>595 x 842 PX</span>
+            <span>{canvasWidth} × {canvasHeight} PX</span>
           </div>
         </div>
       </footer>
-      {/* Preview Dialog */}
+
+      {/* ── Preview Dialog ────────────────────────────────────────────────────── */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-4xl bg-[#121217] border-white/10 text-slate-200">
           <DialogHeader>
@@ -883,30 +1752,147 @@ export const TemplateDesigner: React.FC = () => {
               <Eye className="w-5 h-5 text-indigo-400" />
               Certificate Preview
             </DialogTitle>
+            <DialogDescription className="text-slate-500 text-xs">
+              Rendered with sample data. Download to save as SVG.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-6 py-4">
             <div
+              ref={previewRef}
               className="bg-white shadow-2xl overflow-hidden"
-              style={{ width: '595px', height: '842px', zoom: 0.7 }}
-              dangerouslySetInnerHTML={{ __html: previewSvg }}
+              style={{
+                width: canvasWidth,
+                height: canvasHeight,
+                zoom: 0.65,
+              }}
             />
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setIsPreviewOpen(false)} className="border-white/10 hover:bg-white/5">
-                Close Preview
+              <Button
+                variant="outline"
+                onClick={() => setIsPreviewOpen(false)}
+                className="border-white/10 hover:bg-white/5 text-slate-300"
+              >
+                Close
               </Button>
-              <Button onClick={() => {
-                const blob = new Blob([previewSvg], { type: 'image/svg+xml' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'certificate-preview.svg';
-                a.click();
-              }} className="bg-indigo-600 hover:bg-indigo-500">
+              <Button
+                onClick={() => {
+                  try {
+                    const blob = new Blob([previewSvg], { type: 'image/svg+xml' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `certificate-preview-${Date.now()}.svg`;
+                    document.body.appendChild(a);
+                    a.dispatchEvent(new MouseEvent('click'));
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(url), 100);
+                  } catch {
+                    alert('Download failed');
+                  }
+                }}
+                className="bg-indigo-600 hover:bg-indigo-500"
+              >
                 <Download className="w-4 h-4 mr-2" />
                 Download SVG
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Save / Publish Dialog ─────────────────────────────────────────────── */}
+      <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
+        <DialogContent className="max-w-md bg-[#121217] border-white/10 text-slate-200">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Save className="w-5 h-5 text-indigo-400" />
+              Save Template
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 text-xs">
+              Name your template before saving. Published templates appear in the issuance library.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                Template Name <span className="text-red-400">*</span>
+              </Label>
+              <Input
+                value={saveForm.name}
+                onChange={e => setSaveForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="e.g., Academic Excellence Certificate"
+                className="bg-[#18181f] border-white/10 text-sm focus-visible:ring-indigo-600 placeholder:text-slate-600"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                Description
+              </Label>
+              <Textarea
+                value={saveForm.description}
+                onChange={e => setSaveForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="Briefly describe this template's purpose…"
+                rows={3}
+                className="bg-[#18181f] border-white/10 text-sm resize-none focus-visible:ring-indigo-600 placeholder:text-slate-600"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                Template Type
+              </Label>
+              <Select
+                value={saveForm.type}
+                onValueChange={v => setSaveForm(f => ({ ...f, type: v }))}
+              >
+                <SelectTrigger className="bg-[#18181f] border-white/10 text-sm focus:ring-indigo-600">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#18181f] border-white/10 text-slate-200">
+                  <SelectItem value="certificate">Certificate</SelectItem>
+                  <SelectItem value="degree">Degree</SelectItem>
+                  <SelectItem value="badge">Achievement Badge</SelectItem>
+                  <SelectItem value="transcript">Transcript</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <p className="text-[10px] text-slate-600 leading-relaxed">
+              <strong className="text-slate-500">Save Draft</strong> — keeps the template private for internal use.{' '}
+              <strong className="text-slate-500">Publish</strong> — makes it available in the bulk issuance and template libraries.
+            </p>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-2 flex-row justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setIsSaveDialogOpen(false)}
+              className="border-white/10 hover:bg-white/5 text-slate-400"
+              disabled={isPublishing}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleSaveConfirm('draft')}
+              disabled={isPublishing || !saveForm.name.trim()}
+              className="border-indigo-500/30 hover:bg-indigo-500/10 text-indigo-400"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {isPublishing ? 'Saving…' : 'Save Draft'}
+            </Button>
+            <Button
+              onClick={() => handleSaveConfirm('publish')}
+              disabled={isPublishing || !saveForm.name.trim()}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white border-0"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              {isPublishing ? 'Publishing…' : 'Publish to Library'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -275,11 +275,11 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
+      {/* Designer is a full-screen workspace — no Layout wrapper to avoid
+          triple-header stacking (Layout nav + outer header + TemplateDesigner header) */}
       <Route path="/institution/templates/designer">
         <ProtectedRoute>
-          <Layout>
-            <TemplateDesignerPage />
-          </Layout>
+          <TemplateDesignerPage />
         </ProtectedRoute>
       </Route>
 
