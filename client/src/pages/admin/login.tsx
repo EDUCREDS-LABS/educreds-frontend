@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/form";
 import { Loader2, AlertCircle, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
 
 const adminLoginSchema = z.object({
   email: z.string().email("Valid email is required"),
@@ -46,24 +45,17 @@ export default function AdminLogin() {
     setError("");
     
     try {
-      const result = AdminAuth.authenticate(data.email, data.password);
-      
+      const result = await AdminAuth.login(data.email, data.password);
       if (result.success) {
         toast({
           title: "Admin login successful",
           description: "Welcome to the admin dashboard",
         });
-        // Ensure canonical admin email and token are stored for dashboard checks
-        localStorage.setItem('adminEmail', 'admin@educreds.xyz');
-        localStorage.setItem('adminToken', 'admin-session');
         // Navigate via router to avoid full page reload issues
         setLocation('/admin/dashboard');
         return; // stop further execution
       } else {
         setError(result.message);
-        if (result.remainingAttempts !== undefined) {
-          setError(`${result.message} (${result.remainingAttempts} attempts remaining)`);
-        }
       }
     } catch (err: any) {
       setError("Login error occurred");

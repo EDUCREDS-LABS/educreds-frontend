@@ -27,17 +27,9 @@ export interface InstitutionProfile {
 }
 
 class OracleService {
-  private getAuthHeaders() {
-    const adminEmail = localStorage.getItem('adminEmail');
-    return {
-      'Content-Type': 'application/json',
-      'admin-email': adminEmail || ''
-    };
-  }
-
   async getSnapshots(): Promise<OracleSnapshot[]> {
     const response = await fetch(API_CONFIG.ORACLE.SNAPSHOTS, {
-      headers: this.getAuthHeaders()
+      credentials: 'include'
     });
     
     if (!response.ok) {
@@ -64,16 +56,14 @@ class OracleService {
   async uploadNCHEData(file: File, description?: string): Promise<any> {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('uploadedBy', localStorage.getItem('adminEmail') || 'admin');
+    formData.append('uploadedBy', 'admin');
     if (description) {
       formData.append('description', description);
     }
 
     const response = await fetch(API_CONFIG.ORACLE.INGEST, {
       method: 'POST',
-      headers: {
-        'admin-email': localStorage.getItem('adminEmail') || ''
-      },
+      credentials: 'include',
       body: formData
     });
 
@@ -91,11 +81,12 @@ class OracleService {
   ): Promise<InstitutionProfile> {
     const response = await fetch(API_CONFIG.ORACLE.OVERRIDE(walletAddress), {
       method: 'POST',
-      headers: this.getAuthHeaders(),
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
         status,
         reason,
-        adminId: localStorage.getItem('adminEmail') || 'admin'
+        adminId: 'admin'
       })
     });
 

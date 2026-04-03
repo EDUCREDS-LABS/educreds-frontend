@@ -48,6 +48,7 @@ import { transformDocumentsForBackend } from "@/utils/documentTransform";
 import { testBackendConnection, testAdminConnection, type ConnectionStatus } from "@/utils/connectionTest";
 import { API_CONFIG } from "@/config/api";
 import { cn } from "@/lib/utils";
+import { AdminAuth } from "@/lib/admin-auth";
 
 interface VerificationRequest {
   id: string;
@@ -130,39 +131,26 @@ function AdminDashboardContent() {
   });
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
-    if (!token) {
-      setLocation('/admin/login');
-      return;
-    }
-    setLoading(false);
-    fetchAdminData(token, false);
+    fetchAdminData(true);
   }, [setLocation]);
 
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(() => {
-      const token = localStorage.getItem('adminToken');
-      if (token) fetchAdminData(token, false);
+      fetchAdminData(false);
     }, 30000);
     return () => clearInterval(interval);
   }, [autoRefresh]);
 
   const handleRefresh = () => {
-    const token = localStorage.getItem('adminToken');
-    if (token) fetchAdminData(token);
+    fetchAdminData(true);
   };
 
   const handleConnectionTest = async () => {
     setDiagnosticLoading(true);
-    const adminEmail = localStorage.getItem('adminEmail');
-    if (!adminEmail) {
-      setDiagnosticLoading(false);
-      return;
-    }
     const [backendTest, adminTest] = await Promise.all([
       testBackendConnection(),
-      testAdminConnection(adminEmail)
+      testAdminConnection()
     ]);
     setConnectionStatus(backendTest);
     toast({
@@ -173,22 +161,21 @@ function AdminDashboardContent() {
     setDiagnosticLoading(false);
   };
 
-  const fetchAdminData = async (token: string, showLoading = true) => {
+  const fetchAdminData = async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
       const connectionTest = await testBackendConnection();
       setConnectionStatus(connectionTest);
 
-      const adminEmail = localStorage.getItem('adminEmail');
-      if (!adminEmail) throw new Error('Session expired');
-
       const [verificationResponse, revenueResponse] = await Promise.all([
         fetch(API_CONFIG.ADMIN.VERIFICATION_REQUESTS, {
-          headers: { 'admin-email': adminEmail, 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           cache: 'no-store',
         }),
         fetch(API_CONFIG.ADMIN.REVENUE, {
-          headers: { 'admin-email': adminEmail, 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           cache: 'no-store',
         })
       ]);
@@ -225,7 +212,6 @@ function AdminDashboardContent() {
     if (!selectedRequest) return;
     setIsSubmitting(true);
     try {
-      const adminEmail = localStorage.getItem('adminEmail');
       const transformedData = {
         ...data,
         verificationDocuments: selectedRequest.documents ? transformDocumentsForBackend(selectedRequest.documents) : []
@@ -233,7 +219,8 @@ function AdminDashboardContent() {
 
       const response = await fetch(`${API_CONFIG.ADMIN.VERIFICATION_REQUESTS}/${selectedRequest.verificationRequestId}/review`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'admin-email': adminEmail! },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(transformedData)
       });
 
@@ -252,9 +239,7 @@ function AdminDashboardContent() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('isAdmin');
-    localStorage.removeItem('adminEmail');
-    localStorage.removeItem('adminToken');
+    AdminAuth.logout();
     setLocation('/admin/login');
   };
 
@@ -266,10 +251,10 @@ function AdminDashboardContent() {
 
     setPasswordLoading(true);
     try {
-      const adminEmail = localStorage.getItem('adminEmail');
       const response = await fetch(API_CONFIG.ADMIN.CHANGE_PASSWORD, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'admin-email': adminEmail! },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           currentPassword: passwordForm.currentPassword,
           newPassword: passwordForm.newPassword

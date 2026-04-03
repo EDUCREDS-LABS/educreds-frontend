@@ -1,144 +1,81 @@
 # Admin Authentication Security
 
 ## Overview
-This document outlines the security measures implemented for admin authentication in the EduCreds frontend application.
+Admin authentication is now handled **server-side** in the cert backend. The frontend no longer stores admin credentials or tokens in `localStorage`. Admin access uses a backend-issued JWT stored in an HTTP-only cookie.
 
-## Security Features Implemented
+## Current Security Model (2026-04-01)
 
-### 1. Password Hashing
-- **Technology**: SHA-256 with salt
-- **Salt**: `educreds_admin_2024`
-- **Default Password**: `password` (hashed: `4d0bc59a8032785ce80e118b47d82438b6a7e2c051175d8ccdd4b53ad0d3bcd4`)
-- **Location**: `client/src/lib/admin-auth.ts`
+### 1. Server-Side Credentials
+- **Storage**: Environment variables on the backend.
+- **Password Hashing**: bcrypt (recommended) via `ADMIN_PASSWORD_HASH`.
+- **Fallback (dev only)**: `ADMIN_PASSWORD` (plaintext) if a bcrypt hash is not provided.
 
-### 2. Rate Limiting & Account Lockout
-- **Max Attempts**: 5 failed login attempts
-- **Lockout Duration**: 15 minutes
-- **Storage**: LocalStorage (client-side tracking)
-- **Features**:
-  - Progressive lockout warnings
-  - Automatic lockout expiration
-  - Failed attempt counter reset on successful login
+### 2. Session Management
+- **Token**: JWT signed with `JWT_SECRET`.
+- **Storage**: `admin_token` HTTP-only cookie.
+- **TTL**: 24 hours (aligned with JWT expiry).
+- **Transport**: `secure` cookies in production, `sameSite=strict`.
 
-### 3. Session Management
-- **Session Duration**: 24 hours
-- **Auto-logout**: Sessions expire automatically
-- **Session Tracking**: Login time stored in LocalStorage
-- **Session Validation**: Real-time session status checking
-
-### 4. Secure Admin Guard
-- **Component**: `AdminGuard.tsx`
-- **Features**:
-  - Authentication verification on page load
-  - Session timeout warnings
-  - Automatic redirect to login on session expiry
-  - Admin header with session info
+### 3. Route Protection
+- **Guard**: `AdminJwtGuard` on all `/api/admin/*` and governance admin endpoints.
+- **Frontend**: `AdminGuard` calls `/api/admin/session` to verify access.
 
 ## Default Credentials
 
 ### Production Setup
-**Email**: `admin@educreds.xyz`  
-**Password**: `password`
+**Email**: `ADMIN_EMAIL`  
+**Password**: `ADMIN_PASSWORD_HASH` (bcrypt)  
 
-⚠️ **IMPORTANT**: Change the default password before deploying to production!
+⚠️ **IMPORTANT**: Never use the plaintext `ADMIN_PASSWORD` in production.
 
-### How to Change Admin Password
-node -e "const crypto = require('crypto'); console.log('New hash for password + educreds_admin_2024:', crypto.createHash('sha256').update('password' + 'educreds_admin_2024').digest('hex'));"
-1. Generate a new password hash:
-```javascript
-import CryptoJS from 'crypto-js';
-const newPassword = 'your_new_password';
-const salt = 'educreds_admin_2024';
-const hash = CryptoJS.SHA256(newPassword + salt).toString();
-console.log(hash);
+## How to Set / Rotate Admin Password
+
+1. Generate a bcrypt hash:
+```bash
+node cert_backend/scripts/generate-admin-hash.js "YourNewStrongPassword" 12
 ```
 
-2. Update the hash in `client/src/lib/admin-auth.ts`:
-```typescript
-private static readonly ADMIN_PASSWORD_HASH = 'your_new_hash_here';
+2. Update backend env:
+```env
+ADMIN_EMAIL=admin@educreds.xyz
+ADMIN_PASSWORD_HASH=$2b$12$...
+JWT_SECRET=your_jwt_secret
 ```
 
-3. Update the salt if needed:
-```typescript
-private static readonly SALT = 'your_new_salt_here';
-```
+3. Restart the backend.
 
 ## Security Considerations
 
-### Current Limitations
-1. **Client-side Security**: All authentication logic runs in the browser
-2. **LocalStorage**: Credentials stored in browser storage (vulnerable to XSS)
-3. **No Server Validation**: Backend doesn't validate admin credentials
+### Remaining Risks
+- **CSRF**: Admin session uses cookies; add CSRF protection for state-changing routes.
+- **Brute Force**: Add server-side rate limiting on `/api/admin/login`.
 
-### Recommended Improvements for Production
-
-1. **Server-side Authentication**:
-   - Implement proper JWT-based admin authentication
-   - Store admin credentials securely on the server
-   - Add database-based session management
-
-2. **Enhanced Security**:
-   - Implement 2FA (Two-Factor Authentication)
-   - Add IP whitelisting for admin access
-   - Use HTTPS-only cookies for session storage
-   - Implement CSRF protection
-
-3. **Monitoring & Logging**:
-   - Log all admin login attempts
-   - Monitor for suspicious activity
-   - Implement alerting for failed login attempts
+### Recommended Enhancements
+1. **2FA** for admin login.
+2. **IP allowlist** for admin routes.
+3. **Audit logging** for admin actions and auth attempts.
 
 ## Usage
 
 ### Admin Login
 1. Navigate to `/admin/login`
 2. Enter admin credentials
-3. System validates with rate limiting and hashing
-4. On success, redirects to admin dashboard
-
-### Admin Dashboard Access
-- All admin routes are protected by `AdminGuard`
-- Session automatically expires after 24 hours
-- Failed attempts are tracked and can lock the account
+3. Backend sets `admin_token` cookie
+4. Redirect to admin dashboard
 
 ### Logout
-- Manual logout via admin header button
-- Automatic logout on session expiry
-- Clears all admin-related LocalStorage data
+- `/api/admin/logout` clears the admin cookie.
 
 ## File Structure
 ```
-client/src/
-├── lib/
-│   ├── admin-auth.ts          # Core authentication logic
-│   └── api.ts                 # API calls with admin headers
-├── components/admin/
-│   └── AdminGuard.tsx         # Route protection component
-└── pages/admin/
-    └── login.tsx              # Admin login page
+cert_backend/src/modules/admin/
+├── admin-auth.service.ts      # Admin credential validation + JWT issuance
+├── admin-jwt.guard.ts         # Admin guard for protected routes
+├── admin.controller.ts        # Login/session/logout endpoints
+└── admin.service.ts
+
+educreds-frontend/client/src/
+├── lib/admin-auth.ts          # Client helpers for login/session/logout
+├── components/admin/AdminGuard.tsx
+└── pages/admin/login.tsx
 ```
-
-## Environment Variables (Optional)
-For additional security, you can move credentials to environment variables:
-
-```env
-VITE_ADMIN_EMAIL=admin@educreds.xyz
-VITE_ADMIN_PASSWORD_HASH=your_hash_here
-VITE_ADMIN_SALT=your_salt_here
-```
-
-Then update `admin-auth.ts` to use:
-```typescript
-private static readonly ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
-private static readonly ADMIN_PASSWORD_HASH = import.meta.env.VITE_ADMIN_PASSWORD_HASH;
-private static readonly SALT = import.meta.env.VITE_ADMIN_SALT;
-```
-
-## Testing
-Test the security features:
-1. Try wrong credentials (should show attempt counter)
-2. Try 5 wrong attempts (should lock account for 15 minutes)
-3. Login successfully (should reset attempt counter)
-4. Wait 24 hours (should auto-logout)
-5. Try accessing admin routes without login (should redirect to login)
-

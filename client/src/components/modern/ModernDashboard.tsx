@@ -50,6 +50,7 @@ import CreateCertificateModal from "@/components/CreateCertificateModal";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
 import { UsageDashboard } from "@/components/UsageDashboard";
+import { NetworkIntegrity } from "./NetworkIntegrity";
 
 export default function ModernDashboard() {
   const { user } = useAuth();
@@ -325,64 +326,75 @@ export default function ModernDashboard() {
       </div>
 
       {/* Quick Actions - Professional Card Grid */}
-      <div className="space-y-3">
-        <div>
-          <h2 className="text-xl font-bold text-neutral-900 flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" />
-            Quick Actions
-          </h2>
-          <p className="text-sm text-neutral-600 mt-1">Access your most-used features</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-           {quickActions.map((action) => (
-             <button
-               key={action.title}
-               onClick={action.action}
-               onKeyDown={(e) => e.key === 'Enter' && action.action()}
-               className={`group relative h-full p-5 rounded-lg border-2 transition-all duration-300 text-left flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
-                 action.primary
-                   ? "bg-gradient-to-br from-primary via-blue-500 to-purple-600 border-primary/50 text-white shadow-lg hover:shadow-xl hover:scale-105 focus-visible:ring-white"
-                   : "bg-white border-neutral-200 hover:border-neutral-300 hover:shadow-md hover:bg-neutral-50 focus-visible:ring-primary"
-               }`}
-               aria-label={`${action.title}: ${action.description}`}
-             >
-              {/* Background accent for non-primary cards */}
-              {!action.primary && (
-                <div className={`absolute top-0 right-0 w-20 h-20 rounded-full -mr-10 -mt-10 opacity-10 group-hover:opacity-20 transition-opacity ${action.color.replace("text-", "bg-")}`} />
-              )}
-              
-              <div className="relative z-10 space-y-3">
-                <div className={`w-fit p-3 rounded-lg transition-all ${
-                  action.primary 
-                    ? "bg-white/20 group-hover:bg-white/30" 
-                    : `${action.bg} group-hover:shadow-md`
-                }`}>
-                  <action.icon className={`w-6 h-6 ${action.primary ? "text-white" : action.color}`} />
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-2 space-y-3">
+          <div>
+            <h2 className="text-xl font-bold text-neutral-900 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              Quick Actions
+            </h2>
+            <p className="text-sm text-neutral-600 mt-1">Access your most-used features</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             {quickActions.map((action) => (
+               <button
+                 key={action.title}
+                 onClick={action.action}
+                 onKeyDown={(e) => e.key === 'Enter' && action.action()}
+                 className={`group relative h-full p-5 rounded-lg border-2 transition-all duration-300 text-left flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                   action.primary
+                     ? "bg-gradient-to-br from-primary via-blue-500 to-purple-600 border-primary/50 text-white shadow-lg hover:shadow-xl hover:scale-105 focus-visible:ring-white"
+                     : "bg-white border-neutral-200 hover:border-neutral-300 hover:shadow-md hover:bg-neutral-50 focus-visible:ring-primary"
+                 }`}
+                 aria-label={`${action.title}: ${action.description}`}
+               >
+                {/* Background accent for non-primary cards */}
+                {!action.primary && (
+                  <div className={`absolute top-0 right-0 w-20 h-20 rounded-full -mr-10 -mt-10 opacity-10 group-hover:opacity-20 transition-opacity ${action.color.replace("text-", "bg-")}`} />
+                )}
+                
+                <div className="relative z-10 space-y-3">
+                  <div className={`w-fit p-3 rounded-lg transition-all ${
+                    action.primary 
+                      ? "bg-white/20 group-hover:bg-white/30" 
+                      : `${action.bg} group-hover:shadow-md`
+                  }`}>
+                    <action.icon className={`w-6 h-6 ${action.primary ? "text-white" : action.color}`} />
+                  </div>
+                  
+                  <div>
+                    <h3 className={`font-semibold text-lg transition-colors ${
+                      action.primary ? "text-white" : "text-neutral-900 group-hover:text-neutral-950"
+                    }`}>
+                      {action.title}
+                    </h3>
+                    <p className={`text-sm mt-1 transition-colors ${
+                      action.primary ? "text-white/80" : "text-neutral-600 group-hover:text-neutral-700"
+                    }`}>
+                      {action.description}
+                    </p>
+                  </div>
                 </div>
                 
-                <div>
-                  <h3 className={`font-semibold text-lg transition-colors ${
-                    action.primary ? "text-white" : "text-neutral-900 group-hover:text-neutral-950"
-                  }`}>
-                    {action.title}
-                  </h3>
-                  <p className={`text-sm mt-1 transition-colors ${
-                    action.primary ? "text-white/80" : "text-neutral-600 group-hover:text-neutral-700"
-                  }`}>
-                    {action.description}
-                  </p>
+                {/* Arrow indicator */}
+                <div className={`relative z-10 flex items-center gap-1 text-xs font-medium ${
+                  action.primary ? "text-white/90" : "text-neutral-500 group-hover:text-neutral-900"
+                }`}>
+                  <span>Explore</span>
+                  <ArrowUpRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </div>
-              </div>
-              
-              {/* Arrow indicator */}
-              <div className={`relative z-10 flex items-center gap-1 text-xs font-medium ${
-                action.primary ? "text-white/90" : "text-neutral-500 group-hover:text-neutral-900"
-              }`}>
-                <span>Explore</span>
-                <ArrowUpRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-              </div>
-            </button>
-          ))}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Network Integrity Telemetry - NEW Elite Component */}
+        <div className="space-y-3">
+          <h2 className="text-xl font-bold text-neutral-900 flex items-center gap-2">
+            <Shield className="w-5 h-5 text-primary" />
+            Live Network
+          </h2>
+          <NetworkIntegrity />
         </div>
       </div>
 

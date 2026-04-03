@@ -57,6 +57,7 @@ import PricingPage from "@/pages/pricing";
 import W3CTestPage from "@/pages/w3c-test";
 import StudentPortalPage from "@/pages/student-portal";
 import VerificationPortalPage from "@/pages/verification-portal";
+import TrustRegistryPage from "@/pages/registry";
 import SystemTest from "@/pages/system-test";
 import ManageSpecs from "@/components/institution/ManageSpecs";
 import CertificateIssuanceDashboard from '@/pages/certificate-issuance';
@@ -85,6 +86,7 @@ function Router() {
       <Route path="/student" component={LegacyStudentRedirect} />
       <Route path="/student-portal" component={StudentPortalPage} />
       <Route path="/verification-portal" component={VerificationPortalPage} />
+      <Route path="/trust-registry" component={TrustRegistryPage} />
       <Route path="/w3c-test" component={W3CTestPage} />
 
       {/* Public Routes */}

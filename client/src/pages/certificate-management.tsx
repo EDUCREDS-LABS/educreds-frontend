@@ -10,7 +10,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Eye, Edit, Trash2, CheckCircle, XCircle, Lock, Search, Filter } from 'lucide-react';
 import { API_CONFIG } from '@/config/api';
-import { AdminAuth } from '@/lib/admin-auth';
 import { getAuthHeaders } from '@/lib/auth';
 
 interface Certificate {
@@ -85,7 +84,7 @@ export const CertificateManagement: React.FC = () => {
     try {
       await fetch(`${API_CONFIG.MAIN}/api/admin/templates/${templateId}/approve`, {
         method: 'POST',
-        headers: { 'admin-email': AdminAuth.getAdminEmail() },
+        credentials: 'include',
       });
       fetchTemplates();
     } catch (error) {
@@ -97,7 +96,8 @@ export const CertificateManagement: React.FC = () => {
     try {
       await fetch(`${API_CONFIG.MAIN}/api/admin/templates/${templateId}/reject`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'admin-email': AdminAuth.getAdminEmail() },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ reason })
       });
       fetchTemplates();

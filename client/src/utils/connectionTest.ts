@@ -55,16 +55,13 @@ export async function testBackendConnection(): Promise<ConnectionStatus> {
 /**
  * Test admin endpoints specifically
  */
-export async function testAdminConnection(adminEmail: string): Promise<ConnectionStatus> {
+export async function testAdminConnection(): Promise<ConnectionStatus> {
   const startTime = Date.now();
   
   try {
     const response = await fetch(`${API_BASE}/api/admin/test`, {
       method: 'GET',
-      headers: { 
-        'Content-Type': 'application/json',
-        'admin-email': adminEmail
-      },
+      credentials: 'include',
       signal: AbortSignal.timeout(10000)
     });
     

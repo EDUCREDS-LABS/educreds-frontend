@@ -284,6 +284,7 @@ class GovernanceApiService {
     this.client = axios.create({
       baseURL: API_BASE_URL,
       timeout: 10000,
+      withCredentials: true,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -590,10 +591,8 @@ class GovernanceApiService {
     limit: number = 20,
     state: string = 'active'
   ): Promise<PaginatedResponse<ProposalResponse>> {
-    const adminEmail = localStorage.getItem('adminEmail') || 'admin@educreds.xyz';
     const response = await this.client.get('/governance/admin/proposals', {
       params: { page, limit, state },
-      headers: { 'admin-email': adminEmail },
     });
     return response.data;
   }
@@ -603,11 +602,9 @@ class GovernanceApiService {
     support: 0 | 1 | 2,
     reason?: string
   ): Promise<VoteResponse> {
-    const adminEmail = localStorage.getItem('adminEmail') || 'admin@educreds.xyz';
     const response = await this.client.post(
       `/governance/admin/proposals/${proposalId}/vote`,
-      { support, reason },
-      { headers: { 'admin-email': adminEmail } }
+      { support, reason }
     );
     return response.data;
   }
@@ -624,11 +621,9 @@ class GovernanceApiService {
     approvalThresholdPercent: number;
     configured: boolean;
   }> {
-    const adminEmail = localStorage.getItem('adminEmail') || 'admin@educreds.xyz';
     const response = await this.client.post(
       `/governance/admin/proposals/${proposalId}/configure-countdown`,
-      payload,
-      { headers: { 'admin-email': adminEmail } }
+      payload
     );
     return response.data;
   }
@@ -648,11 +643,9 @@ class GovernanceApiService {
     mode: string;
     timestamp: string;
   }> {
-    const adminEmail = localStorage.getItem('adminEmail') || 'admin@educreds.xyz';
     const response = await this.client.post(
       `/governance/admin/institutions/${institutionId}/recompute-poic`,
-      {},
-      { headers: { 'admin-email': adminEmail } }
+      {}
     );
     return response.data;
   }
@@ -667,11 +660,9 @@ class GovernanceApiService {
     isVerified: boolean;
     timestamp: string;
   }> {
-    const adminEmail = localStorage.getItem('adminEmail') || 'admin@educreds.xyz';
     const response = await this.client.post(
       `/governance/admin/institutions/${institutionId}/elevate-status`,
-      {},
-      { headers: { 'admin-email': adminEmail } }
+      {}
     );
     return response.data;
   }
@@ -687,11 +678,9 @@ class GovernanceApiService {
     blockchainAuthorized: boolean;
     timestamp: string;
   }> {
-    const adminEmail = localStorage.getItem('adminEmail') || 'admin@educreds.xyz';
     const response = await this.client.post(
       `/governance/admin/institutions/${institutionId}/decommission`,
-      {},
-      { headers: { 'admin-email': adminEmail } }
+      {}
     );
     return response.data;
   }

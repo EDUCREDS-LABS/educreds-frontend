@@ -488,7 +488,7 @@ function AdminGovernanceDashboardContent() {
       {/* Main Command Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-10">
         <div className="flex items-center justify-center sticky top-4 z-30">
-            <TabsList className="bg-gray-900/80 backdrop-blur-xl border border-gray-800 p-1.5 rounded-[2rem] h-16 w-full max-w-4xl shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+            <TabsList className="bg-gray-900/95 backdrop-blur-2xl border border-gray-800 p-1.5 rounded-[2rem] h-16 w-full max-w-4xl shadow-[0_30px_60px_rgba(0,0,0,0.6)]">
                 <TabsTrigger value="oversight" className="flex-1 rounded-[1.5rem] data-[state=active]:bg-gray-800 data-[state=active]:text-white text-gray-500 font-black text-[10px] uppercase tracking-[0.2em] transition-all">Command</TabsTrigger>
                 <TabsTrigger value="registry" className="flex-1 rounded-[1.5rem] data-[state=active]:bg-gray-800 data-[state=active]:text-white text-gray-500 font-black text-[10px] uppercase tracking-[0.2em] transition-all">Registry</TabsTrigger>
                 <TabsTrigger value="intelligence" className="flex-1 rounded-[1.5rem] data-[state=active]:bg-gray-800 data-[state=active]:text-white text-gray-500 font-black text-[10px] uppercase tracking-[0.2em] transition-all">Intelligence</TabsTrigger>

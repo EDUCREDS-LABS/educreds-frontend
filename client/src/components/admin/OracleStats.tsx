@@ -38,30 +38,12 @@ export default function OracleStats() {
 
   const fetchOracleStats = async () => {
     try {
-      const adminEmail = localStorage.getItem('adminEmail');
-      
-      // Skip Oracle calls if backend doesn't support them yet
-      if (!adminEmail) {
-        setStats({
-          totalSnapshots: 0,
-          activeRecords: 0,
-          lastUpdateDate: '',
-          verificationStats: {
-            accredited: 0,
-            provisional: 0,
-            unverified: 0
-          },
-          recentActivity: []
-        });
-        return;
-      }
-
       const [snapshotsRes, latestRes] = await Promise.all([
         fetch(API_CONFIG.ORACLE.SNAPSHOTS, {
-          headers: { 'admin-email': adminEmail || '' }
+          credentials: 'include'
         }).catch(() => ({ ok: false })),
         fetch(API_CONFIG.ORACLE.SNAPSHOT_LATEST, {
-          headers: { 'admin-email': adminEmail || '' }
+          credentials: 'include'
         }).catch(() => ({ ok: false }))
       ]);
 

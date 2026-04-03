@@ -3,14 +3,15 @@
 **Official Integration Guide**
 
 - **Version:** 1.0.0
-- **Last updated:** January 28, 2026
+- **Last updated:** March 17, 2026
 - **Base URL:** `https://api.educreds.xyz`
+- **See also:** `api-documentation.md`
 
 ## Table of contents
 1. [Integration options](#integration-options)
 2. [Recommended architecture](#recommended-architecture)
 3. [Platform integration (JWT)](#platform-integration-jwt)
-4. [Standard integration (API key)](#standard-integration-api-key)
+4. [Standard integration (X-Institution-ID)](#standard-integration-x-institution-id)
 5. [Verification-only integration](#verification-only-integration)
 6. [Trust Agent integration](#trust-agent-integration)
 7. [Security checklist](#security-checklist)
@@ -20,7 +21,7 @@
 ### 1) Platform integration (JWT)
 Use when you want the full EduCreds experience and workflows (institution onboarding, governance, templates, marketplace).
 
-### 2) Standard integration (API key)
+### 2) Standard integration (X-Institution-ID)
 Use when you need a stable contract for external LMS or partner systems.
 
 ### 3) Verification-only integration
@@ -90,13 +91,13 @@ Content-Type: application/json
   "templateId": "template-uuid",
   "recipientWallet": "0x...",
   "recipientName": "Jane Smith",
-  "completionDate": "2026-03-10",
+  "completionDate": "2026-03-17",
   "certificateType": "completion",
   "grade": "A+"
 }
 ```
 
-## Standard integration (API key)
+## Standard integration (X-Institution-ID)
 
 ### 1) Register for credentials
 ```http
@@ -115,7 +116,6 @@ Content-Type: application/json
 ### 2) Call Standard API
 ```http
 POST /api/v1/standard/certificates/issue
-Authorization: Bearer <api_key>
 X-Institution-ID: <institution_id>
 Content-Type: application/json
 
@@ -124,16 +124,15 @@ Content-Type: application/json
   "course": { "name": "Data Science", "code": "DS101" },
   "achievement": {
     "grade": "A",
-    "completionDate": "2026-03-10",
+    "completionDate": "2026-03-17",
     "certificateType": "CERTIFICATE"
   }
 }
 ```
 
-### 3) Verify issued credentials
+### 3) Verify issued credentials (Standard API)
 ```http
 POST /api/v1/standard/certificates/verify
-Authorization: Bearer <api_key>
 X-Institution-ID: <institution_id>
 Content-Type: application/json
 
@@ -145,9 +144,14 @@ Content-Type: application/json
 ## Verification-only integration
 Use the verification API to validate credentials without issuing.
 
-- `GET /api/v1/verify/:certificateId`
-- `POST /api/v1/verify/batch`
-- `GET /api/v1/verify/wallet/:walletAddress`
+### Option A: Use API key directly
+- `GET /api/v1/verify/:certificateId` with `x-api-key: <clientId:secret>`
+- `POST /api/v1/verify/batch` with `x-api-key: <clientId:secret>`
+- `GET /api/v1/verify/wallet/:walletAddress` with `x-api-key: <clientId:secret>`
+
+### Option B: Use verifier JWT
+1. `POST /auth/verifier/login` with `{ "apiKey": "<clientId:secret>" }`
+2. Call verification endpoints with `Authorization: Bearer <verifier_jwt>`
 
 ## Trust Agent integration
 Use the Trust Agent for governance analysis and credential risk assessments.

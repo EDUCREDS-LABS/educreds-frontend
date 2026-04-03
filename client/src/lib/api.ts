@@ -1,6 +1,5 @@
 import { API_CONFIG } from "@/config/api";
 import { auth, getAuthHeaders } from "./auth";
-import { AdminAuth } from "./admin-auth";
 import { transformDocumentsForBackend } from "@/utils/documentTransform";
 import { ethers, Eip1193Provider } from "ethers";
 import { walletService } from "./walletService";
@@ -20,15 +19,6 @@ console.log("Using API configuration:", {
   CERT: API_CONFIG.CERT,
   MARKETPLACE: API_CONFIG.MARKETPLACE
 });
-
-// Helper function to get admin headers
-const getAdminHeaders = (): Record<string, string> => {
-  const adminEmail = AdminAuth.getAdminEmail();
-  if (!adminEmail) {
-    throw new Error("Admin not authenticated");
-  }
-  return { "admin-email": adminEmail };
-};
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -275,7 +265,7 @@ export const api = {
   // Test admin endpoint
   testAdmin: async () => {
     const response = await fetch(API_CONFIG.ADMIN.TEST, {
-      headers: getAdminHeaders(),
+      credentials: "include",
     });
     return handleResponse(response);
   },
@@ -283,7 +273,7 @@ export const api = {
   // Admin blockchain management
   getBlockchainSummary: async () => {
     const response = await fetch(API_CONFIG.ADMIN.BLOCKCHAIN_SUMMARY, {
-      headers: getAdminHeaders(),
+      credentials: "include",
     });
     const data = await handleResponse(response);
     return {
@@ -300,7 +290,7 @@ export const api = {
 
   getBlockchainStatusAll: async () => {
     const response = await fetch(API_CONFIG.ADMIN.BLOCKCHAIN_STATUS, {
-      headers: getAdminHeaders(),
+      credentials: "include",
     });
     const data = await handleResponse(response);
     const statusReport = (data.institutions || []).map((inst: any) => ({
@@ -322,7 +312,7 @@ export const api = {
   registerInstitutionOnBlockchain: async (institutionId: string) => {
     const response = await fetch(`${API_CONFIG.ADMIN.BASE}/institutions/${institutionId}/blockchain-register`, {
       method: "POST",
-      headers: getAdminHeaders(),
+      credentials: "include",
     });
     return handleResponse(response);
   },
@@ -330,7 +320,7 @@ export const api = {
   authorizeInstitutionOnBlockchain: async (institutionId: string) => {
     const response = await fetch(`${API_CONFIG.ADMIN.BASE}/institutions/${institutionId}/blockchain-authorize`, {
       method: "POST",
-      headers: getAdminHeaders(),
+      credentials: "include",
     });
     return handleResponse(response);
   },
@@ -338,7 +328,7 @@ export const api = {
   bulkRegisterInstitutionsOnBlockchain: async () => {
     const response = await fetch(`${API_CONFIG.ADMIN.BASE}/blockchain-register-all`, {
       method: "POST",
-      headers: getAdminHeaders(),
+      credentials: "include",
     });
     const data = await handleResponse(response);
     return {
@@ -359,7 +349,7 @@ export const api = {
 
   getAdminUsers: async () => {
     const response = await fetch(API_CONFIG.ADMIN.USERS, {
-      headers: getAdminHeaders(),
+      credentials: "include",
     });
     return handleResponse(response);
   },
@@ -369,8 +359,8 @@ export const api = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...getAdminHeaders(),
       },
+      credentials: "include",
       body: JSON.stringify(userData),
     });
     return handleResponse(response);
@@ -381,8 +371,8 @@ export const api = {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        ...getAdminHeaders(),
       },
+      credentials: "include",
       body: JSON.stringify(updates),
     });
     return handleResponse(response);
@@ -391,7 +381,7 @@ export const api = {
   deleteAdminUser: async (userId: string) => {
     const response = await fetch(`${API_CONFIG.ADMIN.USERS}/${userId}`, {
       method: "DELETE",
-      headers: getAdminHeaders(),
+      credentials: "include",
     });
     return handleResponse(response);
   },

@@ -28,23 +28,43 @@ export class ErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader className="text-center">
-              <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-              <CardTitle>Something went wrong</CardTitle>
+        <div className="min-h-screen flex items-center justify-center p-6 bg-neutral-50/50">
+          <Card className="w-full max-w-md border-0 shadow-2xl rounded-3xl overflow-hidden">
+            <div className="h-2 bg-destructive" />
+            <CardHeader className="text-center pt-10">
+              <div className="w-20 h-20 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <AlertTriangle className="w-10 h-10 text-destructive animate-pulse" />
+              </div>
+              <CardTitle className="text-2xl font-bold text-neutral-900">System Error</CardTitle>
             </CardHeader>
-            <CardContent className="text-center space-y-4">
-              <p className="text-gray-600">
-                We encountered an unexpected error. Please try refreshing the page.
+            <CardContent className="text-center px-8 pb-10 space-y-6">
+              <p className="text-neutral-600 leading-relaxed">
+                An unexpected system error has occurred. Our engineers have been notified.
+                Please try refreshing the platform.
               </p>
-              <Button 
-                onClick={() => window.location.reload()}
-                className="w-full"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Refresh Page
-              </Button>
+              <div className="flex flex-col gap-3">
+                <Button 
+                  onClick={() => window.location.reload()}
+                  className="w-full h-12 rounded-xl bg-neutral-900 hover:bg-neutral-800 transition-all font-semibold"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Reload Platform
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => window.location.href = '/'}
+                  className="w-full h-12 rounded-xl text-neutral-500 hover:text-neutral-900"
+                >
+                  Return to Home
+                </Button>
+              </div>
+              {process.env.NODE_ENV === 'development' && this.state.error && (
+                <div className="mt-6 text-left p-4 bg-neutral-100 rounded-xl overflow-auto max-h-40">
+                  <p className="text-xs font-mono text-neutral-500 break-all">
+                    {this.state.error.stack}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

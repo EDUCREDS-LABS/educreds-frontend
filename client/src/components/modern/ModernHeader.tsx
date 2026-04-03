@@ -24,6 +24,7 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
   const navigation = [
     { name: 'Labs', href: '/' },
     { name: 'Infrastructure', href: '/infra' },
+    { name: 'Registry', href: '/trust-registry' },
     { name: 'Marketplace', href: '/marketplace' },
     { name: 'Designer', href: '/designer' },
   ];

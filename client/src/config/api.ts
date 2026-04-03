@@ -46,6 +46,9 @@ export const API_CONFIG = {
   // Admin endpoints (use MAIN backend)
   ADMIN: {
     BASE: `${MAIN_API_BASE}/api/admin`,
+    LOGIN: `${MAIN_API_BASE}/api/admin/login`,
+    LOGOUT: `${MAIN_API_BASE}/api/admin/logout`,
+    SESSION: `${MAIN_API_BASE}/api/admin/session`,
     TEST: `${MAIN_API_BASE}/api/admin/test`,
     VERIFICATION_REQUESTS: `${MAIN_API_BASE}/api/admin/verification-requests`,
     REVENUE: `${MAIN_API_BASE}/api/admin/revenue`,
@@ -114,6 +117,31 @@ export const API_CONFIG = {
     PAYPAL_CAPTURE_ORDER: `${CERT_API_BASE}/api/payments/paypal/capture-order`,
     CRYPTO_CREATE: `${CERT_API_BASE}/api/payments/crypto/create`,
     CRYPTO_CONFIRM: `${CERT_API_BASE}/api/payments/crypto/confirm`
+  },
+
+  // Blockchain Indexer endpoints (use CERT backend)
+  INDEXER: {
+    BASE: `${CERT_API_BASE}/api/indexer`,
+    // Query endpoints
+    TRANSACTIONS: `${CERT_API_BASE}/api/indexer/transactions`,
+    TRANSACTION: (txHash: string) => `${CERT_API_BASE}/api/indexer/transactions/${txHash}`,
+    INSTITUTION_HISTORY: (iin: number) => `${CERT_API_BASE}/api/indexer/institutions/${iin}`,
+    INSTITUTION_CREDENTIALS: (iin: number) => `${CERT_API_BASE}/api/indexer/institutions/${iin}/credentials`,
+    PROPOSAL_STATE: (proposalId: string) => `${CERT_API_BASE}/api/indexer/proposals/${proposalId}`,
+    PROPOSAL_VOTES: (proposalId: string) => `${CERT_API_BASE}/api/indexer/proposals/${proposalId}/votes`,
+    STATS: `${CERT_API_BASE}/api/indexer/stats`,
+    SYNC_STATUS: `${CERT_API_BASE}/api/indexer/sync/status`,
+    SYNC_FORCE: `${CERT_API_BASE}/api/indexer/sync/force`,
+    // Admin endpoints
+    ADMIN: {
+      FAILED_EVENTS: `${CERT_API_BASE}/api/indexer/admin/failed-events`,
+      RETRY_EVENT: (failureKey: string) => `${CERT_API_BASE}/api/indexer/admin/retry-failed-event/${failureKey}`,
+      CLEAR_FAILED: `${CERT_API_BASE}/api/indexer/admin/clear-failed-events`,
+      DLQ_STATS: `${CERT_API_BASE}/api/indexer/admin/dlq-stats`,
+      EXPORT_FAILED: `${CERT_API_BASE}/api/indexer/admin/export-failed-events`,
+      SYNC_RECEIPTS: `${CERT_API_BASE}/api/indexer/admin/sync-receipts`,
+      RESET_CONTRACT: (address: string) => `${CERT_API_BASE}/api/indexer/admin/reset-contract/${address}`
+    }
   }
 } as const;
 

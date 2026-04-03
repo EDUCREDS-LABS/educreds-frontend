@@ -13,35 +13,29 @@ interface AdminGuardProps {
 export function AdminGuard({ children }: AdminGuardProps) {
   const [, setLocation] = useLocation();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [sessionInfo, setSessionInfo] = useState<{ email: string; loginTime: number; timeRemaining: number } | null>(null);
+  const [sessionInfo, setSessionInfo] = useState<{ email: string; timeRemaining: number } | null>(null);
 
   useEffect(() => {
-    const checkAuth = () => {
-      const authenticated = AdminAuth.isLoggedIn();
-      setIsAuthenticated(authenticated);
-      
-      if (authenticated) {
-        // Normalize stored admin email to canonical to match backend
-        const canonicalEmail = 'admin@educreds.xyz';
-        const currentEmail = AdminAuth.getAdminEmail();
-        if (currentEmail && currentEmail.toLowerCase() !== canonicalEmail) {
-          localStorage.setItem('adminEmail', canonicalEmail);
-        }
-        const info = AdminAuth.getSessionInfo();
-        setSessionInfo(info);
-      }
+    let active = true;
+
+    const checkAuth = async () => {
+      const info = await AdminAuth.getSessionInfo();
+      if (!active) return;
+      setSessionInfo(info);
+      setIsAuthenticated(!!info);
     };
 
     checkAuth();
-    
-    // Check authentication every minute
+
     const interval = setInterval(checkAuth, 60000);
-    
-    return () => clearInterval(interval);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
   }, []);
 
-  const handleLogout = () => {
-    AdminAuth.logout();
+  const handleLogout = async () => {
+    await AdminAuth.logout();
     setLocation('/admin/login');
   };
 
@@ -130,7 +124,6 @@ export function AdminGuard({ children }: AdminGuardProps) {
     </div>
   );
 }
-
 
 
 

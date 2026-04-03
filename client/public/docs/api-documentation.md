@@ -3,31 +3,37 @@
 **Official Public API Reference**
 
 - **Version:** 1.0.0
-- **Last updated:** January 28, 2026
-- **Base URL:** `https://api.educreds.xyz`
+- **Last updated:** March 17, 2026
+- **Base URL (production):** `https://api.educreds.xyz`
+- **Base URL (sandbox):** `https://sandbox-api.educreds.xyz`
 
 ## Table of contents
 1. [Getting started](#getting-started)
-2. [Authentication](#authentication)
-3. [Certificate issuance](#certificate-issuance)
-4. [Bulk operations](#bulk-operations)
-5. [Verification](#verification)
-6. [Marketplace](#marketplace)
-7. [Institutions](#institutions)
-8. [Governance](#governance)
-9. [Standard API](#standard-api)
-10. [Error handling](#error-handling)
-11. [Rate limiting](#rate-limiting)
+2. [Authentication and headers](#authentication-and-headers)
+3. [Auth decision tree](#auth-decision-tree)
+4. [Current API map](#current-api-map)
+5. [Platform API (JWT)](#platform-api-jwt)
+6. [Verification API](#verification-api)
+7. [Standard API](#standard-api)
+8. [Issuance API (batch/single)](#issuance-api-batchsingle)
+9. [Unified issuance API](#unified-issuance-api)
+10. [Marketplace API](#marketplace-api)
+11. [Institutions](#institutions)
+12. [Governance](#governance)
+13. [Response formats](#response-formats)
+14. [Error handling](#error-handling)
+15. [Rate limiting](#rate-limiting)
+16. [Internal-only endpoints](#internal-only-endpoints)
 
 ## Getting started
 
 ### Prerequisites
-- Valid API credentials (email and password or wallet address)
-- Authorization token (JWT) for platform APIs
-- API key and institution ID for the Standard and Verification APIs
-- For file uploads: supported file formats include PDF, PNG, JPG
+- Platform API: JWT from `/auth/login` or `/auth/institution/login`
+- Verification API: `x-api-key` header or a verifier JWT from `/auth/verifier/login`
+- Standard API: `X-Institution-ID` header (required)
+- For file uploads: supported formats include PDF, PNG, JPG
 
-### Quick start
+### Quick start (Platform API)
 ```bash
 # 1. Authenticate
 curl -X POST https://api.educreds.xyz/auth/login \
@@ -41,699 +47,146 @@ curl -X POST https://api.educreds.xyz/auth/login \
 # Use token in Authorization header: Bearer <token>
 ```
 
-### API response format
-All endpoints return JSON. Some examples show raw payloads for readability.
+## Authentication and headers
 
-If your implementation wraps responses, use this structure:
+### Platform API (JWT)
+- **Header:** `Authorization: Bearer <jwt_token>`
+- Used by `/auth/*`, `/api/certificates/*`, `/api/institutions/*`, `/marketplace/*`, `/governance/*`
 
-```json
-{
-  "data": { "/* Response payload */": true },
-  "status": "success|error",
-  "timestamp": "2026-01-28T10:30:00Z",
-  "statusCode": 200
-}
-```
+### Verification API (API key or verifier JWT)
+- **Option A:** `x-api-key: <clientId:secret>`
+- **Option B:** `Authorization: Bearer <verifier_jwt>` from `POST /auth/verifier/login`
 
-## Authentication
+### Standard and Unified APIs
+- **Required:** `X-Institution-ID: <institution_id>`
+- Used by `/api/v1/standard/*` and `/api/v1/unified/*`
+
+## Auth decision tree
+
+Use this quick decision tree to choose the correct auth method:
+
+1. Are you issuing certificates or using marketplace/governance?
+- Yes: use Platform API with JWT.
+- No: continue.
+
+2. Are you integrating an LMS/SIS and need a stable contract?
+- Yes: use Standard API with `X-Institution-ID`.
+- No: continue.
+
+3. Are you only verifying credentials?
+- Yes: use Verification API with `x-api-key` or verifier JWT.
+
+## Current API map
+
+This is the current public surface aligned to backend controllers.
+
+| Area | Base path | Auth | Notes |
+| --- | --- | --- | --- |
+| Platform Auth | `/auth` | JWT | User auth, verifier login, session verify |
+| Institution Auth | `/auth/institution` | Institution auth | OTP onboarding and login |
+| Certificates | `/api/certificates` | JWT | Issuance, revoke, diagnostics |
+| Verification | `/api/v1/verify` | API key or verifier JWT | Verification only |
+| Standard API | `/api/v1/standard` | `X-Institution-ID` | Stable LMS contract |
+| Issuance API | `/api/v1/issue` | `X-Institution-ID` | Simple issuance endpoints |
+| Unified API | `/api/v1/unified` | `X-Institution-ID` | Unified issuance flow |
+| Marketplace | `/marketplace` | JWT | Templates, purchases, analytics |
+| Institutions | `/api/institutions` | JWT | Register, profile, verification |
+| Governance | `/governance` and `/api/governance` | JWT | Proposals, voting, analytics |
+| Developer Portal | `/api/developer-portal` | Public | API key registration |
+
+## Platform API (JWT)
 
 ### User registration
 **Endpoint:** `POST /auth/register`
 
-**Request:**
-```json
-{
-  "email": "user@example.com",
-  "password": "securePassword123",
-  "name": "John Doe"
-}
-```
-
-**Response:**
-```json
-{
-  "user": {
-    "id": "uuid",
-    "email": "user@example.com",
-    "name": "John Doe"
-  },
-  "token": "eyJhbGc..."
-}
-```
-
 ### User login
 **Endpoint:** `POST /auth/login`
 
+### Verifier login (returns verifier JWT)
+**Endpoint:** `POST /auth/verifier/login`
+
 **Request:**
 ```json
-{
-  "email": "user@example.com",
-  "password": "securePassword123"
-}
-```
-
-**Response:**
-```json
-{
-  "user": {
-    "id": "uuid",
-    "email": "user@example.com",
-    "name": "John Doe"
-  },
-  "token": "eyJhbGc..."
-}
+{ "apiKey": "<clientId:secret>" }
 ```
 
 ### Get profile
 **Endpoint:** `GET /auth/profile`
 
-**Headers:** `Authorization: Bearer <token>`
-
-**Response:**
-```json
-{
-  "id": "uuid",
-  "email": "user@example.com",
-  "name": "John Doe"
-}
-```
-
 ### Logout
 **Endpoint:** `POST /auth/logout`
 
-**Headers:** `Authorization: Bearer <token>`
+### Verify session
+**Endpoint:** `GET /auth/verify-session`
 
-**Response:**
-```json
-{
-  "message": "Logged out successfully"
-}
-```
-
-### Institution auth (unified flow)
-These endpoints support OTP-first onboarding with optional wallet linking.
-
+### Institution auth (OTP flow)
 - `POST /auth/institution/register/step1`
 - `POST /auth/institution/register/step2`
 - `POST /auth/institution/register/step3`
 - `POST /auth/institution/login`
 - `GET /auth/institution/profile`
+- `POST /auth/institution/change-password`
 
-## Certificate issuance
-
-### Issue certificate from template (recommended)
+### Issue certificate from template
 **Endpoint:** `POST /api/certificates/issue-from-template`
-
-**Headers:**
-```
-Authorization: Bearer <token>
-Content-Type: application/json
-```
-
-**Request:**
-```json
-{
-  "templateId": "template-uuid",
-  "recipientWallet": "0x742d35Cc6634C0532925a3b844Bc869Ee94C6e54",
-  "recipientName": "Jane Smith",
-  "completionDate": "2026-01-28",
-  "certificateType": "completion",
-  "grade": "A+",
-  "additionalData": {
-    "courseName": "Advanced JavaScript",
-    "instructorName": "John Instructor"
-  }
-}
-```
-
-**Response:** `201 Created`
-```json
-{
-  "id": "cert-uuid",
-  "recipientWallet": "0x742d35Cc6634C0532925a3b844Bc869Ee94C6e54",
-  "recipientName": "Jane Smith",
-  "templateId": "template-uuid",
-  "ipfsHash": "QmXxxx...",
-  "status": "ISSUED",
-  "verificationUrl": "https://educreds.xyz/verify/cert-uuid",
-  "createdAt": "2026-01-28T10:30:00Z"
-}
-```
-
-- **Performance:** approximately 300 to 500 ms
-- **Recommended for:** individual certificates and immediate issuance
 
 ### Issue certificate with PDF upload (legacy)
 **Endpoint:** `POST /api/certificates/issue`
 
-**Headers:**
-```
-Authorization: Bearer <token>
-Content-Type: multipart/form-data
-```
-
-**Form data:**
-```
-studentWalletAddress: 0x742d35Cc6634C0532925a3b844Bc869Ee94C6e54
-studentName: Jane Smith
-courseName: Advanced JavaScript
-grade: A+
-completionDate: 2026-01-28
-certificateType: completion
-certificateFile: <binary PDF file>
-```
-
-**Response:** `201 Created`
-```json
-{
-  "id": "cert-uuid",
-  "studentAddress": "0x742d35Cc6634C0532925a3b844Bc869Ee94C6e54",
-  "studentName": "Jane Smith",
-  "ipfsHash": "QmXxxx...",
-  "status": "ISSUED",
-  "createdAt": "2026-01-28T10:30:00Z"
-}
-```
-
-- **Performance:** approximately 500 to 800 ms
-- **Note:** use template-based issuance for better performance
-
-## Bulk operations
-
-### Bulk issue certificates from template
+### Bulk issue from template
 **Endpoint:** `POST /api/certificates/bulk-issue-template`
 
-**Headers:**
-```
-Authorization: Bearer <token>
-Content-Type: application/json
-```
+### Bulk issue with legacy PDF
+**Endpoint:** `POST /api/certificates/bulk-issue-legacy-pdf`
 
-**Request:**
-```json
-{
-  "templateId": "template-uuid",
-  "certificates": [
-    {
-      "studentName": "Jane Smith",
-      "studentEmail": "jane@example.xyz",
-      "walletAddress": "0x1111...",
-      "completionDate": "2026-01-28",
-      "grade": "A+",
-      "courseName": "JavaScript"
-    },
-    {
-      "studentName": "John Doe",
-      "studentEmail": "john@example.com",
-      "walletAddress": "0x2222...",
-      "completionDate": "2026-01-28",
-      "grade": "A",
-      "courseName": "JavaScript"
-    }
-  ]
-}
-```
+### Wallet-direct issuance
+- `POST /api/certificates/issue/wallet-direct/prepare`
+- `POST /api/certificates/issue/wallet-direct/confirm`
 
-**Response:** `202 Accepted`
-```json
-{
-  "jobId": "bulk-job-uuid",
-  "status": "PROCESSING",
-  "totalRecipients": 2,
-  "processedCount": 0,
-  "successCount": 0,
-  "failedCount": 0,
-  "createdAt": "2026-01-28T10:30:00Z"
-}
-```
+### Certificate verification (platform endpoints)
+- `GET /api/certificates/verify/:id`
+- `GET /api/certificates/verify/ipfs/:ipfsHash`
+- `GET /api/certificates/verify/token/:tokenId`
 
-### Check bulk operation status
-**Endpoint:** `GET /marketplace/bulk/status/:jobId`
+### Certificate management
+- `POST /api/certificates/:certificateId/revoke`
+- `POST /api/certificates/bulk-revoke`
+- `GET /api/certificates/wallet/:walletAddress`
+- `GET /api/certificates/institution/:institutionId`
+- `GET /api/certificates/institution` (uses JWT or query)
+- `GET /api/certificates/diagnostics/issuance`
+- `POST /api/certificates/issuance-diagnostics`
 
-**Headers:** `Authorization: Bearer <token>`
-
-**Response:**
-```json
-{
-  "jobId": "bulk-job-uuid",
-  "status": "PROCESSING|COMPLETED|FAILED",
-  "totalRecipients": 100,
-  "processedCount": 75,
-  "successCount": 72,
-  "failedCount": 3,
-  "progress": "75%"
-}
-```
-
-### Bulk issue via marketplace
-**Endpoint:** `POST /marketplace/bulk/issue`
+## Verification API
+Base path: `/api/v1/verify`
 
 **Headers:**
-```
-Authorization: Bearer <token>
-Content-Type: application/json
-```
-
-**Request:**
-```json
-{
-  "institutionId": "inst-uuid",
-  "templateId": "template-uuid",
-  "recipients": [
-    {
-      "name": "Jane Smith",
-      "email": "jane@example.com",
-      "walletAddress": "0x...",
-      "customData": {
-        "grade": "A+",
-        "completionDate": "2026-01-28"
-      }
-    }
-  ]
-}
-```
-
-**Response:** `202 Accepted`
-```json
-{
-  "jobId": "bulk-job-uuid",
-  "status": "QUEUED",
-  "totalRecipients": 1,
-  "createdAt": "2026-01-28T10:30:00Z"
-}
-```
-
-## Verification
+- `x-api-key: <clientId:secret>`
+- or `Authorization: Bearer <verifier_jwt>`
 
 ### Verify certificate
 **Endpoint:** `GET /api/v1/verify/:certificateId`
 
-**Headers:** `Authorization: Bearer <api_key>`
-
-**Example:** `GET /api/v1/verify/cert-uuid-123`
-
-**Response:**
-```json
-{
-  "certificateId": "cert-uuid-123",
-  "isValid": true,
-  "issuedBy": "University of Example",
-  "recipientName": "Jane Smith",
-  "courseName": "Advanced JavaScript",
-  "grade": "A+",
-  "issuedAt": "2026-01-28T10:30:00Z",
-  "completionDate": "2026-01-28",
-  "blockchainTxHash": "minted:1234",
-  "tokenId": 1234,
-  "ipfsHash": "QmXxxx...",
-  "isMinted": true,
-  "status": "ISSUED"
-}
-```
-
 ### Verify by wallet address
 **Endpoint:** `GET /api/v1/verify/wallet/:walletAddress`
-
-**Response:**
-```json
-{
-  "walletAddress": "0x742d35Cc6634C0532925a3b844Bc869Ee94C6e54",
-  "certificates": [
-    {
-      "certificateId": "cert-uuid-1",
-      "courseName": "JavaScript",
-      "institutionName": "University of Example",
-      "isValid": true,
-      "isMinted": true,
-      "tokenId": 1234
-    }
-  ]
-}
-```
 
 ### Batch verification
 **Endpoint:** `POST /api/v1/verify/batch`
 
-**Request:**
-```json
-{
-  "certificateIds": ["cert-1", "cert-2", "cert-3"]
-}
+### Example: Verify a certificate (API key)
+```http
+GET /api/v1/verify/cert-uuid-123
+x-api-key: <clientId:secret>
 ```
 
-**Response:**
-```json
-{
-  "results": [
-    {
-      "certificateId": "cert-1",
-      "isValid": true,
-      "status": "ISSUED",
-      "verifiedAt": "2026-01-28T10:30:00Z"
-    }
-  ]
-}
-```
-
-## Marketplace
-
-### Get available templates
-**Endpoint:** `GET /marketplace/templates`
-
-**Query parameters:**
-- `page` optional, default `1`
-- `limit` optional, default `10`
-- `category` optional
-- `search` optional
-
-**Response:**
-```json
-{
-  "templates": [
-    {
-      "id": "template-uuid",
-      "name": "Modern Completion Certificate",
-      "category": "completion",
-      "description": "Professional certificate design",
-      "designerId": "designer-uuid",
-      "price": 29.99,
-      "currency": "USD",
-      "previewUrl": "https://...",
-      "rating": 4.8,
-      "downloads": 150,
-      "status": "active"
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "perPage": 20,
-    "total": 250,
-    "pages": 13
-  }
-}
-```
-
-### Get template details
-**Endpoint:** `GET /marketplace/templates/:id`
-
-**Response:**
-```json
-{
-  "id": "template-uuid",
-  "name": "Modern Completion Certificate",
-  "category": "completion",
-  "description": "Professional certificate design",
-  "designer": {
-    "id": "designer-uuid",
-    "name": "Design Studio",
-    "rating": 4.8
-  },
-  "price": 29.99,
-  "currency": "USD",
-  "previewUrl": "https://...",
-  "templateFields": ["name", "course", "date", "grade"],
-  "rating": 4.5,
-  "downloads": 150,
-  "createdAt": "2025-12-23T09:00:00Z"
-}
-```
-
-### Purchase template
-**Endpoint:** `POST /marketplace/templates/:templateId/purchase`
-
-**Headers:**
-```
-Authorization: Bearer <token>
+### Example: Batch verification (verifier JWT)
+```http
+POST /api/v1/verify/batch
+Authorization: Bearer <verifier_jwt>
 Content-Type: application/json
-```
 
-**Request:**
-```json
 {
-  "institutionId": "inst-uuid"
-}
-```
-
-**Response:** `200 OK`
-```json
-{
-  "purchaseId": "purchase-uuid",
-  "templateId": "template-uuid",
-  "institutionId": "inst-uuid",
-  "status": "COMPLETED",
-  "price": 29.99,
-  "purchasedAt": "2026-01-28T10:30:00Z"
-}
-```
-
-### Get institution templates
-**Endpoint:** `GET /marketplace/institutions/:institutionId/templates`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Response:**
-```json
-{
-  "templates": [
-    {
-      "id": "template-uuid",
-      "name": "Modern Completion Certificate",
-      "category": "completion",
-      "purchasedAt": "2026-01-28T10:30:00Z"
-    }
-  ],
-  "totalCount": 5
-}
-```
-
-### Get institution analytics
-**Endpoint:** `GET /marketplace/institutions/:institutionId/analytics`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Response:**
-```json
-{
-  "institutionId": "inst-uuid",
-  "totalTemplatesUsed": 5,
-  "totalCertificatesIssued": 450,
-  "totalRevenue": 2500
-}
-```
-
-## Institutions
-
-### Register institution
-**Endpoint:** `POST /api/institutions/register`
-
-**Request:**
-```json
-{
-  "name": "University of Example",
-  "email": "admin@university.edu",
-  "password": "securePassword123",
-  "walletAddress": "0x...",
-  "registrationNumber": "REG-001",
-  "contactInfo": {
-    "phone": "+1234567890",
-    "address": "123 Main St",
-    "city": "Example City",
-    "country": "Country"
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "id": "inst-uuid",
-  "name": "University of Example",
-  "email": "admin@university.edu",
-  "walletAddress": "0x...",
-  "verificationStatus": "PENDING"
-}
-```
-
-### Institution login
-**Endpoint:** `POST /api/institutions/login`
-
-**Request:**
-```json
-{
-  "walletAddress": "0x...",
-  "signature": "0x...",
-  "message": "..."
-}
-```
-
-**Response:**
-```json
-{
-  "id": "inst-uuid",
-  "name": "University of Example",
-  "token": "eyJhbGc...",
-  "verificationStatus": "VERIFIED"
-}
-```
-
-### Get institution profile
-**Endpoint:** `GET /api/institutions/profile`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Response:**
-```json
-{
-  "id": "inst-uuid",
-  "name": "University of Example",
-  "email": "admin@university.edu",
-  "walletAddress": "0x...",
-  "registrationNumber": "REG-001",
-  "verificationStatus": "VERIFIED",
-  "contactInfo": {
-    "phone": "+1234567890",
-    "address": "123 Main St"
-  },
-  "createdAt": "2026-01-28T09:00:00Z"
-}
-```
-
-### Get verification status
-**Endpoint:** `GET /api/institutions/verification-status`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Response:**
-```json
-{
-  "institutionId": "inst-uuid",
-  "verificationStatus": "VERIFIED|PROVISIONAL|PENDING",
-  "documentsSubmitted": true,
-  "documentsVerified": true,
-  "verificationDate": "2026-01-28T09:00:00Z"
-}
-```
-
-### Submit verification documents
-**Endpoint:** `POST /api/institutions/verification-documents`
-
-**Headers:**
-```
-Authorization: Bearer <token>
-Content-Type: multipart/form-data
-```
-
-**Form data:**
-```
-institutionId: inst-uuid
-files: [document1.pdf, document2.pdf, ...]
-```
-
-**Response:**
-```json
-{
-  "institutionId": "inst-uuid",
-  "documentsSubmitted": [
-    {
-      "fileName": "accreditation.pdf",
-      "uploadedAt": "2026-01-28T09:00:00Z",
-      "status": "PENDING_REVIEW"
-    }
-  ],
-  "totalDocuments": 3,
-  "status": "SUBMITTED_FOR_REVIEW"
-}
-```
-
-## Governance
-
-### Create proposal
-**Endpoint:** `POST /governance/proposal`
-
-**Headers:**
-```
-Authorization: Bearer <token>
-Content-Type: application/json
-```
-
-**Request:**
-```json
-{
-  "institutionId": "inst-uuid",
-  "institution_name": "University of Example",
-  "wallet_address": "0x...",
-  "description": "Institution verification and risk assessment",
-  "representative_wallets": ["0x..."]
-}
-```
-
-**Response:**
-```json
-{
-  "proposal_id": "prop-uuid",
-  "institution_name": "University of Example",
-  "legitimacy_score": 95,
-  "recommended_action": "AUTO_APPROVE",
-  "suggested_issuance_limit": 10000,
-  "risk_flags": [],
-  "createdAt": "2026-01-28T10:30:00Z"
-}
-```
-
-### Get proposal
-**Endpoint:** `GET /governance/proposal/:proposalId`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Response:**
-```json
-{
-  "proposal_id": "prop-uuid",
-  "status": "PENDING|APPROVED|REJECTED|EXECUTED",
-  "institution_name": "University of Example",
-  "legitimacy_score": 95,
-  "createdAt": "2026-01-28T10:30:00Z"
-}
-```
-
-### Execute proposal
-**Endpoint:** `POST /governance/proposal/:proposalId/execute`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Proposal executed successfully",
-  "executionTime": "2026-01-28T10:35:00Z"
-}
-```
-
-### List proposals
-**Endpoint:** `GET /governance/proposals`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Query parameters:**
-- `status` optional
-- `page` optional
-- `limit` optional
-- `sortBy` optional
-- `sortOrder` optional
-
-**Response:**
-```json
-{
-  "proposals": [
-    {
-      "proposal_id": "prop-uuid",
-      "institution_name": "University of Example",
-      "status": "PENDING",
-      "legitimacy_score": 95,
-      "createdAt": "2026-01-28T10:30:00Z"
-    }
-  ]
+  "certificateIds": ["cert-1", "cert-2"]
 }
 ```
 
@@ -741,11 +194,8 @@ Content-Type: application/json
 Base path: `/api/v1/standard`
 
 **Headers:**
-```
-Authorization: Bearer <api_key>
-X-Institution-ID: <institution_id>
-Content-Type: application/json
-```
+- `X-Institution-ID: <institution_id>`
+- `Content-Type: application/json`
 
 ### Health
 **Endpoint:** `GET /api/v1/standard/health`
@@ -766,6 +216,146 @@ Content-Type: application/json
 - `POST /api/v1/standard/certificates/upload-pdf`
 - `POST /api/v1/standard/certificates/issue-with-pdf`
 
+### Example: Issue certificate (Standard API)
+```http
+POST /api/v1/standard/certificates/issue
+X-Institution-ID: inst_123
+Content-Type: application/json
+
+{
+  "student": { "id": "student_001", "name": "Jane Smith" },
+  "course": { "name": "Data Science", "code": "DS101" },
+  "achievement": {
+    "grade": "A",
+    "completionDate": "2026-03-17",
+    "certificateType": "CERTIFICATE"
+  }
+}
+```
+
+### Example: Verify certificate (Standard API)
+```http
+POST /api/v1/standard/certificates/verify
+X-Institution-ID: inst_123
+Content-Type: application/json
+
+{
+  "credentialId": "cert-uuid"
+}
+```
+
+## Issuance API (batch/single)
+Base path: `/api/v1/issue`
+
+**Headers:**
+- `X-Institution-ID: <institution_id>`
+
+### Issue single certificate
+**Endpoint:** `POST /api/v1/issue/certificate`
+
+### Issue batch
+**Endpoint:** `POST /api/v1/issue/batch`
+
+## Unified issuance API
+Base path: `/api/v1/unified`
+
+**Headers:**
+- `X-Institution-ID: <institution_id>`
+
+### Issue certificate
+**Endpoint:** `POST /api/v1/unified/certificates/issue`
+
+### List issuance methods
+**Endpoint:** `GET /api/v1/unified/methods`
+
+## Marketplace API
+Base path: `/marketplace`
+
+### Templates
+- `GET /marketplace/templates`
+- `GET /marketplace/templates/:id`
+- `POST /marketplace/templates/:id/purchase`
+
+### Institution templates and analytics
+- `GET /marketplace/institutions/:institutionId/templates`
+- `GET /marketplace/institutions/:institutionId/analytics`
+- `POST /marketplace/institutions/:institutionId/templates/:templateId/use`
+
+### Bulk issuance (marketplace)
+- `POST /marketplace/bulk/issue`
+- `GET /marketplace/bulk/status/:jobId`
+- `POST /marketplace/bulk/certificate/single`
+
+### Designer endpoints
+- `POST /marketplace/designer/templates`
+- `PUT /marketplace/designer/templates/:id`
+- `GET /marketplace/designer/:designerId/templates`
+
+## Institutions
+Base path: `/api/institutions`
+
+- `POST /api/institutions/register`
+- `POST /api/institutions/login`
+- `GET /api/institutions/profile`
+- `GET /api/institutions/verification-status`
+- `POST /api/institutions/verification-documents` (multipart field name: `documents`)
+- `GET /api/institutions/:institutionId/blockchain-status`
+
+## Governance
+Base path: `/governance` and `/api/governance`
+
+### Legacy proposal flow
+- `POST /governance/proposal`
+- `GET /governance/proposal/:id`
+- `POST /governance/proposal/:id/execute`
+- `GET /governance/proposals`
+
+### Phase 2 governance APIs
+- `GET /governance/proposals/list`
+- `GET /governance/proposals/:id/detail`
+- `POST /governance/proposals/create`
+- `POST /governance/proposals/:id/vote`
+- `GET /governance/proposals/:id/voting-power`
+- `GET /governance/proposals/:id/votes`
+- `GET /governance/proposals/states/summary`
+
+### Public governance
+- `GET /governance/public/proposals`
+- `GET /governance/public/proposals/:id/detail`
+- `GET /governance/public/proposals/:id/vote/tx-data`
+- `GET /governance/public/proposals/:id/voting-power`
+- `POST /governance/public/proposals/:id/vote/wallet`
+
+### Governance analytics
+- `GET /governance/analytics/active-proposals`
+- `GET /governance/analytics/governance-summary`
+- `GET /governance/analytics/institution-metrics/:id`
+- `GET /governance/analytics/poic-scores`
+- `GET /governance/analytics/poic-statistics`
+
+## Response formats
+
+### Platform API
+Platform endpoints return direct JSON objects that vary by endpoint. Do not rely on a universal wrapper.
+
+### Verification API
+Returns a verification object with at least `certificateId` and `isValid`. Some fields are optional.
+
+### Standard API
+Returns a standardized envelope:
+```json
+{
+  "success": true,
+  "data": {},
+  "error": null,
+  "meta": {
+    "timestamp": "2026-03-17T10:30:00Z",
+    "version": "1.0.0",
+    "requestId": "req_..."
+  }
+}
+```
+
 ## Error handling
 
 ### Standard error response
@@ -774,7 +364,7 @@ Content-Type: application/json
   "statusCode": 400,
   "message": "Error description",
   "error": "Bad Request",
-  "timestamp": "2026-01-28T10:30:00Z"
+  "timestamp": "2026-03-17T10:30:00Z"
 }
 ```
 
@@ -793,18 +383,23 @@ Content-Type: application/json
 | 500 | Server Error | Internal server error |
 
 ## Rate limiting
-Rate limits are enforced by API keys and subscription plans. Limits are returned by the developer portal pricing endpoint.
-
-### Current plan limits
-- Starter: 20 requests per minute
-- Pro: 100 requests per minute
-- Enterprise: 1000 requests per minute
+Requests are rate limited globally at **300 requests per 15 minutes per IP** in production.
 
 When rate limited (`429 Too Many Requests`):
 ```json
 {
-  "statusCode": 429,
-  "message": "Rate limit exceeded",
-  "retryAfter": 60
+  "error": "Too many requests"
 }
 ```
+
+Check the `Retry-After` header for seconds until reset.
+
+## Internal-only endpoints
+The following endpoints exist but are **not** part of the public API surface and are intentionally omitted from public integration guides:
+- `/dev/*`
+- `/api/admin/*`
+- `/api/students/*`
+- `/api/payments/*`
+- `/api/subscription/*`
+- `/api/w3c-credentials/*`
+- `/api/hybrid-verification/*`

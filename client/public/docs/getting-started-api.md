@@ -3,21 +3,23 @@
 **Official API Onboarding Guide**
 
 - **Version:** 1.0.0
-- **Last updated:** January 28, 2026
+- **Last updated:** March 17, 2026
 - **Base URL:** `https://api.educreds.xyz`
+- **See also:** `api-documentation.md`
 
 ## Table of contents
 1. [Overview](#overview)
 2. [Choose your API](#choose-your-api)
 3. [Platform API (JWT)](#platform-api-jwt)
-4. [Standard API (API key)](#standard-api-api-key)
+4. [Standard API (X-Institution-ID)](#standard-api-x-institution-id)
 5. [Verification API](#verification-api)
 6. [Best practices](#best-practices)
 
 ## Overview
-EduCreds provides two API surfaces:
+EduCreds provides three public API surfaces:
 - **Platform API** for first-party workflows used by the EduCreds UI
 - **Standard API** for LMS and third-party integrations with stable contracts
+- **Verification API** for verification-only use cases
 
 ## Choose your API
 
@@ -28,8 +30,12 @@ EduCreds provides two API surfaces:
 
 ### Use the Standard API when you need
 - A stable integration surface for external systems
-- API key-based authentication and quota enforcement
-- Issuance, verification, and bulk operations for LMS/SIS
+- Certificate issuance, verification, and bulk operations
+- Institution-scoped usage limits enforced via `X-Institution-ID`
+
+### Use the Verification API when you need
+- Verify credentials at scale without issuing
+- API key or verifier JWT-based access
 
 ## Platform API (JWT)
 
@@ -54,7 +60,7 @@ Content-Type: application/json
   "templateId": "template-uuid",
   "recipientWallet": "0x...",
   "recipientName": "Jane Smith",
-  "completionDate": "2026-03-10",
+  "completionDate": "2026-03-17",
   "certificateType": "completion",
   "grade": "A+",
   "additionalData": {
@@ -63,7 +69,7 @@ Content-Type: application/json
 }
 ```
 
-## Standard API (API key)
+## Standard API (X-Institution-ID)
 
 ### 1) Register as a developer
 ```http
@@ -82,14 +88,12 @@ Content-Type: application/json
 ### 2) Health check
 ```http
 GET /api/v1/standard/health
-Authorization: Bearer <api_key>
 X-Institution-ID: <institution_id>
 ```
 
 ### 3) Issue a certificate
 ```http
 POST /api/v1/standard/certificates/issue
-Authorization: Bearer <api_key>
 X-Institution-ID: <institution_id>
 Content-Type: application/json
 
@@ -98,7 +102,7 @@ Content-Type: application/json
   "course": { "name": "Data Science", "code": "DS101" },
   "achievement": {
     "grade": "A",
-    "completionDate": "2026-03-10",
+    "completionDate": "2026-03-17",
     "certificateType": "CERTIFICATE"
   }
 }
@@ -106,16 +110,32 @@ Content-Type: application/json
 
 ## Verification API
 
-### Verify a certificate
+### Option A: Use API key directly
 ```http
 GET /api/v1/verify/{certificateId}
-Authorization: Bearer <api_key>
+x-api-key: <clientId:secret>
+```
+
+### Option B: Exchange API key for verifier JWT
+```http
+POST /auth/verifier/login
+Content-Type: application/json
+
+{
+  "apiKey": "<clientId:secret>"
+}
+```
+
+Then call verification endpoints with:
+```http
+GET /api/v1/verify/{certificateId}
+Authorization: Bearer <verifier_jwt>
 ```
 
 ### Verify in batch
 ```http
 POST /api/v1/verify/batch
-Authorization: Bearer <api_key>
+x-api-key: <clientId:secret>
 Content-Type: application/json
 
 {
@@ -124,7 +144,7 @@ Content-Type: application/json
 ```
 
 ## Best practices
-- Keep API keys and JWTs on server-side services only
+- Keep JWTs and API keys on server-side services only
 - Use HTTPS in production
 - Rotate keys periodically and revoke compromised keys
-- Expect rate limits on API key endpoints based on plan
+- Expect global rate limits (see `api-documentation.md`)
