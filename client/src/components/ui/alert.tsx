@@ -4,17 +4,17 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const alertVariants = cva(
-  "relative w-full rounded-2xl border-2 p-5 [&>svg~*]:pl-9 [&>svg+div]:translate-y-[-2px] [&>svg]:absolute [&>svg]:left-5 [&>svg]:top-5 [&>svg]:text-foreground shadow-md transition-all duration-300 bg-background",
+  "relative w-full rounded-2xl border-2 p-5 [&>svg~*]:pl-9 [&>svg+div]:translate-y-[-2px] [&>svg]:absolute [&>svg]:left-5 [&>svg]:top-5 [&>svg]:text-foreground shadow-lg transition-all duration-300 bg-white dark:bg-neutral-900",
   {
     variants: {
       variant: {
         default: "text-foreground border-neutral-200/80",
         destructive:
-          "border-destructive/40 bg-destructive/10 text-destructive dark:border-destructive/50 dark:bg-destructive/15 [&>svg]:text-destructive font-medium shadow-destructive/10",
+          "border-destructive/40 bg-destructive/15 text-destructive dark:border-destructive/50 dark:bg-destructive/20 [&>svg]:text-destructive font-medium shadow-destructive/10",
         warning:
-          "border-warning/40 bg-warning/10 text-warning-foreground dark:border-warning/50 dark:bg-warning/15 [&>svg]:text-warning font-medium shadow-warning/10",
+          "border-warning/40 bg-warning/15 text-warning-foreground dark:border-warning/50 dark:bg-warning/20 [&>svg]:text-warning font-medium shadow-warning/10",
         info:
-          "border-info/40 bg-info/10 text-info-foreground dark:border-info/50 dark:bg-info/15 [&>svg]:text-info font-medium shadow-info/10",
+          "border-info/40 bg-info/15 text-info-foreground dark:border-info/50 dark:bg-info/20 [&>svg]:text-info font-medium shadow-info/10",
       },
     },
     defaultVariants: {

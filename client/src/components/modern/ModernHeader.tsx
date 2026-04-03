@@ -30,9 +30,9 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
   ];
 
   return (
-    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-neutral-200/50">
+    <header className="sticky top-0 z-50 bg-white border-b border-neutral-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-16">
 
           {/* Logo */}
           <Link href="/">
@@ -51,10 +51,10 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav className="hidden md:flex items-center space-x-6">
             {navigation.map((item) => (
               <Link key={item.name} href={item.href}>
-                <Button variant="ghost" className="text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50">
+                <Button variant="ghost" className="text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100/80">
                   {item.name}
                 </Button>
               </Link>
@@ -109,9 +109,9 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
 
             {/* Mobile Menu Button */}
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="md:hidden"
+              className="md:hidden border-neutral-200 bg-white shadow-sm"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -121,13 +121,13 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-neutral-200 bg-white">
+          <div className="md:hidden border-t border-neutral-200 bg-white shadow-lg">
             <div className="px-2 pt-2 pb-3 space-y-1">
               {navigation.map((item) => (
                 <Link key={item.name} href={item.href}>
                   <Button
-                    variant="ghost"
-                    className="w-full justify-start text-neutral-600 hover:text-neutral-900"
+                    variant="outline"
+                    className="w-full justify-start rounded-xl border-neutral-200 bg-white text-neutral-800 shadow-sm hover:bg-neutral-50"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     {item.name}
@@ -136,25 +136,25 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
               ))}
 
               <div className="border-t border-neutral-200 pt-3 mt-3 space-y-2">
-                <Button variant="outline" className="w-full" onClick={() => { onStudentPortalClick(); setIsMobileMenuOpen(false); }}>
+                <Button variant="outline" className="w-full rounded-xl border-neutral-200 bg-white text-neutral-900 shadow-sm" onClick={() => { onStudentPortalClick(); setIsMobileMenuOpen(false); }}>
                   <User className="w-4 h-4 mr-2" />
                   Student Portal
                 </Button>
                 <Link href="/verification-portal">
-                  <Button variant="outline" className="w-full" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button variant="outline" className="w-full rounded-xl border-neutral-200 bg-white text-neutral-900 shadow-sm" onClick={() => setIsMobileMenuOpen(false)}>
                     <Wallet className="w-4 h-4 mr-2" />
                     Verify Certificate
                   </Button>
                 </Link>
 
                 <Link href="/login">
-                  <Button variant="ghost" className="w-full" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button variant="outline" className="w-full rounded-xl border-neutral-200 bg-white text-neutral-900 shadow-sm" onClick={() => setIsMobileMenuOpen(false)}>
                     Sign In
                   </Button>
                 </Link>
 
                 <Link href="/register">
-                  <Button className="w-full bg-gradient-to-r from-primary to-purple-600" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button className="w-full rounded-xl bg-neutral-900 text-white hover:bg-neutral-800" onClick={() => setIsMobileMenuOpen(false)}>
                     Get Started
                   </Button>
                 </Link>

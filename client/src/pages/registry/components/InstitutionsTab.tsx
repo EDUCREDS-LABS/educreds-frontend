@@ -76,7 +76,11 @@ function InstitutionCard({
           </CardTitle>
           <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400 mt-2">
             <Globe className="w-3 h-3 shrink-0" />
-            <span className="truncate">{institution.walletAddress.substring(0, 18)}…</span>
+            <span className="truncate">
+              {institution.walletAddress
+                ? `${institution.walletAddress.substring(0, 18)}…`
+                : '—'}
+            </span>
           </div>
           <div className="mt-2">
             <Badge
@@ -173,6 +177,8 @@ export default function InstitutionsTab() {
     if (!data?.data) return [];
     return data.data.map((inst, idx) => ({
       ...inst,
+      name: inst.name?.trim() || 'Unknown Institution',
+      walletAddress: inst.walletAddress ?? '',
       poicScore: Math.floor(55 + ((idx * 7 + 13) % 45)),
       issuanceCount: Math.floor(200 + ((idx * 137 + 41) % 8000)),
       iinIndex: 1024 + idx,

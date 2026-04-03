@@ -30,10 +30,17 @@ export interface BlockchainTransaction {
 }
 
 export interface IndexerStats {
-  totalTransactions: number;
-  lastIndexedBlock: number;
-  eventCounts: Partial<Record<EventName, number>>;
-  syncStatus: 'synced' | 'syncing' | 'error';
+  totalTransactions?: number;
+  lastIndexedBlock?: number;
+  eventCounts?: Partial<Record<EventName, number>>;
+  syncStatus?: 'synced' | 'syncing' | 'error';
+  // Backend format
+  lastBlockProcessed?: number;
+  totalEvents?: number;
+  latestTimestamp?: string | null;
+  contractStatuses?: Array<any>;
+  errors?: Array<any>;
+  pendingJobs?: number;
 }
 
 export interface TransactionFilters {
@@ -139,14 +146,35 @@ class IndexerService {
     filters: TransactionFilters = {},
   ): Promise<PaginatedTransactions> {
     try {
-      const q = new URLSearchParams({ page: String(page), limit: String(limit) });
+      const q = new URLSearchParams({ 
+        page: String(page), 
+        limit: String(limit) 
+      });
       if (filters.eventName && filters.eventName !== 'all') q.set('eventName', filters.eventName);
-      if (filters.contractName && filters.contractName !== 'all') q.set('contractName', filters.contractName);
+      if (filters.contractName && filters.contractName !== 'all') q.set('contractAddress', filters.contractName);
       if (filters.search) q.set('search', filters.search);
 
       const res = await fetch(`${this.base}/transactions?${q}`);
       if (!res.ok) throw new Error('Indexer offline');
-      return res.json();
+      
+      const data = await res.json();
+      
+      // Map backend response to frontend format
+      if (data.pagination) {
+        return {
+          data: data.data || [],
+          total: data.pagination.total,
+          page: data.pagination.page,
+          totalPages: data.pagination.totalPages,
+        };
+      }
+      
+      return {
+        data: Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : [],
+        total: data.total || data.pagination?.total || 0,
+        page: data.page || page,
+        totalPages: data.totalPages || data.pagination?.totalPages || 1,
+      };
     } catch {
       return this._mockPage(MOCK_TXS, page, limit, filters);
     }
@@ -156,7 +184,22 @@ class IndexerService {
     try {
       const res = await fetch(`${this.base}/stats`);
       if (!res.ok) throw new Error('Indexer offline');
-      return res.json();
+      
+      const data = await res.json();
+      
+      // Map backend response to unified format
+      return {
+        totalTransactions: data.totalEvents || data.totalTransactions,
+        lastIndexedBlock: data.lastBlockProcessed || data.lastIndexedBlock,
+        eventCounts: data.eventCounts,
+        syncStatus: data.syncStatus || 'synced',
+        lastBlockProcessed: data.lastBlockProcessed,
+        totalEvents: data.totalEvents,
+        latestTimestamp: data.latestTimestamp,
+        contractStatuses: data.contractStatuses,
+        errors: data.errors,
+        pendingJobs: data.pendingJobs,
+      };
     } catch {
       const counts: Partial<Record<EventName, number>> = {};
       MOCK_TXS.forEach(tx => {
