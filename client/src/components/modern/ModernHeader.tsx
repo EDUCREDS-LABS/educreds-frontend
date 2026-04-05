@@ -51,10 +51,13 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-6">
+          <nav className="hidden md:flex items-center space-x-3">
             {navigation.map((item) => (
               <Link key={item.name} href={item.href}>
-                <Button variant="ghost" className="text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100/80">
+                <Button
+                  variant="outline"
+                  className="rounded-full border-neutral-200 bg-white text-neutral-800 shadow-sm hover:bg-neutral-100 hover:text-neutral-900"
+                >
                   {item.name}
                 </Button>
               </Link>
@@ -83,25 +86,25 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
 
             {/* Desktop Actions */}
             <div className="hidden md:flex items-center space-x-3">
-              <Button variant="outline" size="sm" onClick={onStudentPortalClick}>
+              <Button variant="outline" size="sm" className="rounded-full border-neutral-200 bg-white text-neutral-900 shadow-sm hover:bg-neutral-100" onClick={onStudentPortalClick}>
                 <User className="w-4 h-4 mr-2" />
                 Student Portal
               </Button>
               <Link href="/verification-portal">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="rounded-full border-neutral-200 bg-white text-neutral-900 shadow-sm hover:bg-neutral-100">
                   <Wallet className="w-4 h-4 mr-2" />
                   Verify
                 </Button>
               </Link>
 
               <Link href="/login">
-                <Button variant="ghost" size="sm">
+                <Button variant="outline" size="sm" className="rounded-full border-neutral-200 bg-white text-neutral-900 shadow-sm hover:bg-neutral-100">
                   Sign In
                 </Button>
               </Link>
 
               <Link href="/register">
-                <Button size="sm" className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90">
+                <Button size="sm" className="rounded-full bg-neutral-900 text-white hover:bg-neutral-800 shadow-md">
                   Get Started
                 </Button>
               </Link>
@@ -111,7 +114,7 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
             <Button
               variant="outline"
               size="sm"
-              className="md:hidden border-neutral-200 bg-white shadow-sm"
+              className="md:hidden border-neutral-200 bg-white shadow-sm hover:bg-neutral-50"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -126,8 +129,8 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
               {navigation.map((item) => (
                 <Link key={item.name} href={item.href}>
                   <Button
-                    variant="outline"
-                    className="w-full justify-start rounded-xl border-neutral-200 bg-white text-neutral-800 shadow-sm hover:bg-neutral-50"
+                    variant="secondary"
+                    className="w-full justify-start rounded-xl border border-neutral-200 bg-white text-neutral-900 shadow-sm hover:bg-neutral-50"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     {item.name}
@@ -136,25 +139,25 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
               ))}
 
               <div className="border-t border-neutral-200 pt-3 mt-3 space-y-2">
-                <Button variant="outline" className="w-full rounded-xl border-neutral-200 bg-white text-neutral-900 shadow-sm" onClick={() => { onStudentPortalClick(); setIsMobileMenuOpen(false); }}>
+                <Button variant="secondary" className="w-full rounded-xl border border-neutral-200 bg-white text-neutral-900 shadow-sm" onClick={() => { onStudentPortalClick(); setIsMobileMenuOpen(false); }}>
                   <User className="w-4 h-4 mr-2" />
                   Student Portal
                 </Button>
                 <Link href="/verification-portal">
-                  <Button variant="outline" className="w-full rounded-xl border-neutral-200 bg-white text-neutral-900 shadow-sm" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button variant="secondary" className="w-full rounded-xl border border-neutral-200 bg-white text-neutral-900 shadow-sm" onClick={() => setIsMobileMenuOpen(false)}>
                     <Wallet className="w-4 h-4 mr-2" />
                     Verify Certificate
                   </Button>
                 </Link>
 
                 <Link href="/login">
-                  <Button variant="outline" className="w-full rounded-xl border-neutral-200 bg-white text-neutral-900 shadow-sm" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button variant="secondary" className="w-full rounded-xl border border-neutral-200 bg-white text-neutral-900 shadow-sm" onClick={() => setIsMobileMenuOpen(false)}>
                     Sign In
                   </Button>
                 </Link>
 
                 <Link href="/register">
-                  <Button className="w-full rounded-xl bg-neutral-900 text-white hover:bg-neutral-800" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button className="w-full rounded-xl bg-neutral-900 text-white hover:bg-neutral-800 shadow-md" onClick={() => setIsMobileMenuOpen(false)}>
                     Get Started
                   </Button>
                 </Link>

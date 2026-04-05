@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/loading-skeleton';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { useProposals } from '@/hooks/useGovernance';
+import { usePublicProposals } from '@/hooks/useGovernance';
 import type { ProposalResponse } from '@/lib/governanceApiService';
 
 const PAGE_SIZE = 10;
@@ -225,7 +225,7 @@ export default function ProposalsTab() {
   const [page, setPage] = useState(1);
   const [stateFilter, setStateFilter] = useState<ProposalResponse['state'] | 'all'>('all');
 
-  const { data, isLoading } = useProposals(page, PAGE_SIZE);
+  const { data, isLoading } = usePublicProposals(page, PAGE_SIZE);
 
   const proposals =
     data?.data?.filter(p =>

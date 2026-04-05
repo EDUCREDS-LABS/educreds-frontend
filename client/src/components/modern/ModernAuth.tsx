@@ -250,14 +250,22 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
 
             <CardContent>
               {showOtp ? (
-                <OtpInput
-                  email={userEmail}
-                  type="login"
-                  onVerify={handleOtpVerify}
-                  onResend={handleResendOtp}
-                  isLoading={isLoading}
-                  otpToken={otpToken}
-                />
+                <div className="space-y-4">
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+                  <OtpInput
+                    email={userEmail}
+                    type="login"
+                    onVerify={handleOtpVerify}
+                    onResend={handleResendOtp}
+                    isLoading={isLoading}
+                    otpToken={otpToken}
+                  />
+                </div>
               ) : (
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

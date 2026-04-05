@@ -189,7 +189,7 @@ const ApiReferencePage: FC = () => {
   "success": true,
   "data": {
     "certificateId": "cert_789",
-    "verificationUrl": "https://verify.educreds.xyz/credential/cert_789",
+    "verificationUrl": "https://educreds.xyz/verification-portal?certificateId=cert_789",
     "formats": {
       "w3c": { /* W3C VC Object */ },
       "legacy": {
@@ -276,7 +276,7 @@ const ApiReferencePage: FC = () => {
         "student": { "name": "John Doe" },
         "course": { "name": "Computer Science" },
         "achievement": { "grade": "First Class" },
-        "verificationUrl": "https://verify.educreds.xyz/credential/cert_789"
+        "verificationUrl": "https://educreds.xyz/verification-portal?certificateId=cert_789"
       }
     ],
     "pagination": {

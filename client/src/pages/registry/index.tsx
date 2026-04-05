@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/loading-skeleton';
 import ModernHeader from '@/components/modern/ModernHeader';
 import ModernFooter from '@/components/modern/ModernFooter';
-import { useSystemMetrics } from '@/hooks/useGovernance';
+import { usePublicSystemMetrics } from '@/hooks/useGovernance';
 import InstitutionsTab from './components/InstitutionsTab';
 import TransactionsTab from './components/TransactionsTab';
 import ProposalsTab from './components/ProposalsTab';
@@ -87,7 +87,7 @@ function StyledTabTrigger({ value, icon: Icon, label }: TabTriggerProps) {
 // ── Page ───────────────────────────────────────────────────────────────────
 export default function TrustRegistry() {
   const [activeTab, setActiveTab] = useState('institutions');
-  const { data: metrics, isLoading: metricsLoading } = useSystemMetrics();
+  const { data: metrics, isLoading: metricsLoading } = usePublicSystemMetrics();
 
   return (
     <div className="min-h-screen bg-neutral-50">

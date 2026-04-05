@@ -688,7 +688,7 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
       certificateId: 'EC-2024-001',
       grade: 'Distinction',
       certificateType: 'Degree',
-      verificationUrl: 'https://verify.educreds.xyz/c/EC-2024-001',
+      verificationUrl: 'https://educreds.xyz/verification-portal?certificateId=EC-2024-001',
     };
 
     let rendered = svg;

@@ -25,6 +25,7 @@ interface CertificateCardProps {
     issuedAt: string;
     certificateType: string;
     isMinted: boolean;
+    issuanceStatus?: string;
     tokenId?: number;
     ipfsHash: string;
   };
@@ -107,7 +108,7 @@ export function CertificateCard({ certificate, showActions = true }: Certificate
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="space-y-2">
-            <CardTitle className="text-lg">{certificate.courseName}</CardTitle>
+            <CardTitle className="text-lg">{certificate.courseName || 'Unknown Course'}</CardTitle>
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Building className="h-4 w-4" />
               {certificate.institutionName}
@@ -115,7 +116,11 @@ export function CertificateCard({ certificate, showActions = true }: Certificate
           </div>
           <div className="flex gap-2">
             <Badge variant={certificate.isMinted ? 'default' : 'secondary'}>
-              {certificate.isMinted ? 'Minted' : 'Issued'}
+              {certificate.issuanceStatus === 'revoked'
+                ? 'Revoked'
+                : certificate.isMinted
+                  ? 'Minted'
+                  : 'Pending Mint'}
             </Badge>
             <Badge variant="outline">
               {certificate.certificateType}
@@ -128,7 +133,7 @@ export function CertificateCard({ certificate, showActions = true }: Certificate
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="flex items-center gap-2">
             <Award className="h-4 w-4 text-blue-500" />
-            <span><strong>Grade:</strong> {certificate.grade}</span>
+            <span><strong>Grade:</strong> {certificate.grade || 'N/A'}</span>
           </div>
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-green-500" />
@@ -213,7 +218,7 @@ export function CertificateCard({ certificate, showActions = true }: Certificate
             <Button 
               variant="outline"
               size="sm"
-              onClick={() => window.open(`https://verify.educreds.xyz/credential/${certificate.id}`, '_blank')}
+              onClick={() => window.open(`https://educreds.xyz/verification-portal?certificateId=${certificate.id}`, '_blank')}
             >
               <ExternalLink className="h-4 w-4" />
             </Button>

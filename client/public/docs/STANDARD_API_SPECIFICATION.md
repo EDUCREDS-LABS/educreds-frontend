@@ -23,11 +23,11 @@ https://api.educreds.xyz/api/v1/standard
 All requests must include:
 
 ```http
-X-Institution-ID: <institution_id>
+Authorization: Bearer <jwt_token>
 Content-Type: application/json
 ```
 
-- **`X-Institution-ID`**: The institution identifier mapped to your EduCreds account.
+- **`Authorization`**: JWT token obtained from `/auth/institution/login`
 - **Usage limits**: Enforced per institution. If a limit is exceeded, the API returns
   **HTTP 429** with a structured error (see Error Format).
 
@@ -62,8 +62,8 @@ GET /health
 ### 2. Issue Certificate
 ```http
 POST /certificates/issue
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Content-Type: application/json
-X-Institution-ID: inst_123
 ```
 **Request:**
 ```json
@@ -89,7 +89,7 @@ X-Institution-ID: inst_123
   "success": true,
   "data": {
     "certificateId": "cert_789",
-    "verificationUrl": "https://verify.educreds.xyz/credential/cert_789",
+    "verificationUrl": "https://educreds.xyz/verification-portal?certificateId=cert_789",
     "formats": {
       "w3c": { "/* W3C VC Object */": true },
       "legacy": {
@@ -104,8 +104,8 @@ X-Institution-ID: inst_123
 ### 3. Verify Certificate
 ```http
 POST /certificates/verify
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Content-Type: application/json
-X-Institution-ID: inst_123
 ```
 **Request (W3C VC):**
 ```json
@@ -138,7 +138,7 @@ X-Institution-ID: inst_123
 ### 4. Get Institution Certificates
 ```http
 GET /institutions/{institutionId}/certificates?page=1&limit=50
-X-Institution-ID: inst_123
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 **Response:**
 ```json
@@ -151,7 +151,7 @@ X-Institution-ID: inst_123
         "student": { "name": "John Doe" },
         "course": { "name": "Computer Science" },
         "achievement": { "grade": "First Class" },
-        "verificationUrl": "https://verify.educreds.xyz/credential/cert_789"
+        "verificationUrl": "https://educreds.xyz/verification-portal?certificateId=cert_789"
       }
     ],
     "pagination": {
@@ -211,7 +211,7 @@ X-Institution-ID: inst_123
 
 ## Compatibility Notes
 
-- The Standard API uses `X-Institution-ID` and does **not** use bearer API keys.
+- The Standard API uses JWT authentication and does **not** use bearer API keys or X-Institution-ID headers.
 - The Verification API is separate and requires `x-api-key` or a verifier JWT.
 - Platform API endpoints (JWT-based) are not interchangeable with Standard API endpoints.
 - Standard API responses use a `success/data/meta` envelope; platform endpoints do not.
@@ -223,13 +223,13 @@ X-Institution-ID: inst_123
 ### Canvas LMS Integration
 ```javascript
 const educreds = {
-  institutionId: 'your_institution_id',
+  jwtToken: 'your_jwt_token_from_login',
 
   async issueCertificate(studentData, courseData, gradeData) {
     const response = await fetch('https://api.educreds.xyz/api/v1/standard/certificates/issue', {
       method: 'POST',
       headers: {
-        'X-Institution-ID': this.institutionId,
+        'Authorization': `Bearer ${this.jwtToken}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({

@@ -225,7 +225,7 @@ export class TemplateService {
       }
 
       // Generate QR code
-      const verifyUrl = `https://verify.educreds.xyz/c/${data.certificateId}`;
+      const verifyUrl = `https://educreds.xyz/verification-portal?certificateId=${data.certificateId}`;
       const qrCodeDataUrl = await QRCode.toDataURL(verifyUrl);
 
       // Replace QR placeholder with actual QR code

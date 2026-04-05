@@ -38,6 +38,9 @@ export interface InstitutionResponse {
   walletAddress: string;
   verificationStatus: string;
   certificates?: any[];
+  poicScore?: number | null;
+  iinTokenId?: number | null;
+  issuanceCount?: number | null;
   createdAt: Date;
 }
 
@@ -560,6 +563,11 @@ class GovernanceApiService {
     return response.data;
   }
 
+  async getPublicSystemMetrics(): Promise<SystemMetricsResponse> {
+    const response = await this.client.get('/governance/public/metrics');
+    return response.data;
+  }
+
   async getAuditLog(
     page: number = 1,
     limit: number = 50,
@@ -692,8 +700,18 @@ class GovernanceApiService {
     return response.data;
   }
 
+  async getPublicActiveProposals(): Promise<ProposalResponse[]> {
+    const response = await this.client.get('/governance/public/analytics/active-proposals');
+    return response.data;
+  }
+
   async getGovernanceSummary(): Promise<any> {
     const response = await this.client.get('/governance/analytics/governance-summary');
+    return response.data;
+  }
+
+  async getPublicGovernanceSummary(): Promise<any> {
+    const response = await this.client.get('/governance/public/analytics/governance-summary');
     return response.data;
   }
 
@@ -707,8 +725,18 @@ class GovernanceApiService {
     return response.data;
   }
 
+  async getPublicPoICScores(): Promise<PoICScoreResponse[]> {
+    const response = await this.client.get('/governance/public/analytics/poic-scores');
+    return response.data;
+  }
+
   async getPoICStatistics(): Promise<any> {
     const response = await this.client.get('/governance/analytics/poic-statistics');
+    return response.data;
+  }
+
+  async getPublicPoICStatistics(): Promise<any> {
+    const response = await this.client.get('/governance/public/analytics/poic-statistics');
     return response.data;
   }
 

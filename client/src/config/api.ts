@@ -96,6 +96,18 @@ export const API_CONFIG = {
     BLOCKCHAIN_STATUS: (institutionId: string) => `${CERT_API_BASE}/api/institutions/${institutionId}/blockchain-status`,
     VARIANTS: (institutionId: string) => `${MAIN_API_BASE}/api/institutions/${institutionId}/variants`
   },
+  
+  // LMS Import & Sync endpoints (use CERT backend)
+  LMS_IMPORT: {
+    BASE: `${CERT_API_BASE}/api/lms-import`,
+    BATCHES: `${CERT_API_BASE}/api/lms-import/batches`,
+    BATCH_STATUS: (batchId: string) => `${CERT_API_BASE}/api/lms-import/batches/${batchId}/status`,
+    BATCH_UPLOAD: (batchId: string) => `${CERT_API_BASE}/api/lms-import/batches/${batchId}/upload`,
+    BATCH_PREVIEW: (batchId: string) => `${CERT_API_BASE}/api/lms-import/batches/${batchId}/preview`,
+    BATCH_LOGS: (batchId: string) => `${CERT_API_BASE}/api/lms-import/batches/${batchId}/logs`,
+    BATCH_CANCEL: (batchId: string) => `${CERT_API_BASE}/api/lms-import/batches/${batchId}`,
+    SCHEMA: (dataType: string) => `${CERT_API_BASE}/api/lms-import/schemas/csv/${dataType}`
+  },
 
   // Subscription endpoints
   SUBSCRIPTION: {

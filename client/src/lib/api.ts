@@ -468,6 +468,86 @@ export const api = {
     return handleResponse(response);
   },
 
+  // LMS Import & Sync endpoints
+  createLmsImportBatch: async (payload: { batchName: string; dataType: string; importConfig?: Record<string, any> }) => {
+    const response = await fetch(API_CONFIG.LMS_IMPORT.BATCHES, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+
+  getLmsImportBatches: async (params?: { limit?: number; offset?: number }) => {
+    const search = new URLSearchParams();
+    if (params?.limit !== undefined) search.set("limit", String(params.limit));
+    if (params?.offset !== undefined) search.set("offset", String(params.offset));
+    const url = search.toString()
+      ? `${API_CONFIG.LMS_IMPORT.BATCHES}?${search.toString()}`
+      : API_CONFIG.LMS_IMPORT.BATCHES;
+    const response = await fetch(url, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  getLmsImportBatchStatus: async (batchId: string) => {
+    const response = await fetch(API_CONFIG.LMS_IMPORT.BATCH_STATUS(batchId), {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  cancelLmsImportBatch: async (batchId: string) => {
+    const response = await fetch(API_CONFIG.LMS_IMPORT.BATCH_CANCEL(batchId), {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  uploadLmsImportCsv: async (batchId: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await fetch(API_CONFIG.LMS_IMPORT.BATCH_UPLOAD(batchId), {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: formData,
+    });
+    return handleResponse(response);
+  },
+
+  previewLmsImportBatch: async (batchId: string) => {
+    const response = await fetch(API_CONFIG.LMS_IMPORT.BATCH_PREVIEW(batchId), {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  getLmsImportLogs: async (batchId: string, params?: { limit?: number; offset?: number }) => {
+    const search = new URLSearchParams();
+    if (params?.limit !== undefined) search.set("limit", String(params.limit));
+    if (params?.offset !== undefined) search.set("offset", String(params.offset));
+    const url = search.toString()
+      ? `${API_CONFIG.LMS_IMPORT.BATCH_LOGS(batchId)}?${search.toString()}`
+      : API_CONFIG.LMS_IMPORT.BATCH_LOGS(batchId);
+    const response = await fetch(url, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  getLmsImportSchema: async (dataType: string) => {
+    const response = await fetch(API_CONFIG.LMS_IMPORT.SCHEMA(dataType), {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
   // Oracle endpoints - DEPRECATED (replaced by AI Intelligence Layer)
   // These endpoints are kept for backwards compatibility but may be removed in future versions
   getInstitutionOracleStatus: async (walletAddress?: string) => {
@@ -812,7 +892,6 @@ export const api = {
           headers: {
             ...authHeaders,
             "Content-Type": "application/json",
-            ...(institutionId ? { "x-institution-id": institutionId } : {}),
           },
           body: JSON.stringify({
             ...(templateId ? { templateId } : {}),
@@ -879,7 +958,6 @@ export const api = {
         headers: {
           ...authHeaders,
           "Content-Type": "application/json",
-          ...(institutionId ? { "x-institution-id": institutionId } : {}),
         },
         body: JSON.stringify({
           ...(institutionId ? { institutionId } : {}),

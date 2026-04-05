@@ -22,9 +22,9 @@ import {
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import {
-  useSystemMetrics,
-  useGovernanceSummary,
-  usePoICScores,
+  usePublicSystemMetrics,
+  usePublicGovernanceSummary,
+  usePublicPoICScores,
 } from '@/hooks/useGovernance';
 
 // ── Mock / derived data ────────────────────────────────────────────────────
@@ -115,9 +115,9 @@ function KpiCard({ icon: Icon, label, value, subtitle, color, bg, isLoading, del
 
 // ── Main component ─────────────────────────────────────────────────────────
 export default function AnalyticsTab() {
-  const { data: metrics, isLoading: metricsLoading } = useSystemMetrics();
-  const { data: summary, isLoading: summaryLoading } = useGovernanceSummary();
-  const { data: poicScores, isLoading: poicLoading } = usePoICScores();
+  const { data: metrics, isLoading: metricsLoading } = usePublicSystemMetrics();
+  const { data: summary, isLoading: summaryLoading } = usePublicGovernanceSummary();
+  const { data: poicScores, isLoading: poicLoading } = usePublicPoICScores();
 
   const issuanceTrend = useMemo(() => {
     const total = metrics?.totalVotes ? metrics.totalVotes * 12 : 0;

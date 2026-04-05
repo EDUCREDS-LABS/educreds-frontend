@@ -30,7 +30,7 @@
 ### Prerequisites
 - Platform API: JWT from `/auth/login` or `/auth/institution/login`
 - Verification API: `x-api-key` header or a verifier JWT from `/auth/verifier/login`
-- Standard API: `X-Institution-ID` header (required)
+- Standard API: JWT from `/auth/institution/login` (required)
 - For file uploads: supported formats include PDF, PNG, JPG
 
 ### Quick start (Platform API)

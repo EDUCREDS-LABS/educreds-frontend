@@ -15,9 +15,9 @@ import InstitutionDetailSheet from './InstitutionDetailSheet';
 
 // ── Enriched type ──────────────────────────────────────────────────────────
 type EnrichedInstitution = InstitutionResponse & {
-  poicScore: number;
-  issuanceCount: number;
-  iinIndex: number;
+  poicScore: number | null;
+  issuanceCount: number | null;
+  iinIndex: number | null;
   country: string;
 };
 
@@ -44,7 +44,7 @@ function InstitutionCard({
   idx: number;
   onSelect: (inst: EnrichedInstitution) => void;
 }) {
-  const isPremium = institution.poicScore >= 80;
+  const isPremium = (institution.poicScore ?? 0) >= 80;
   const status = getStatusConfig(institution.verificationStatus ?? 'verified');
 
   return (
@@ -107,12 +107,14 @@ function InstitutionCard({
                   isPremium ? 'text-emerald-500' : 'text-blue-500',
                 )}
               >
-                {institution.poicScore}
-                <span className="text-xs ml-1 opacity-40">/100</span>
+                {institution.poicScore != null ? institution.poicScore : '—'}
+                {institution.poicScore != null && (
+                  <span className="text-xs ml-1 opacity-40">/100</span>
+                )}
               </span>
             </div>
             <Progress
-              value={institution.poicScore}
+              value={institution.poicScore ?? 0}
               className="h-1.5 bg-neutral-100"
               indicatorClassName={isPremium ? 'bg-emerald-500' : 'bg-blue-500'}
             />
@@ -128,7 +130,7 @@ function InstitutionCard({
                 </span>
               </div>
               <p className="text-lg font-black text-slate-900">
-                {institution.issuanceCount.toLocaleString()}
+                {institution.issuanceCount != null ? institution.issuanceCount.toLocaleString() : '—'}
               </p>
             </div>
             <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-100">
@@ -139,7 +141,7 @@ function InstitutionCard({
                 </span>
               </div>
               <p className="text-lg font-black text-slate-900">
-                IIN #{institution.iinIndex}
+                {institution.iinIndex != null ? `IIN #${institution.iinIndex}` : '—'}
               </p>
             </div>
           </div>
@@ -175,13 +177,21 @@ export default function InstitutionsTab() {
   // Enrich raw API data with display fields
   const institutions: EnrichedInstitution[] = useMemo(() => {
     if (!data?.data) return [];
-    return data.data.map((inst, idx) => ({
+    return data.data.map((inst) => ({
       ...inst,
-      name: inst.name?.trim() || 'Unknown Institution',
+      name:
+        inst.name?.trim() ||
+        (inst.iinTokenId != null ? `Institution #${inst.iinTokenId}` : '') ||
+        (inst.walletAddress ? `Institution ${inst.walletAddress.slice(0, 6)}…` : '') ||
+        'Unknown Institution',
       walletAddress: inst.walletAddress ?? '',
-      poicScore: Math.floor(55 + ((idx * 7 + 13) % 45)),
-      issuanceCount: Math.floor(200 + ((idx * 137 + 41) % 8000)),
-      iinIndex: 1024 + idx,
+      poicScore: Number.isFinite(inst.poicScore as number) ? Math.round(inst.poicScore as number) : null,
+      issuanceCount: Number.isFinite(inst.issuanceCount as number)
+        ? Number(inst.issuanceCount)
+        : Array.isArray(inst.certificates)
+          ? inst.certificates.length
+          : null,
+      iinIndex: inst.iinTokenId ?? null,
       country: 'Global',
     }));
   }, [data]);
@@ -206,8 +216,8 @@ export default function InstitutionsTab() {
       );
     }
     return [...rows].sort((a, b) => {
-      if (sortBy === 'poicScore') return b.poicScore - a.poicScore;
-      if (sortBy === 'issuanceCount') return b.issuanceCount - a.issuanceCount;
+      if (sortBy === 'poicScore') return (b.poicScore ?? -1) - (a.poicScore ?? -1);
+      if (sortBy === 'issuanceCount') return (b.issuanceCount ?? -1) - (a.issuanceCount ?? -1);
       return a.name.localeCompare(b.name);
     });
   }, [institutions, statusFilter, searchQuery, sortBy]);

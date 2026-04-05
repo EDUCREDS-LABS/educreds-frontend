@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Upload, FileText, X, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { API_CONFIG } from '@/config/api';
-import { auth } from '@/lib/auth';
+import { auth, getAuthHeaders } from '@/lib/auth';
 
 interface UploadedPdf {
   uploadId: string;
@@ -59,7 +59,7 @@ export const PdfCertificateUpload: React.FC = () => {
       const response = await fetch(`${API_CONFIG.CERT}/api/v1/standard/certificates/upload-pdf`, {
         method: 'POST',
         headers: {
-          ...(institutionId ? { 'x-institution-id': institutionId } : {})
+          ...getAuthHeaders()
         },
         body: formData
       });
@@ -103,7 +103,7 @@ export const PdfCertificateUpload: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(institutionId ? { 'x-institution-id': institutionId } : {})
+          ...getAuthHeaders()
         },
         body: JSON.stringify({
           pdfUploadId: selectedPdf,

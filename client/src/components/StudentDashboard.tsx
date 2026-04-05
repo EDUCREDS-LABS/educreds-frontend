@@ -4,7 +4,7 @@ import { CertificateCard } from '@/components/CertificateCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Award, Share2, Eye } from 'lucide-react';
+import { Wallet, Award, Share2, Eye, LogOut } from 'lucide-react';
 
 export function StudentDashboard() {
   const [certificates, setCertificates] = useState<any[]>([]);
@@ -36,6 +36,13 @@ export function StudentDashboard() {
     } else {
       alert('Please install MetaMask to connect your wallet');
     }
+  };
+
+  const disconnectWallet = () => {
+    setConnected(false);
+    setWalletAddress('');
+    setCertificates([]);
+    setError('');
   };
 
   const loadCertificates = async (address: string) => {
@@ -115,6 +122,10 @@ export function StudentDashboard() {
                       <p className="text-sm text-gray-600">Minted</p>
                     </div>
                   </div>
+                  <Button variant="outline" onClick={disconnectWallet}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Disconnect
+                  </Button>
                 </div>
               </CardContent>
             </Card>

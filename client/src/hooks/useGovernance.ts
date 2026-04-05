@@ -21,18 +21,24 @@ export const governanceKeys = {
   proposalDetail: (id: string) => ['governance', 'proposals', id],
   proposalVotes: (id: string) => ['governance', 'proposals', id, 'votes'],
   proposalsSummary: ['governance', 'proposals', 'summary'],
+  publicProposals: ['governance', 'public', 'proposals'],
   institutions: ['governance', 'institutions'],
   institutionDetail: (id: string) => ['governance', 'institutions', id],
   adminMetrics: ['governance', 'admin', 'metrics'],
+  publicMetrics: ['governance', 'public', 'metrics'],
   auditLog: ['governance', 'admin', 'audit-log'],
   systemStatus: ['governance', 'admin', 'system-status'],
   institutionRegistry: ['governance', 'admin', 'institutions'],
   analytics: ['governance', 'analytics'],
   activeProposals: ['governance', 'analytics', 'active-proposals'],
   governanceSummary: ['governance', 'analytics', 'summary'],
+  publicActiveProposals: ['governance', 'public', 'analytics', 'active-proposals'],
+  publicGovernanceSummary: ['governance', 'public', 'analytics', 'summary'],
   institutionMetrics: (id: string) => ['governance', 'analytics', 'institution', id],
   poicScores: ['governance', 'analytics', 'poic-scores'],
   poicStatistics: ['governance', 'analytics', 'poic-statistics'],
+  publicPoicScores: ['governance', 'public', 'analytics', 'poic-scores'],
+  publicPoicStatistics: ['governance', 'public', 'analytics', 'poic-statistics'],
   // Transparency endpoints
   transparency: ['governance', 'transparency'],
   assessmentTransparency: (id: string) => ['governance', 'transparency', 'assessment', id],
@@ -48,6 +54,16 @@ export function useProposals(page: number = 1, limit: number = 10) {
     queryFn: () => governanceApiService.listProposals(page, limit),
     staleTime: 30 * 1000, // 30 seconds
     gcTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2,
+  });
+}
+
+export function usePublicProposals(page: number = 1, limit: number = 20) {
+  return useQuery({
+    queryKey: [...governanceKeys.publicProposals, { page, limit }],
+    queryFn: () => governanceApiService.listPublicProposals(page, limit),
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
     retry: 2,
   });
 }
@@ -156,6 +172,16 @@ export function useSystemMetrics() {
   });
 }
 
+export function usePublicSystemMetrics() {
+  return useQuery({
+    queryKey: governanceKeys.publicMetrics,
+    queryFn: () => governanceApiService.getPublicSystemMetrics(),
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+    retry: 2,
+  });
+}
+
 export function useAuditLog(page: number = 1, limit: number = 50, filters?: any) {
   return useQuery({
     queryKey: [...governanceKeys.auditLog, { page, limit, ...filters }],
@@ -202,10 +228,28 @@ export function useActiveProposals() {
   });
 }
 
+export function usePublicActiveProposals() {
+  return useQuery({
+    queryKey: governanceKeys.publicActiveProposals,
+    queryFn: () => governanceApiService.getPublicActiveProposals(),
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+}
+
 export function useGovernanceSummary() {
   return useQuery({
     queryKey: governanceKeys.governanceSummary,
     queryFn: () => governanceApiService.getGovernanceSummary(),
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+}
+
+export function usePublicGovernanceSummary() {
+  return useQuery({
+    queryKey: governanceKeys.publicGovernanceSummary,
+    queryFn: () => governanceApiService.getPublicGovernanceSummary(),
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
   });
@@ -230,10 +274,28 @@ export function usePoICScores() {
   });
 }
 
+export function usePublicPoICScores() {
+  return useQuery({
+    queryKey: governanceKeys.publicPoicScores,
+    queryFn: () => governanceApiService.getPublicPoICScores(),
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+}
+
 export function usePoICStatistics() {
   return useQuery({
     queryKey: governanceKeys.poicStatistics,
     queryFn: () => governanceApiService.getPoICStatistics(),
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+}
+
+export function usePublicPoICStatistics() {
+  return useQuery({
+    queryKey: governanceKeys.publicPoicStatistics,
+    queryFn: () => governanceApiService.getPublicPoICStatistics(),
     staleTime: 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });

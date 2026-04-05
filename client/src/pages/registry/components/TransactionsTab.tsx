@@ -221,15 +221,16 @@ export default function TransactionsTab() {
         <div className="flex flex-wrap gap-3">
           {(Object.entries(stats.eventCounts) as [EventName, number][]).map(([event, count]) => {
             const cfg = EVENT_BADGE[event];
+            if (!cfg) return null;
             return (
               <span
                 key={event}
                 className={cn(
                   'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide',
-                  cfg.className,
+                  cfg?.className ?? 'bg-slate-200/70 text-slate-700',
                 )}
               >
-                {cfg.label}: {count}
+                {cfg?.label ?? event}: {count}
               </span>
             );
           })}

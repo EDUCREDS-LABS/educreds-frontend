@@ -135,9 +135,12 @@ const MOCK_TXS = buildMockTransactions();
 // ── Service ────────────────────────────────────────────────────────────────
 class IndexerService {
   private readonly base: string;
+  private readonly allowMock: boolean;
 
   constructor() {
     this.base = `${API_CONFIG.CERT}/api/indexer`;
+    this.allowMock =
+      String(import.meta.env.VITE_ENABLE_INDEXER_MOCK ?? 'false').toLowerCase() === 'true';
   }
 
   async getTransactions(
@@ -151,7 +154,10 @@ class IndexerService {
         limit: String(limit) 
       });
       if (filters.eventName && filters.eventName !== 'all') q.set('eventName', filters.eventName);
-      if (filters.contractName && filters.contractName !== 'all') q.set('contractAddress', filters.contractName);
+      if (filters.contractName && filters.contractName !== 'all') {
+        const addr = CONTRACT_ADDRESSES[filters.contractName];
+        if (addr) q.set('contractAddress', addr);
+      }
       if (filters.search) q.set('search', filters.search);
 
       const res = await fetch(`${this.base}/transactions?${q}`);
@@ -175,8 +181,12 @@ class IndexerService {
         page: data.page || page,
         totalPages: data.totalPages || data.pagination?.totalPages || 1,
       };
-    } catch {
-      return this._mockPage(MOCK_TXS, page, limit, filters);
+    } catch (error) {
+      if (this.allowMock) {
+        return this._mockPage(MOCK_TXS, page, limit, filters);
+      }
+      console.error('[Indexer] transactions fetch failed:', error);
+      return { data: [], total: 0, page, totalPages: 1 };
     }
   }
 
@@ -200,16 +210,25 @@ class IndexerService {
         errors: data.errors,
         pendingJobs: data.pendingJobs,
       };
-    } catch {
-      const counts: Partial<Record<EventName, number>> = {};
-      MOCK_TXS.forEach(tx => {
-        counts[tx.eventName] = (counts[tx.eventName] ?? 0) + 1;
-      });
+    } catch (error) {
+      if (this.allowMock) {
+        const counts: Partial<Record<EventName, number>> = {};
+        MOCK_TXS.forEach(tx => {
+          counts[tx.eventName] = (counts[tx.eventName] ?? 0) + 1;
+        });
+        return {
+          totalTransactions: MOCK_TXS.length,
+          lastIndexedBlock: 12_487_293,
+          eventCounts: counts,
+          syncStatus: 'synced',
+        };
+      }
+      console.error('[Indexer] stats fetch failed:', error);
       return {
-        totalTransactions: MOCK_TXS.length,
-        lastIndexedBlock: 12_487_293,
-        eventCounts: counts,
-        syncStatus: 'synced',
+        totalTransactions: 0,
+        lastIndexedBlock: undefined,
+        eventCounts: {},
+        syncStatus: 'error',
       };
     }
   }
@@ -221,10 +240,14 @@ class IndexerService {
       );
       if (!res.ok) throw new Error('Indexer offline');
       return res.json();
-    } catch {
-      return MOCK_TXS.filter(tx =>
-        ['InstitutionMinted', 'CredentialIssued', 'ScoreUpdated'].includes(tx.eventName),
-      ).slice(0, 8);
+    } catch (error) {
+      if (this.allowMock) {
+        return MOCK_TXS.filter(tx =>
+          ['InstitutionMinted', 'CredentialIssued', 'ScoreUpdated'].includes(tx.eventName),
+        ).slice(0, 8);
+      }
+      console.error('[Indexer] institution transactions fetch failed:', error);
+      return [];
     }
   }
 
