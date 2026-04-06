@@ -12,16 +12,29 @@ function hasGaMeasurementId(): boolean {
   return Boolean(measurementId);
 }
 
-function injectGaScript(): void {
+function scheduleGaScript(): void {
   if (!hasGaMeasurementId() || document.getElementById(GA_SCRIPT_ID)) {
     return;
   }
 
-  const script = document.createElement('script');
-  script.id = GA_SCRIPT_ID;
-  script.async = true;
-  script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
-  document.head.appendChild(script);
+  const inject = () => {
+    if (document.getElementById(GA_SCRIPT_ID)) {
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = GA_SCRIPT_ID;
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
+    document.head.appendChild(script);
+  };
+
+  if ("requestIdleCallback" in window) {
+    (window as Window & { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback(inject);
+    return;
+  }
+
+  window.setTimeout(inject, 1500);
 }
 
 export function trackPageView(path = `${window.location.pathname}${window.location.search}`): void {
@@ -40,7 +53,7 @@ export function initializeGoogleAnalytics(): void {
     return;
   }
 
-  injectGaScript();
+  scheduleGaScript();
 
   window.dataLayer = window.dataLayer || [];
   window.gtag = window.gtag || function gtag(...args: unknown[]) { window.dataLayer.push(args); };

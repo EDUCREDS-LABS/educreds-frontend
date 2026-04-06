@@ -481,53 +481,74 @@ export function CertificateVerification() {
                         ✓ Credential Verified
                       </Badge>
 
-                      {result.checks && (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          {(() => {
-                            const w3cSignatureOk = Boolean(
-                              result.checks.w3cSignature ??
-                              result.checks.w3cSignatureValid
-                            );
-                            const onChainMatchOk = Boolean(
-                              result.checks.onChainMatch ??
-                              result.checks.onChainMinted
-                            );
-                            const institutionAuthorizedOk = Boolean(
-                              result.checks.institutionAuthorized ??
-                              result.checks.notRevoked
-                            );
-
-                            return (
-                              <>
-                                <div className="flex items-center gap-2 text-sm">
-                                  {w3cSignatureOk ? (
-                                    <CheckCircle className="h-4 w-4 text-emerald-500" />
-                                  ) : (
-                                    <XCircle className="h-4 w-4 text-rose-500" />
-                                  )}
-                                  <span>W3C Signature</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-sm">
-                                  {onChainMatchOk ? (
-                                    <CheckCircle className="h-4 w-4 text-emerald-500" />
-                                  ) : (
-                                    <XCircle className="h-4 w-4 text-rose-500" />
-                                  )}
-                                  <span>Blockchain Match</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-sm">
-                                  {institutionAuthorizedOk ? (
-                                    <CheckCircle className="h-4 w-4 text-emerald-500" />
-                                  ) : (
-                                    <XCircle className="h-4 w-4 text-rose-500" />
-                                  )}
-                                  <span>Institution Authorized</span>
-                                </div>
-                              </>
-                            );
-                          })()}
+                      {/* Enhanced Verification Tiers Display */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* W3C Verification Tier */}
+                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            {result.checks?.w3cValid !== false ? (
+                              <CheckCircle className="h-5 w-5 text-blue-600" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-red-500" />
+                            )}
+                            <span className="font-medium text-blue-900">W3C Standard</span>
+                          </div>
+                          <div className="text-sm text-blue-700 space-y-1">
+                            <div>• Credential structure valid</div>
+                            <div>• Digital signature verified</div>
+                            <div>• Issuer DID authenticated</div>
+                          </div>
+                          {result.checks?.w3cValid === false && result.checks?.w3cReasons && (
+                            <div className="text-xs text-red-600 mt-2">
+                              Issues: {result.checks.w3cReasons.join(', ')}
+                            </div>
+                          )}
                         </div>
-                      )}
+
+                        {/* IPFS Verification Tier */}
+                        <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            {result.checks?.ipfsValid !== false ? (
+                              <CheckCircle className="h-5 w-5 text-purple-600" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-red-500" />
+                            )}
+                            <span className="font-medium text-purple-900">IPFS Storage</span>
+                          </div>
+                          <div className="text-sm text-purple-700 space-y-1">
+                            <div>• Data immutability confirmed</div>
+                            <div>• Content hash verified</div>
+                            <div>• Decentralized access</div>
+                          </div>
+                          {result.checks?.ipfsValid === false && (
+                            <div className="text-xs text-red-600 mt-2">
+                              IPFS data temporarily unavailable
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Blockchain Verification Tier */}
+                        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            {result.checks?.blockchainValid !== false ? (
+                              <CheckCircle className="h-5 w-5 text-green-600" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-red-500" />
+                            )}
+                            <span className="font-medium text-green-900">Blockchain</span>
+                          </div>
+                          <div className="text-sm text-green-700 space-y-1">
+                            <div>• On-chain record verified</div>
+                            <div>• Token ownership confirmed</div>
+                            <div>• Transaction integrity</div>
+                          </div>
+                          {result.checks?.blockchainValid === false && (
+                            <div className="text-xs text-red-600 mt-2">
+                              Blockchain verification failed
+                            </div>
+                          )}
+                        </div>
+                      </div>
 
                       {result.certificate && (
                         <div className="bg-slate-50 p-4 rounded-xl">
@@ -537,6 +558,12 @@ export function CertificateVerification() {
                             <div><strong>Course:</strong> {result.certificate.courseName}</div>
                             <div><strong>Grade:</strong> {result.certificate.grade}</div>
                             <div><strong>Institution:</strong> {result.certificate.institutionName}</div>
+                            {result.certificate.tokenId && (
+                              <div><strong>Token ID:</strong> {result.certificate.tokenId}</div>
+                            )}
+                            {result.certificate.ipfsHash && (
+                              <div><strong>IPFS Hash:</strong> {result.certificate.ipfsHash}</div>
+                            )}
                           </div>
                         </div>
                       )}

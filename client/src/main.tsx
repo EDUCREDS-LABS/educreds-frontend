@@ -6,6 +6,7 @@ import "@fontsource/source-sans-3/400.css";
 import "@fontsource/source-sans-3/600.css";
 import "./index.css";
 import { initializeGoogleAnalytics } from "./lib/analytics";
+import { initializeCookiebot } from "./lib/consent";
 
 // Display EDUCREDS banner
 console.log(`
@@ -17,6 +18,9 @@ console.log(`
 /* ╚══════╝╚═════╝  ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝╚═════╝ ╚══════╝ */
 `);
 
-initializeGoogleAnalytics();
+if (import.meta.env.PROD) {
+  initializeCookiebot();
+  initializeGoogleAnalytics();
+}
 
 createRoot(document.getElementById("root")!).render(<App />);

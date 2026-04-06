@@ -68,6 +68,16 @@ export function usePublicProposals(page: number = 1, limit: number = 20) {
   });
 }
 
+export function usePublicProposalHistory(page: number = 1, limit: number = 20, status?: string) {
+  return useQuery({
+    queryKey: [...governanceKeys.publicProposals, 'history', { page, limit, status }],
+    queryFn: () => governanceApiService.listPublicProposalHistory(page, limit, status),
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+    retry: 2,
+  });
+}
+
 export function useInfiniteProposals(limit: number = 10) {
   return useInfiniteQuery({
     queryKey: [...governanceKeys.proposals, { limit }],

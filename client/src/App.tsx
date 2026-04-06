@@ -1,5 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -8,61 +8,58 @@ import { AppKitProvider } from "@/lib/appkit-provider";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ChatWidget } from "@/components/ChatWidget";
-import RegisterVerifyOtp from "@/pages/auth/register-verify-otp";
-import EduCredsLabsLanding from "@/pages/EduCredsLabsLanding";
-import Landing from "@/pages/landing";
-import Login from "@/pages/auth/login";
-import Register from "@/pages/auth/register";
-import InstitutionDashboard from "@/pages/institution/dashboard";
-import Certificates from "@/pages/institution/certificates";
-import Verification from "@/pages/institution/verification";
-import GovernanceVerification from "@/pages/institution/governance-verification";
-import GovernanceDashboard from "@/pages/institution/governance";
-import GovernanceWorkspace from "@/pages/institution/governance-workspace";
-import ProposalDetail from "@/pages/institution/governance/proposal-detail";
-import SubscriptionPage from "@/pages/institution/subscription";
-import InstitutionProfile from "@/pages/institution/profile";
-import InstitutionSettings from "@/pages/institution/settings";
-import AdminLogin from "@/pages/admin/login";
-import AdminDashboard from "@/pages/admin/dashboard";
-import AdminGovernanceDashboard from "@/pages/admin/governance-dashboard";
-import DAODashboard from "@/pages/DAODashboard";
-import PublicWalletVotingPage from "@/pages/governance/public-wallet-voting";
-import MarketplacePage from "@/pages/marketplace/index";
-import MarketplaceLogin from "@/pages/marketplace/login";
-import MarketplaceRegister from "@/pages/marketplace/register";
-import MarketplaceVerify from "@/pages/marketplace/verify";
-import DesignerPage from "@/pages/designer/index";
-import DesignerEditor from "@/pages/designer/editor";
-import TemplateDetailsPage from "@/pages/marketplace/[id]";
-
-import TemplatesPage from "@/pages/templates";
-import BrowseTemplatesPage from "@/pages/templates/Browse";
-import MyTemplatesPage from "@/pages/templates/MyTemplates";
-import CreateTemplatePage from "@/pages/templates/Create";
-import TemplateDesignerPage from "@/pages/templates/Designer";
-import SmartAIPage from "@/pages/templates/SmartAI";
-import AnalyticsPage from "@/pages/institution/analytics";
-import NotFound from "@/pages/not-found";
-import verify from "@/pages/employer/verify";
-import TermsOfService from "@/pages/legal/terms";
-import PrivacyPolicy from "@/pages/legal/privacy";
-import AboutUsPage from "@/pages/about";
-import CareersPage from "@/pages/careers";
-import BlogPage from "@/pages/blog";
-import PressKitPage from "@/pages/press";
-import DocumentationPage from "@/pages/documentation";
-import ApiReferencePage from "@/pages/api-reference";
-import PricingPage from "@/pages/pricing";
-import W3CTestPage from "@/pages/w3c-test";
-import StudentPortalPage from "@/pages/student-portal";
-import VerificationPortalPage from "@/pages/verification-portal";
-import TrustRegistryPage from "@/pages/registry";
-import SystemTest from "@/pages/system-test";
-import ManageSpecs from "@/components/institution/ManageSpecs";
-import CertificateIssuanceDashboard from '@/pages/certificate-issuance';
-import InstitutionIssuePage from "@/pages/institution/issue";
-import DeveloperPortalPage from "@/pages/developer-portal";
+const RegisterVerifyOtp = lazy(() => import("@/pages/auth/register-verify-otp"));
+const EduCredsLabsLanding = lazy(() => import("@/pages/EduCredsLabsLanding"));
+const Landing = lazy(() => import("@/pages/landing"));
+const Login = lazy(() => import("@/pages/auth/login"));
+const Register = lazy(() => import("@/pages/auth/register"));
+const InstitutionDashboard = lazy(() => import("@/pages/institution/dashboard"));
+const Certificates = lazy(() => import("@/pages/institution/certificates"));
+const Verification = lazy(() => import("@/pages/institution/verification"));
+const GovernanceVerification = lazy(() => import("@/pages/institution/governance-verification"));
+const GovernanceDashboard = lazy(() => import("@/pages/institution/governance"));
+const GovernanceWorkspace = lazy(() => import("@/pages/institution/governance-workspace"));
+const ProposalDetail = lazy(() => import("@/pages/institution/governance/proposal-detail"));
+const SubscriptionPage = lazy(() => import("@/pages/institution/subscription"));
+const InstitutionProfile = lazy(() => import("@/pages/institution/profile"));
+const InstitutionSettings = lazy(() => import("@/pages/institution/settings"));
+const AdminLogin = lazy(() => import("@/pages/admin/login"));
+const AdminDashboard = lazy(() => import("@/pages/admin/dashboard"));
+const AdminGovernanceDashboard = lazy(() => import("@/pages/admin/governance-dashboard"));
+const DAODashboard = lazy(() => import("@/pages/DAODashboard"));
+const PublicWalletVotingPage = lazy(() => import("@/pages/governance/public-wallet-voting"));
+const MarketplacePage = lazy(() => import("@/pages/marketplace/index"));
+const MarketplaceLogin = lazy(() => import("@/pages/marketplace/login"));
+const MarketplaceRegister = lazy(() => import("@/pages/marketplace/register"));
+const MarketplaceVerify = lazy(() => import("@/pages/marketplace/verify"));
+const DesignerPage = lazy(() => import("@/pages/designer/index"));
+const DesignerEditor = lazy(() => import("@/pages/designer/editor"));
+const TemplateDetailsPage = lazy(() => import("@/pages/marketplace/[id]"));
+const TemplatesPage = lazy(() => import("@/pages/templates"));
+const BrowseTemplatesPage = lazy(() => import("@/pages/templates/Browse"));
+const MyTemplatesPage = lazy(() => import("@/pages/templates/MyTemplates"));
+const CreateTemplatePage = lazy(() => import("@/pages/templates/Create"));
+const TemplateDesignerPage = lazy(() => import("@/pages/templates/Designer"));
+const SmartAIPage = lazy(() => import("@/pages/templates/SmartAI"));
+const AnalyticsPage = lazy(() => import("@/pages/institution/analytics"));
+const NotFound = lazy(() => import("@/pages/not-found"));
+const TermsOfService = lazy(() => import("@/pages/legal/terms"));
+const PrivacyPolicy = lazy(() => import("@/pages/legal/privacy"));
+const AboutUsPage = lazy(() => import("@/pages/about"));
+const CareersPage = lazy(() => import("@/pages/careers"));
+const BlogPage = lazy(() => import("@/pages/blog"));
+const PressKitPage = lazy(() => import("@/pages/press"));
+const DocumentationPage = lazy(() => import("@/pages/documentation"));
+const ApiReferencePage = lazy(() => import("@/pages/api-reference"));
+const PricingPage = lazy(() => import("@/pages/pricing"));
+const W3CTestPage = lazy(() => import("@/pages/w3c-test"));
+const StudentPortalPage = lazy(() => import("@/pages/student-portal"));
+const VerificationPortalPage = lazy(() => import("@/pages/verification-portal"));
+const TrustRegistryPage = lazy(() => import("@/pages/registry"));
+const SystemTest = lazy(() => import("@/pages/system-test"));
+const ManageSpecs = lazy(() => import("@/components/institution/ManageSpecs"));
+const InstitutionIssuePage = lazy(() => import("@/pages/institution/issue"));
+const DeveloperPortalPage = lazy(() => import("@/pages/developer-portal"));
 // import MarketplaceProtectedRoute from "@/components/MarketplaceProtectedRoute";
 
 function Router() {
@@ -77,7 +74,14 @@ function Router() {
   }
 
   return (
-    <Switch>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center text-neutral-600">
+          Loading...
+        </div>
+      }
+    >
+      <Switch>
       <Route path="/" component={EduCredsLabsLanding} />
       <Route path="/infra" component={Landing} />
       <Route path="/login" component={Login} />
@@ -301,7 +305,8 @@ function Router() {
 
       {/* Fallback to 404 */}
       <Route component={NotFound} />
-    </Switch>
+      </Switch>
+    </Suspense>
   );
 }
 

@@ -36,9 +36,18 @@ import {
 const PAGE_SIZE = 15;
 
 // ── Display helpers ────────────────────────────────────────────────────────
-function truncate(str: string, pre = 8, suf = 6) {
+function truncate(str?: string, pre = 8, suf = 6) {
+  if (!str) return '—';
   if (str.length <= pre + suf + 3) return str;
   return `${str.slice(0, pre)}…${str.slice(-suf)}`;
+}
+
+function resolveTxHash(tx: any) {
+  return (tx?.txHash || tx?.hash || '').toString();
+}
+
+function isValidTxHash(value: string) {
+  return /^0x[a-fA-F0-9]{64}$/.test(value);
 }
 
 function formatTimestamp(iso: string) {
@@ -281,9 +290,11 @@ export default function TransactionsTab() {
               {isLoading
                 ? Array.from({ length: PAGE_SIZE }).map((_, i) => <SkeletonRow key={i} />)
                 : txs.map((tx, idx) => {
-                    const eventCfg = EVENT_BADGE[tx.eventName];
-                    const contractCfg = CONTRACT_BADGE[tx.contractName];
-                    return (
+                  const eventCfg = EVENT_BADGE[tx.eventName];
+                  const contractCfg = CONTRACT_BADGE[tx.contractName];
+                  const txHash = resolveTxHash(tx);
+                  const hasValidHash = isValidTxHash(txHash);
+                  return (
                       <motion.tr
                         key={tx.txHash}
                         initial={{ opacity: 0 }}
@@ -293,15 +304,24 @@ export default function TransactionsTab() {
                       >
                         {/* Tx hash */}
                         <TableCell className="pl-6">
-                          <a
-                            href={`https://sepolia.basescan.org/tx/${tx.txHash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 font-mono text-[11px] text-blue-600 hover:text-blue-700 group"
-                          >
-                            {truncate(tx.txHash, 10, 4)}
-                            <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </a>
+                          {hasValidHash ? (
+                            <a
+                              href={`https://sepolia.basescan.org/tx/${txHash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 font-mono text-[11px] text-blue-600 hover:text-blue-700 group"
+                            >
+                              {truncate(txHash, 10, 4)}
+                              <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </a>
+                          ) : (
+                            <span className="flex items-center gap-1.5 font-mono text-[11px] text-slate-400">
+                              {truncate(txHash, 10, 4)}
+                            </span>
+                          )}
+                          <div className="mt-1 text-[10px] font-mono text-slate-400 break-all">
+                            {txHash || '—'}
+                          </div>
                         </TableCell>
 
                         {/* Event */}
@@ -318,15 +338,15 @@ export default function TransactionsTab() {
 
                         {/* Contract */}
                         <TableCell>
-                          <Badge
-                            className={cn(
-                              'text-[9px] font-black uppercase tracking-wider border-none rounded-full px-2.5',
-                              contractCfg.className,
-                            )}
-                          >
-                            {contractCfg.label}
-                          </Badge>
-                        </TableCell>
+                        <Badge
+                          className={cn(
+                            'text-[9px] font-black uppercase tracking-wider border-none rounded-full px-2.5',
+                            contractCfg?.className ?? 'bg-slate-200/70 text-slate-700',
+                          )}
+                        >
+                          {contractCfg?.label ?? tx.contractName}
+                        </Badge>
+                      </TableCell>
 
                         {/* Block */}
                         <TableCell className="font-mono text-[11px] text-slate-600">

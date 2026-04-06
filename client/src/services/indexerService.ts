@@ -74,6 +74,34 @@ const EVENT_CONTRACT_MAP: Record<EventName, ContractName> = {
   ActionExecuted: 'ExecutionController',
 };
 
+const ADDRESS_CONTRACT_MAP: Record<string, ContractName> = Object.entries(CONTRACT_ADDRESSES).reduce(
+  (acc, [name, addr]) => {
+    acc[addr.toLowerCase()] = name as ContractName;
+    return acc;
+  },
+  {} as Record<string, ContractName>,
+);
+
+function normalizeTx(row: any): BlockchainTransaction {
+  const txHash = (row?.txHash || row?.hash || '').toString();
+  const contractAddress = row?.contractAddress || '';
+  const contractName =
+    row?.contractName ||
+    (contractAddress ? ADDRESS_CONTRACT_MAP[String(contractAddress).toLowerCase()] : undefined) ||
+    EVENT_CONTRACT_MAP[row?.eventName as EventName];
+
+  return {
+    txHash,
+    blockNumber: Number(row?.blockNumber ?? 0),
+    contractAddress,
+    contractName: contractName as ContractName,
+    eventName: row?.eventName as EventName,
+    args: row?.args || {},
+    timestamp: row?.timestamp || row?.createdAt || new Date().toISOString(),
+    status: row?.status || 'confirmed',
+  };
+}
+
 function rndHex(n: number): string {
   let s = '';
   for (let i = 0; i < n; i++) s += Math.floor(Math.random() * 16).toString(16);
@@ -168,7 +196,7 @@ class IndexerService {
       // Map backend response to frontend format
       if (data.pagination) {
         return {
-          data: data.data || [],
+          data: (data.data || []).map(normalizeTx),
           total: data.pagination.total,
           page: data.pagination.page,
           totalPages: data.pagination.totalPages,
@@ -176,7 +204,7 @@ class IndexerService {
       }
       
       return {
-        data: Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : [],
+        data: (Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : []).map(normalizeTx),
         total: data.total || data.pagination?.total || 0,
         page: data.page || page,
         totalPages: data.totalPages || data.pagination?.totalPages || 1,

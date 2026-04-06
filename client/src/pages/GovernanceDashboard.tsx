@@ -411,7 +411,7 @@ export default function GovernanceDashboard() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {proposals
-                  .filter((p) => p.status === 'active' || p.status === 'pending')
+                  .filter((p) => p.state === 'ACTIVE' || p.state === 'PENDING')
                   .slice(0, 3)
                   .map((proposal) => (
                     <ProposalListItem

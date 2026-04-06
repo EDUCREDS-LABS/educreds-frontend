@@ -342,6 +342,17 @@ class GovernanceApiService {
     return response.data;
   }
 
+  async listPublicProposalHistory(
+    page: number = 1,
+    limit: number = 20,
+    status?: string,
+  ): Promise<PaginatedResponse<ProposalResponse>> {
+    const response = await this.client.get('/governance/public/proposals/history', {
+      params: { page, limit, status },
+    });
+    return response.data;
+  }
+
   async getPublicProposalDetail(proposalId: string): Promise<ProposalResponse & any> {
     const response = await this.client.get(`/governance/public/proposals/${proposalId}/detail`);
     return response.data;
