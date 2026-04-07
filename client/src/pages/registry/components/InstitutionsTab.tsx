@@ -1,6 +1,9 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Globe, Activity, Award, ArrowRight, Filter, SlidersHorizontal } from 'lucide-react';
+import { 
+  Search, Globe, Activity, Award, ArrowRight, Filter, SlidersHorizontal,
+  ChevronLeft, ChevronRight 
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +15,8 @@ import { cn } from '@/lib/utils';
 import { useInstitutions } from '@/hooks/useGovernance';
 import type { InstitutionResponse } from '@/lib/governanceApiService';
 import InstitutionDetailSheet from './InstitutionDetailSheet';
+
+const PAGE_SIZE = 12;
 
 // ── Enriched type ──────────────────────────────────────────────────────────
 type EnrichedInstitution = InstitutionResponse & {
@@ -171,8 +176,9 @@ export default function InstitutionsTab() {
   const [sortBy, setSortBy] = useState<'poicScore' | 'issuanceCount' | 'name'>('poicScore');
   const [selectedInstitution, setSelectedInstitution] = useState<EnrichedInstitution | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useInstitutions(1, 100);
+  const { data, isLoading } = useInstitutions(page, PAGE_SIZE);
 
   // Enrich raw API data with display fields
   const institutions: EnrichedInstitution[] = useMemo(() => {
@@ -196,7 +202,10 @@ export default function InstitutionsTab() {
     }));
   }, [data]);
 
-  // Filter + sort
+  const totalPages = data?.totalPages ?? 1;
+
+  // Filter + sort (client side if needed, though we should really do it server side if API supports it)
+  // But given useInstitutions(page, PAGE_SIZE), we assume server-side pagination is used.
   const filtered = useMemo(() => {
     let rows = institutions;
     if (statusFilter !== 'all') {
@@ -227,6 +236,10 @@ export default function InstitutionsTab() {
     setSheetOpen(true);
   }
 
+  const handleFilterChange = () => {
+    setPage(1);
+  };
+
   return (
     <>
       {/* Filter bar */}
@@ -235,13 +248,19 @@ export default function InstitutionsTab() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
           <Input
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={e => {
+              setSearchQuery(e.target.value);
+              handleFilterChange();
+            }}
             placeholder="Search by institution name or wallet address…"
             className="pl-11 h-11 rounded-2xl border-neutral-200 bg-white focus-visible:ring-blue-500/20"
           />
         </div>
 
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={(v) => {
+          setStatusFilter(v);
+          handleFilterChange();
+        }}>
           <SelectTrigger className="h-11 w-full sm:w-44 rounded-2xl border-neutral-200">
             <Filter className="w-3.5 h-3.5 mr-2 text-slate-400" />
             <SelectValue placeholder="All Statuses" />
@@ -254,7 +273,10 @@ export default function InstitutionsTab() {
           </SelectContent>
         </Select>
 
-        <Select value={sortBy} onValueChange={v => setSortBy(v as typeof sortBy)}>
+        <Select value={sortBy} onValueChange={v => {
+          setSortBy(v as typeof sortBy);
+          handleFilterChange();
+        }}>
           <SelectTrigger className="h-11 w-full sm:w-44 rounded-2xl border-neutral-200">
             <SlidersHorizontal className="w-3.5 h-3.5 mr-2 text-slate-400" />
             <SelectValue placeholder="Sort by" />
@@ -302,6 +324,37 @@ export default function InstitutionsTab() {
             </AnimatePresence>
           )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-12 flex items-center justify-between">
+          <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">
+            Page {page} of {totalPages}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl h-10 px-4 border-neutral-200"
+              disabled={page <= 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl h-10 px-4 border-neutral-200"
+              disabled={page >= totalPages}
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            >
+              Next
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Detail sheet */}
       <InstitutionDetailSheet

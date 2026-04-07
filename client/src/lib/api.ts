@@ -671,9 +671,29 @@ export const api = {
     return handleResponse(response);
   },
 
-  getCertificates: async () => {
+  getCertificates: async (params?: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortDir?: "asc" | "desc";
+    status?: string;
+    program?: string;
+    search?: string;
+  }) => {
     const authHeaders = getAuthHeaders();
-    const response = await fetch(API_CONFIG.CERTIFICATES.INSTITUTION, {
+    const query = new URLSearchParams();
+    if (params?.page) query.set("page", String(params.page));
+    if (params?.limit) query.set("limit", String(params.limit));
+    if (params?.sortBy) query.set("sortBy", params.sortBy);
+    if (params?.sortDir) query.set("sortDir", params.sortDir);
+    if (params?.status) query.set("status", params.status);
+    if (params?.program) query.set("program", params.program);
+    if (params?.search) query.set("search", params.search);
+    const url = query.toString()
+      ? `${API_CONFIG.CERTIFICATES.INSTITUTION}?${query.toString()}`
+      : API_CONFIG.CERTIFICATES.INSTITUTION;
+
+    const response = await fetch(url, {
       headers: authHeaders,
     });
     const data = await handleResponse(response);
@@ -706,7 +726,7 @@ export const api = {
       studentAddress: c.studentAddress,
       studentName: c.studentName,
       courseName: c.courseName,
-      grade: c.grade,
+      grade: c.grade ?? (c.gradescore !== undefined && c.gradescore !== null ? String(c.gradescore) : "N/A"),
       ipfsHash: c.ipfsHash,
       completionDate: c.completionDate,
       certificateType: c.certificateType ?? "Academic",
@@ -716,9 +736,29 @@ export const api = {
       tokenId: c.tokenId,
       mintedTo: c.mintedTo,
       mintedAt: c.mintedAt,
+      isArchived: c.isArchived ?? false,
+      archivedAt: c.archivedAt,
+      revocationReason: c.revocationReason ?? c.revocationReasonText ?? c.revocationReasonCode,
+      revocationReasonCode: c.revocationReasonCode,
+      revocationDetailsUri: c.revocationDetailsUri,
+      revocationNotes: c.revocationNotes,
+      revokedAt: c.revokedAt,
+      revokedBy: c.revokedBy,
+      revocationTxHash: c.revocationTxHash,
+      revocationRequestStatus: c.revocationRequestStatus,
+      revocationRequestReason: c.revocationRequestReason,
+      revocationRequestReasonCode: c.revocationRequestReasonCode,
+      revocationRequestDetailsUri: c.revocationRequestDetailsUri,
+      revocationRequestNotes: c.revocationRequestNotes,
+      revocationRequestRecordType: c.revocationRequestRecordType,
+      revocationRequestedAt: c.revocationRequestedAt,
+      revocationRequestedBy: c.revocationRequestedBy,
+      revocationReviewedAt: c.revocationReviewedAt,
+      revocationReviewedBy: c.revocationReviewedBy,
     }));
 
-    return { certificates } as any;
+    const meta = (data as any)?.meta ?? (data as any)?.pagination ?? undefined;
+    return { certificates, meta } as any;
   },
 
   updateCertificate: async (id: string, updates: any) => {
@@ -734,7 +774,10 @@ export const api = {
     return handleResponse(response);
   },
 
-  revokeCertificate: async (id: string, reason: string) => {
+  revokeCertificate: async (
+    id: string,
+    payload: { reasonCode: number; reasonText: string; detailsUri: string; notes?: string },
+  ) => {
     const authHeaders = getAuthHeaders();
     const response = await fetch(`${API_CONFIG.CERT}/api/certificates/${id}/revoke`, {
       method: "POST",
@@ -742,7 +785,85 @@ export const api = {
         "Content-Type": "application/json",
         ...authHeaders,
       },
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+
+  uploadRevocationProof: async (payload: { file: File; recordType: string }) => {
+    const authHeaders = getAuthHeaders();
+    const formData = new FormData();
+    formData.append("file", payload.file);
+    formData.append("recordType", payload.recordType);
+    const response = await fetch(`${API_CONFIG.CERT}/api/certificates/revocations/upload-proof`, {
+      method: "POST",
+      headers: authHeaders,
+      body: formData,
+    });
+    return handleResponse(response) as Promise<{ ipfsHash: string; uri: string }>;
+  },
+
+  bulkRequestRevocation: async (payload: {
+    certificateIds: string[];
+    reasonCode: number;
+    reasonText: string;
+    detailsUri: string;
+    notes?: string;
+    recordType: string;
+  }) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/certificates/bulk-revocation-request`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+      },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+
+  bulkApproveRevocations: async (payload: { certificateIds: string[] }) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/certificates/bulk-revocation-approve`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+      },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+
+  bulkRevokeCertificates: async (payload: {
+    certificateIds: string[];
+    reasonCode: number;
+    reasonText: string;
+    detailsUri: string;
+    notes?: string;
+  }) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/certificates/bulk-revoke`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+      },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+
+  bulkArchiveCertificates: async (certificateIds: string[]) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/certificates/bulk-archive`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+      },
+      body: JSON.stringify({ certificateIds }),
     });
     return handleResponse(response);
   },
