@@ -12,44 +12,47 @@
   
   --radius-xl: 16px;
   --radius-2xl: 24px;
+  --radius-3xl: 32px;
+  --radius-4xl: 40px;
+
+  --shadow-card: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  --shadow-xl-neutral: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
 }
 
 :root {
-  --background: var(--neutral-50);
-  --foreground: var(--neutral-900);
-  --muted: var(--neutral-100);
-  --muted-foreground: var(--neutral-500);
-  --popover: var(--neutral-50);
-  --popover-foreground: var(--neutral-900);
-  --card: var(--neutral-50);
-  --card-foreground: var(--neutral-900);
-  --border: var(--neutral-200);
-  --input: var(--neutral-200);
-  --primary-foreground: var(--neutral-50);
-  --secondary-foreground: var(--neutral-50);
-  --accent-foreground: var(--neutral-50);
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --primary-foreground: #FFFFFF;
+  --secondary-foreground: #FFFFFF;
+  --accent-foreground: #FFFFFF;
   --destructive: hsl(0, 84.2%, 60.2%);
   --destructive-foreground: hsl(60, 9.1%, 97.8%);
   --ring: var(--primary);
-  --radius: 0.5rem;
-  --dashboard-gradient-dark: linear-gradient(135deg, hsl(210, 20%, 8%) 0%, hsl(210, 18%, 12%) 50%, hsl(210, 15%, 10%) 100%);
+  --radius: 0.75rem;
 }
 
 .dark {
-  --background: var(--neutral-900);
-  --foreground: var(--neutral-50);
-  --muted: var(--neutral-800);
-  --muted-foreground: var(--neutral-400);
-  --popover: var(--neutral-900);
-  --popover-foreground: var(--neutral-50);
-  --card: var(--neutral-900);
-  --card-foreground: var(--neutral-50);
-  --border: var(--neutral-800);
-  --input: var(--neutral-800);
+  --background: #0F172A;
+  --foreground: #F8FAFC;
+  --muted: #1E293B;
+  --muted-foreground: #94A3B8;
+  --popover: #0F172A;
+  --popover-foreground: #F8FAFC;
+  --card: #1E293B;
+  --card-foreground: #F8FAFC;
+  --border: #334155;
+  --input: #334155;
   --destructive: hsl(0, 62.8%, 30.6%);
   --destructive-foreground: hsl(0, 0%, 98%);
   --ring: var(--primary);
-  --dashboard-gradient-dark: linear-gradient(135deg, hsl(210, 20%, 8%) 0%, hsl(210, 18%, 12%) 50%, hsl(210, 15%, 10%) 100%);
 }
 
 @layer base {
@@ -62,104 +65,24 @@
     background-color: var(--background);
     color: var(--foreground);
   }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
 }
 
 @layer components {
   .stat-card {
-    @apply bg-white rounded-xl shadow-sm border border-neutral-200 p-6 hover:shadow-md transition-shadow;
+    @apply bg-white rounded-3xl shadow-card border border-neutral-100 p-8 hover:shadow-xl transition-all duration-300;
   }
   
-  .gradient-bg {
-    background: linear-gradient(135deg, hsl(210, 100%, 40%) 0%, hsl(142, 76%, 36%) 100%);
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-xl;
   }
   
-  .certificate-preview {
-    @apply bg-gradient-to-br from-blue-50 to-green-50 rounded-lg p-4 text-center border-2 border-dashed border-primary;
+  .dark .glass-card {
+    @apply bg-neutral-900/80 border-white/5;
   }
-  
-  /* Professional Dark Dashboard Background */
-  .dashboard-container {
-    @apply min-h-screen transition-colors duration-300;
-    background: hsl(210, 20%, 98%);
-    background-attachment: fixed;
-  }
-  
-  .dark .dashboard-container {
-    @apply min-h-screen;
-    background: var(--dashboard-gradient-dark);
-    background-attachment: fixed;
-  }
-  
-  /* Enhanced Card Styles for Dashboard */
-  .dashboard-card {
-    @apply rounded-lg border backdrop-blur-sm transition-all duration-300;
-    background: rgba(255, 255, 255, 0.95);
-    border-color: rgba(229, 231, 235, 0.8);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 15px rgba(0, 0, 0, 0.03);
-  }
-  
-  .dark .dashboard-card {
-    background: rgba(31, 41, 55, 0.6);
-    border-color: rgba(75, 85, 99, 0.4);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15), 0 10px 15px rgba(0, 0, 0, 0.15);
-  }
-  
-  .dashboard-card:hover {
-    @apply shadow-lg;
-    border-color: rgba(229, 231, 235, 1);
-  }
-  
-  .dark .dashboard-card:hover {
-    border-color: rgba(107, 114, 128, 0.6);
-    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.25), 0 15px 25px rgba(0, 0, 0, 0.15);
-  }
-  
-  /* Professional Button Styles */
-  .btn-primary {
-    @apply bg-primary shadow-sm hover:shadow-md transition-all hover:bg-primary;
-    color: var(--primary-foreground);
-  }
-  
-  .btn-secondary {
-    @apply bg-secondary shadow-sm hover:shadow-md transition-all hover:bg-secondary;
-    color: var(--secondary-foreground);
-  }
-  
-  /* Chart Container Enhancement */
-  .chart-container {
-    @apply rounded-lg overflow-hidden;
-    background: rgba(248, 250, 252, 0.3);
-  }
-  
-  .dark .chart-container {
-    background: rgba(255, 255, 255, 0.04);
-  }
-  
-  /* Professional Text Colors: default dark text on light background */
-  .dashboard-text-primary {
-    @apply text-neutral-900 transition-colors duration-300;
-  }
-  
-  .dark .dashboard-text-primary {
-    @apply text-neutral-100;
-  }
-  
-  .dashboard-text-secondary {
-    @apply text-neutral-600 transition-colors duration-300;
-  }
-  
-  .dark .dashboard-text-secondary {
-    @apply text-neutral-400;
-  }
-
-}
-
-@utility scroll-left {
-  animation: scroll-left 40s linear infinite;
-}
-
-@utility partners-scroll {
-  animation: partners-scroll 36s linear infinite;
 }
 
 @utility no-scrollbar {
@@ -168,14 +91,4 @@
   &::-webkit-scrollbar {
     display: none;
   }
-}
-
-@keyframes scroll-left {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-
-@keyframes partners-scroll {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
 }

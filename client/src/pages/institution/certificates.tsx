@@ -152,19 +152,23 @@ export default function Certificates() {
     if (!certificates.length) return [];
     if (serverPaged) return certificates;
     return certificates.filter((cert: Certificate) => {
-      const studentName = cert.studentName?.toLowerCase() || "";
+      const studentName = (cert.studentName && cert.studentName !== "unknown student") ? cert.studentName.toLowerCase() : "";
       const courseName = cert.courseName?.toLowerCase() || "";
-      const matchesSearch = !searchValue || studentName.includes(searchValue) || courseName.includes(searchValue);
+      const studentAddress = cert.studentAddress?.toLowerCase() || "";
+      const matchesSearch = !searchValue || 
+        studentName.includes(searchValue) || 
+        courseName.includes(searchValue) ||
+        studentAddress.includes(searchValue);
 
       const matchesStatus =
         statusFilter === "all" ||
-        (statusFilter === "active" && cert.isValid && !(cert as any).isArchived) ||
-        (statusFilter === "pending" && !cert.isMinted && !(cert as any).isArchived) ||
+        (statusFilter === "active" && cert.isValid && cert.isMinted && !(cert as any).isArchived) ||
+        (statusFilter === "pending" && (!cert.isMinted || !cert.isValid) && !(cert as any).isArchived) ||
         (statusFilter === "revoked" && !cert.isValid) ||
         (statusFilter === "archived" && (cert as any).isArchived);
 
       const matchesProgram =
-        programFilter === "all" || courseName.includes(programFilter.toLowerCase());
+        programFilter === "all" || programFilter.toLowerCase() === courseName.toLowerCase() || courseName.toLowerCase().includes(programFilter.toLowerCase());
 
       return matchesSearch && matchesStatus && matchesProgram;
     });
@@ -205,12 +209,14 @@ export default function Certificates() {
   }, [filteredCertificates, sortDir, sortKey, serverPaged]);
 
   const stats = useMemo(() => {
-    const total = filteredCertificates.length;
+    // Calculate stats from all certificates, not just filtered/paged ones
+    const allCerts = certificates;
+    const total = allCerts.length;
     let active = 0;
     let pending = 0;
     let revoked = 0;
     let archived = 0;
-    filteredCertificates.forEach((cert: Certificate) => {
+    allCerts.forEach((cert: Certificate) => {
       if ((cert as any).isArchived) {
         archived += 1;
       } else if (!cert.isValid) {
@@ -222,7 +228,7 @@ export default function Certificates() {
       }
     });
     return { total, active, pending, revoked, archived };
-  }, [filteredCertificates]);
+  }, [certificates]);
 
   const totalCount = serverMeta?.total ?? filteredCertificates.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -817,7 +823,11 @@ export default function Certificates() {
                           </Avatar>
                           <div>
                             <p className="text-sm font-bold text-neutral-900 group-hover:text-primary transition-colors">
-                              {certificate.studentName}
+                              {certificate.studentName && certificate.studentName !== "unknown student" 
+                                ? certificate.studentName 
+                                : certificate.studentAddress 
+                                  ? `${certificate.studentAddress.slice(0, 6)}...${certificate.studentAddress.slice(-4)}`
+                                  : "Unknown Student"}
                             </p>
                             <p className="text-[10px] font-mono text-neutral-400 mt-0.5 truncate max-w-[140px]">
                               {certificate.studentAddress}

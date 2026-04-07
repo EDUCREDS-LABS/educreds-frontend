@@ -101,113 +101,11 @@ interface GovernanceMetrics {
   highRiskInstitutions: number;
 }
 
-// Mock data - replace with API calls
-const mockProposals: Proposal[] = [
-  {
-    id: '1',
-    title: 'Admission Application: University of Technology',
-    institution: 'University of Technology',
-    status: 'active',
-    legitimacyScore: 87,
-    votesFor: 450,
-    votesAgainst: 30,
-    votingPower: 480,
-    createdAt: '2024-01-20T10:00:00Z',
-    vetoWindow: '2 days remaining',
-  },
-  {
-    id: '2',
-    title: 'PoIC Score Adjustment: Digital Arts Institute',
-    institution: 'Digital Arts Institute',
-    status: 'pending',
-    legitimacyScore: 65,
-    votesFor: 0,
-    votesAgainst: 0,
-    votingPower: 0,
-    createdAt: '2024-01-22T14:30:00Z',
-    riskFlags: ['anomalous_issuance_spike', 'low_verification_rate'],
-  },
-  {
-    id: '3',
-    title: 'Dispute Resolution: Business School Corp',
-    institution: 'Business School Corp',
-    status: 'queued',
-    legitimacyScore: 42,
-    votesFor: 350,
-    votesAgainst: 280,
-    votingPower: 630,
-    createdAt: '2024-01-15T09:00:00Z',
-    riskFlags: ['high_revocation_rate'],
-  },
-];
+// Real data from API calls above
 
-const mockInstitutions: Institution[] = [
-  {
-    id: '1',
-    name: 'Stanford University',
-    poicScore: 94,
-    issuanceCount: 1250,
-    revocationRate: 2.1,
-    employerFeedback: 92,
-    riskLevel: 'low',
-    lastUpdated: '2024-01-22T18:00:00Z',
-    scoreBreakdown: {
-      issuanceAccuracy: 95,
-      revocationRate: 94,
-      employerFeedback: 92,
-      governanceBehavior: 96,
-      auditOutcomes: 90,
-      aiRiskScore: 5,
-    },
-  },
-  {
-    id: '2',
-    name: 'Tech Institute',
-    poicScore: 72,
-    issuanceCount: 450,
-    revocationRate: 8.5,
-    employerFeedback: 68,
-    riskLevel: 'medium',
-    lastUpdated: '2024-01-22T18:00:00Z',
-    scoreBreakdown: {
-      issuanceAccuracy: 75,
-      revocationRate: 70,
-      employerFeedback: 68,
-      governanceBehavior: 74,
-      auditOutcomes: 72,
-      aiRiskScore: 15,
-    },
-  },
-  {
-    id: '3',
-    name: 'UniversityX',
-    poicScore: 48,
-    issuanceCount: 200,
-    revocationRate: 22.3,
-    employerFeedback: 45,
-    riskLevel: 'high',
-    lastUpdated: '2024-01-22T18:00:00Z',
-    scoreBreakdown: {
-      issuanceAccuracy: 50,
-      revocationRate: 45,
-      employerFeedback: 45,
-      governanceBehavior: 48,
-      auditOutcomes: 52,
-      aiRiskScore: 35,
-    },
-  },
-];
-
-const scoreHistoryData = [
-  { date: '2024-01-01', avgScore: 72, institutionCount: 45 },
-  { date: '2024-01-05', avgScore: 73, institutionCount: 48 },
-  { date: '2024-01-10', avgScore: 74, institutionCount: 50 },
-  { date: '2024-01-15', avgScore: 75, institutionCount: 52 },
-  { date: '2024-01-20', avgScore: 76, institutionCount: 54 },
-  { date: '2024-01-22', avgScore: 75, institutionCount: 56 },
-];
-
-const poicComponentsData = [
+// Real data from API - no mock data needed
+const scoreHistoryData = summaryData?.scoreHistory || [];
+const poicComponentsData = summaryData?.poicComponents || [
   { name: 'Issuance Accuracy', value: 30 },
   { name: 'Revocation Rate', value: 20 },
   { name: 'Employer Feedback', value: 20 },

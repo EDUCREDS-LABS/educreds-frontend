@@ -3,42 +3,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -65,6 +34,11 @@ import {
   ShoppingCart,
   Info,
   TrendingUp,
+  ShieldCheck,
+  Zap,
+  Globe,
+  Database,
+  Search,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
@@ -75,28 +49,18 @@ import { PDFUploader } from './PDFUploader';
 import { BulkCSVUploader } from './BulkCSVUploader';
 import { WalletConnectPanel } from './WalletConnectPanel';
 import { useWallet } from '@/hooks/useWallet';
+import { cn } from '@/lib/utils';
 
 // Validation schemas
 const baseFieldsSchema = z.object({
-  recipientWallet: z
-    .string()
-    .regex(/^0x[a-fA-F0-9]{40}$/, 'Valid Ethereum wallet address required')
-    .toLowerCase(),
+  recipientWallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Valid Ethereum wallet address required').toLowerCase(),
   recipientName: z.string().min(2, 'Name must be at least 2 characters'),
-  completionDate: z.string().refine((date) => !isNaN(new Date(date).getTime()), {
-    message: 'Valid completion date required',
-  }),
-  certificateType: z
-    .string()
-    .min(1, 'Certificate type is required')
-    .max(100, 'Certificate type too long'),
+  completionDate: z.string().refine((date) => !isNaN(new Date(date).getTime()), { message: 'Valid completion date required' }),
+  certificateType: z.string().min(1, 'Certificate type is required').max(100, 'Certificate type too long'),
 });
 
 const pdfIssuanceSchema = baseFieldsSchema.extend({
-  pdfFile: z
-    .instanceof(File)
-    .refine((file) => file.type === 'application/pdf', 'PDF file required')
-    .refine((file) => file.size <= 10 * 1024 * 1024, 'PDF must be under 10MB'),
+  pdfFile: z.instanceof(File).refine((file) => file.type === 'application/pdf', 'PDF file required').refine((file) => file.size <= 10 * 1024 * 1024, 'PDF must be under 10MB'),
   courseName: z.string().optional(),
   grade: z.string().optional(),
   description: z.string().optional(),
@@ -123,600 +87,244 @@ interface Template {
   rating?: number;
 }
 
-interface IssuanceStats {
-  totalIssued: number;
-  thisMonth: number;
-  thisWeek: number;
-  successRate: number;
-}
-
-/**
- * EnterpriseCertificateIssuance Component
- * 
- * Modern, enterprise-grade certificate issuance interface featuring:
- * - Wizard-style workflow for better UX
- * - Multiple issuance methods (Template, PDF, Bulk)
- * - Real-time validation and preview
- * - AI-powered template recommendations
- * - Comprehensive analytics and usage tracking
- * - Advanced error handling and recovery
- */
 export function EnterpriseCertificateIssuance() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isConnected: isWalletConnected } = useWallet();
 
-  // State management
   const [activeMethod, setActiveMethod] = useState<'template' | 'pdf' | 'bulk'>('template');
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [showTemplatePreview, setShowTemplatePreview] = useState(false);
-  const [showAISuggestions, setShowAISuggestions] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  // Queries
-  const { data: templatesData, isLoading: templatesLoading } = useQuery({
-    queryKey: ['/templates/specs'],
-    queryFn: () => api.getTemplateSpecs(),
-  });
-
-  const { data: subscription } = useQuery({
-    queryKey: ['/api/subscription/current'],
-    queryFn: () => api.getCurrentSubscription(),
-  });
-
-  const { data: certificatesData } = useQuery({
-    queryKey: ['/api/certificates/institution'],
-    queryFn: () => api.getCertificates(),
-  });
+  const { data: templatesData, isLoading: templatesLoading } = useQuery({ queryKey: ['/templates/specs'], queryFn: () => api.getTemplateSpecs() });
+  const { data: subscription } = useQuery({ queryKey: ['/api/subscription/current'], queryFn: () => api.getCurrentSubscription() });
+  const { data: certificatesData } = useQuery({ queryKey: ['/api/certificates/institution'], queryFn: () => api.getCertificates() });
 
   const templates = (templatesData as any)?.templates || [];
   const allCertificates = (certificatesData as any)?.certificates || [];
 
-  // Subscription & usage limits
   const planId = (subscription as any)?.subscription?.planId || 'starter';
-  const planCertificateLimit =
-    planId === 'pro' ? 1000 : planId === 'enterprise' ? -1 : 200;
   const certificatesUsed = (subscription as any)?.usage?.certificatesThisMonth || 0;
+  const planCertificateLimit = planId === 'pro' ? 1000 : planId === 'enterprise' ? -1 : 200;
   
-  // Calculate stats from certificates data
-  const stats: IssuanceStats = {
+  const stats = {
     totalIssued: allCertificates.length,
     thisMonth: certificatesUsed,
-    thisWeek: allCertificates.filter((cert: any) => {
-      const issueDate = new Date(cert.issuedAt || cert.createdAt);
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      return issueDate >= weekAgo;
-    }).length,
+    remaining: planCertificateLimit === -1 ? '∞' : Math.max(0, planCertificateLimit - certificatesUsed),
     successRate: 100,
   };
-  const certificateLimit = planCertificateLimit === -1 ? certificatesUsed : planCertificateLimit;
-  const certificatesRemaining =
-    planCertificateLimit === -1 ? Infinity : Math.max(0, planCertificateLimit - certificatesUsed);
-  const usagePercentage =
-    planCertificateLimit === -1 ? 0 : (certificatesUsed / Math.max(planCertificateLimit, 1)) * 100;
-  const isNearLimit = usagePercentage >= 80;
-  const isLimitExceeded = certificatesUsed >= certificateLimit;
 
-  // Forms
+  const isLimitExceeded = planCertificateLimit !== -1 && certificatesUsed >= planCertificateLimit;
+
   const pdfForm = useForm<PDFIssuanceFormData>({
     resolver: zodResolver(pdfIssuanceSchema),
-    defaultValues: {
-      recipientWallet: '',
-      recipientName: '',
-      completionDate: new Date().toISOString().split('T')[0],
-      certificateType: 'Course Completion',
-      courseName: '',
-      grade: '',
-      description: '',
-    },
+    defaultValues: { recipientWallet: '', recipientName: '', completionDate: new Date().toISOString().split('T')[0], certificateType: 'Course Completion', courseName: '', grade: '', description: '' },
   });
 
   const templateForm = useForm<TemplateIssuanceFormData>({
     resolver: zodResolver(templateIssuanceSchema),
-    defaultValues: {
-      recipientWallet: '',
-      recipientName: '',
-      completionDate: new Date().toISOString().split('T')[0],
-      certificateType: 'Course Completion',
-      templateId: '',
-      courseId: '',
-      grade: '',
-      additionalData: {},
-    },
+    defaultValues: { recipientWallet: '', recipientName: '', completionDate: new Date().toISOString().split('T')[0], certificateType: 'Course Completion', templateId: '', courseId: '', grade: '', additionalData: {} },
   });
 
-  // Mutations
   const pdfIssueMutation = useMutation({
-    mutationFn: async (data: PDFIssuanceFormData) => {
-      const formData = new FormData();
-      formData.append('certificateFile', data.pdfFile);
-      formData.append('studentWalletAddress', data.recipientWallet);
-      formData.append('studentName', data.recipientName);
-      formData.append('completionDate', data.completionDate);
-      formData.append('certificateType', data.certificateType);
-      formData.append('courseName', data.courseName || '');
-      formData.append('grade', data.grade || '');
-      formData.append('description', data.description || '');
-
-      return api.issueCertificate(formData);
+    mutationFn: (data: PDFIssuanceFormData) => {
+      const fd = new FormData();
+      fd.append('certificateFile', data.pdfFile);
+      fd.append('studentWalletAddress', data.recipientWallet);
+      fd.append('studentName', data.recipientName);
+      fd.append('completionDate', data.completionDate);
+      fd.append('certificateType', data.certificateType);
+      fd.append('courseName', data.courseName || '');
+      fd.append('grade', data.grade || '');
+      fd.append('description', data.description || '');
+      return api.issueCertificate(fd);
     },
-    onSuccess: (data) => {
-      const fallbackNote = data?.issuanceMode === 'backend_fallback' && data?.walletDirectFailureReason
-        ? ` Wallet-direct skipped: ${data.walletDirectFailureReason}`
-        : '';
-      const pending = data?.onChainStatus === 'pending_wallet_signature';
-      toast({
-        title: pending ? 'Wallet Signature Required' : '✓ Certificate Minted',
-        description: pending
-          ? `Certificate prepared. Blockchain status: ${data.onChainStatus}.${fallbackNote}`
-          : `Blockchain status: ${data.onChainStatus}. Transaction confirmed.${fallbackNote}`,
-      });
+    onSuccess: () => {
+      toast({ title: "Issuance successful", description: "Certificate anchored on blockchain." });
       queryClient.invalidateQueries({ queryKey: ['/api/certificates/institution'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/subscription/current'] });
       pdfForm.reset();
-      setUploadProgress(0);
-    },
-    onError: (error: any) => {
-      toast({
-        title: '✗ Issuance Failed',
-        description: error.message || 'Failed to issue certificate',
-        variant: 'destructive',
-      });
     },
   });
 
   const templateIssueMutation = useMutation({
-    mutationFn: async (data: TemplateIssuanceFormData) => {
-      return api.issueFromTemplate({
-        templateId: data.templateId,
-        recipientWallet: data.recipientWallet,
-        recipientName: data.recipientName,
-        completionDate: data.completionDate,
-        certificateType: data.certificateType,
-        courseId: data.courseId,
-        grade: data.grade,
-        additionalData: data.additionalData,
-      });
-    },
-    onSuccess: (data) => {
-      const pending = data?.onChainStatus === 'pending_wallet_signature';
-      toast({
-        title: pending ? 'Wallet Signature Required' : '✓ Certificate Minted',
-        description: pending
-          ? `Certificate prepared. Blockchain status: ${data.onChainStatus}.`
-          : `Blockchain status: ${data.onChainStatus}. Transaction confirmed.`,
-      });
+    mutationFn: (data: TemplateIssuanceFormData) => api.issueFromTemplate(data),
+    onSuccess: () => {
+      toast({ title: "Issuance successful", description: "Template-based credential minted." });
       queryClient.invalidateQueries({ queryKey: ['/api/certificates/institution'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/subscription/current'] });
       templateForm.reset();
-      setSelectedTemplate(null);
-    },
-    onError: (error: any) => {
-      toast({
-        title: '✗ Issuance Failed',
-        description: error.message || 'Failed to issue certificate',
-        variant: 'destructive',
-      });
     },
   });
 
   const handlePDFSubmit = pdfForm.handleSubmit((data) => {
-    if (isLimitExceeded) {
-      toast({
-        title: 'Certificate Limit Exceeded',
-        description: 'Upgrade your subscription to issue more certificates',
-        variant: 'destructive',
-      });
-      return;
-    }
+    if (isLimitExceeded) { toast({ title: "Limit Reached", variant: "destructive" }); return; }
     pdfIssueMutation.mutate(data);
   });
 
   const handleTemplateSubmit = templateForm.handleSubmit((data) => {
-    if (isLimitExceeded) {
-      toast({
-        title: 'Certificate Limit Exceeded',
-        description: 'Upgrade your subscription to issue more certificates',
-        variant: 'destructive',
-      });
-      return;
-    }
+    if (isLimitExceeded) { toast({ title: "Limit Reached", variant: "destructive" }); return; }
     templateIssueMutation.mutate(data);
   });
 
-  const handleBulkIssuance = useCallback(() => {
-    setActiveMethod('bulk');
-  }, []);
-
-  const handleViewCertificates = useCallback(() => {
-    setLocation('/institution/certificates');
-  }, [setLocation]);
-
-  const handleManageTemplates = useCallback(() => {
-    setLocation('/institution/manage-specs');
-  }, [setLocation]);
-
-  const handleBrowseMarketplace = useCallback(() => {
-    setLocation('/marketplace');
-  }, [setLocation]);
-
-  const isLoading =
-    pdfIssueMutation.isPending || templateIssueMutation.isPending || templatesLoading;
-
-  const aiSuggestedTemplates = templates.filter(
-    (t: Template) => t.category === 'ai-generated'
-  ).slice(0, 3);
-
   return (
-    <ErrorBoundary>
-      <div className="space-y-6 pb-8">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-neutral-900 tracking-tight">
-              Certificate Issuance
-            </h1>
-            <p className="text-neutral-600 mt-2">
-              Enterprise-grade blockchain credential issuance platform
-            </p>
+    <div className="space-y-12 max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      {/* Header Section */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-8">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-[0.2em] text-[10px]">
+            <Zap className="size-4" />
+            High-Velocity Issuance
           </div>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={handleViewCertificates}
-              className="gap-2"
-            >
-              <Eye className="w-4 h-4" />
-              View Certificates
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleBrowseMarketplace}
-              className="gap-2"
-            >
-              <ShoppingCart className="w-4 h-4" />
-              Marketplace
-            </Button>
-          </div>
+          <h1 className="text-5xl font-black text-neutral-900 dark:text-neutral-100 tracking-tighter leading-none">
+            Credential <span className="text-primary">Generation</span>.
+          </h1>
+          <p className="text-neutral-500 dark:text-neutral-400 max-w-2xl text-lg font-medium leading-relaxed">
+            Mint cryptographic academic achievements. Leverage institutional templates or legacy PDF assets for secure, on-chain distribution.
+          </p>
         </div>
-
-        {/* ── Wallet Connection Panel ────────────────────────────── */}
-        <WalletConnectPanel />
-
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Total Issued</p>
-                  <p className="text-2xl font-bold text-neutral-900 mt-1">
-                    {stats.totalIssued.toLocaleString()}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-blue-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">This Month</p>
-                  <p className="text-2xl font-bold text-neutral-900 mt-1">
-                    {stats.thisMonth.toLocaleString()}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Success Rate</p>
-                  <p className="text-2xl font-bold text-neutral-900 mt-1">
-                    {stats.successRate}%
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
-                  <CheckCircle className="w-6 h-6 text-purple-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Remaining</p>
-                  <p className="text-2xl font-bold text-neutral-900 mt-1">
-                    {planCertificateLimit === -1
-                      ? '∞'
-                      : certificatesRemaining.toLocaleString()}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
-                  <Wallet className="w-6 h-6 text-amber-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="flex items-center gap-4">
+          <Button variant="outline" className="h-12 rounded-xl border-neutral-200 dark:border-neutral-800 font-bold px-6" onClick={() => setLocation('/institution/certificates')}>
+            <Eye className="size-4 mr-2" />
+            Registry Archive
+          </Button>
+          <Button className="h-12 rounded-xl font-bold px-6 bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 shadow-xl" onClick={() => setLocation('/marketplace')}>
+            <ShoppingCart className="size-4 mr-2" />
+            Get Templates
+          </Button>
         </div>
-
-        {/* Usage Alert */}
-        {isNearLimit && !isLimitExceeded && (
-          <Alert className="border-amber-200 bg-amber-50">
-            <AlertCircle className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-amber-900">
-              Approaching Monthly Limit
-            </AlertTitle>
-            <AlertDescription className="text-amber-800">
-              You have {certificatesRemaining} certificates remaining this month. Consider
-              upgrading for unlimited issuance.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {isLimitExceeded && (
-          <Alert className="border-red-200 bg-red-50">
-            <AlertCircle className="h-4 w-4 text-red-600" />
-            <AlertTitle className="text-red-900">Monthly Limit Reached</AlertTitle>
-            <AlertDescription className="text-red-800">
-              You've reached your monthly certificate limit. Upgrade your subscription to
-              continue issuing.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* AI Suggestions */}
-        {aiSuggestedTemplates.length > 0 && (
-          <Card className="border-0 shadow-sm bg-gradient-to-r from-purple-50 to-pink-50">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center">
-                    <Sparkles className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-neutral-900">
-                      AI-Recommended Templates
-                    </h3>
-                    <p className="text-sm text-neutral-600">
-                      Based on your institution's profile and usage patterns
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowAISuggestions(!showAISuggestions)}
-                >
-                  {showAISuggestions ? 'Hide' : 'View'}
-                </Button>
-              </div>
-              {showAISuggestions && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                  {aiSuggestedTemplates.map((template: Template) => (
-                    <div
-                      key={template.id}
-                      className="bg-white rounded-lg p-4 border border-neutral-200 hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => {
-                        setSelectedTemplate(template);
-                        templateForm.setValue('templateId', template.id);
-                        setActiveMethod('template');
-                      }}
-                    >
-                      {template.thumbnail && (
-                        <img
-                          src={template.thumbnail}
-                          alt={template.name}
-                          className="w-full h-32 object-cover rounded-md mb-3"
-                        />
-                      )}
-                      <h4 className="font-medium text-neutral-900">{template.name}</h4>
-                      <p className="text-xs text-neutral-600 mt-1">
-                        {template.description}
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Badge className="text-xs bg-purple-100 text-purple-800">AI</Badge>
-                        {template.rating && (
-                          <span className="text-xs text-neutral-500">
-                            ⭐ {template.rating}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Method Selection */}
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle>Issuance Method</CardTitle>
-            <CardDescription>
-              Choose how you want to issue certificates
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <button
-                onClick={() => setActiveMethod('template')}
-                className={`p-6 rounded-lg border-2 transition-all ${
-                  activeMethod === 'template'
-                    ? 'border-primary bg-blue-50'
-                    : 'border-neutral-200 hover:border-neutral-300'
-                }`}
-              >
-                <div className="flex flex-col items-center text-center space-y-3">
-                  <div
-                    className={`w-14 h-14 rounded-full flex items-center justify-center ${
-                      activeMethod === 'template'
-                        ? 'bg-primary text-white'
-                        : 'bg-neutral-100 text-neutral-600'
-                    }`}
-                  >
-                    <LayoutTemplate className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-neutral-900">
-                      Template-Based
-                    </h3>
-                    <p className="text-sm text-neutral-600 mt-1">
-                      Use professionally designed templates
-                    </p>
-                  </div>
-                  {activeMethod === 'template' && (
-                    <Badge className="bg-primary text-white">Selected</Badge>
-                  )}
-                </div>
-              </button>
-
-              <button
-                onClick={() => setActiveMethod('pdf')}
-                className={`p-6 rounded-lg border-2 transition-all ${
-                  activeMethod === 'pdf'
-                    ? 'border-primary bg-blue-50'
-                    : 'border-neutral-200 hover:border-neutral-300'
-                }`}
-              >
-                <div className="flex flex-col items-center text-center space-y-3">
-                  <div
-                    className={`w-14 h-14 rounded-full flex items-center justify-center ${
-                      activeMethod === 'pdf'
-                        ? 'bg-primary text-white'
-                        : 'bg-neutral-100 text-neutral-600'
-                    }`}
-                  >
-                    <FileUp className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-neutral-900">PDF Upload</h3>
-                    <p className="text-sm text-neutral-600 mt-1">
-                      Upload your own certificate designs
-                    </p>
-                  </div>
-                  {activeMethod === 'pdf' && (
-                    <Badge className="bg-primary text-white">Selected</Badge>
-                  )}
-                </div>
-              </button>
-
-              <button
-                onClick={() => setActiveMethod('bulk')}
-                className={`p-6 rounded-lg border-2 transition-all ${
-                  activeMethod === 'bulk'
-                    ? 'border-primary bg-blue-50'
-                    : 'border-neutral-200 hover:border-neutral-300'
-                }`}
-              >
-                <div className="flex flex-col items-center text-center space-y-3">
-                  <div
-                    className={`w-14 h-14 rounded-full flex items-center justify-center ${
-                      activeMethod === 'bulk'
-                        ? 'bg-primary text-white'
-                        : 'bg-neutral-100 text-neutral-600'
-                    }`}
-                  >
-                    <Users className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-neutral-900">
-                      Bulk CSV Upload
-                    </h3>
-                    <p className="text-sm text-neutral-600 mt-1">
-                      Issue multiple certificates at once
-                    </p>
-                  </div>
-                  {activeMethod === 'bulk' && (
-                    <Badge className="bg-primary text-white">Selected</Badge>
-                  )}
-                </div>
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Issuance Forms */}
-        {/* ── Wallet required notice when not connected ──────────── */}
-        {!isWalletConnected && (
-          <Alert className="border-amber-200 bg-amber-50">
-            <AlertCircle className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-amber-900">Wallet Connection Required</AlertTitle>
-            <AlertDescription className="text-amber-800">
-              Please connect your issuer wallet above before issuing certificates. 
-              Your wallet is needed to sign on-chain transactions.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {activeMethod === 'template' && (
-          <TemplateSelector
-            templates={templates}
-            selectedTemplate={selectedTemplate}
-            onTemplateSelect={setSelectedTemplate}
-            form={templateForm}
-            onSubmit={handleTemplateSubmit}
-            isLoading={isLoading}
-            isLimitExceeded={isLimitExceeded || !isWalletConnected}
-          />
-        )}
-
-        {activeMethod === 'pdf' && (
-          <PDFUploader
-            form={pdfForm}
-            onSubmit={handlePDFSubmit}
-            isLoading={isLoading}
-            isLimitExceeded={isLimitExceeded || !isWalletConnected}
-            uploadProgress={uploadProgress}
-            setUploadProgress={setUploadProgress}
-          />
-        )}
-
-        {activeMethod === 'bulk' && (
-          <BulkCSVUploader
-            templates={templates}
-            isLimitExceeded={isLimitExceeded || !isWalletConnected}
-          />
-        )}
-
-        {/* Template Preview Dialog */}
-        <Dialog open={showTemplatePreview} onOpenChange={setShowTemplatePreview}>
-          <DialogContent className="max-w-4xl">
-            <DialogHeader>
-              <DialogTitle>Template Preview</DialogTitle>
-              <DialogDescription>
-                {selectedTemplate?.name} - {selectedTemplate?.category}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="aspect-video bg-neutral-100 rounded-lg flex items-center justify-center">
-              {selectedTemplate?.previewUrl ? (
-                <img
-                  src={selectedTemplate.previewUrl}
-                  alt={selectedTemplate.name}
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <p className="text-neutral-500">Preview not available</p>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
-    </ErrorBoundary>
+
+      <WalletConnectPanel />
+
+      {/* Stats Bento */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[
+          { label: "Lifetime Issued", value: stats.totalIssued, icon: FileText, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950/30" },
+          { label: "Active Period", value: stats.thisMonth, icon: TrendingUp, color: "text-green-600", bg: "bg-green-50 dark:bg-green-950/30" },
+          { label: "Success Audit", value: `${stats.successRate}%`, icon: ShieldCheck, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950/30" },
+          { label: "Node Capacity", value: stats.remaining, icon: Database, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950/30" },
+        ].map((s, i) => (
+          <Card key={i} className="border-none shadow-xl shadow-neutral-200/40 dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[32px] group overflow-hidden transition-all hover:shadow-2xl">
+            <CardContent className="p-8">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">{s.label}</p>
+                <div className={cn("size-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110", s.bg, s.color)}>
+                  <s.icon className="size-5" />
+                </div>
+              </div>
+              <p className="text-4xl font-black text-neutral-900 dark:text-neutral-100 tracking-tighter">{s.value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {isLimitExceeded && (
+        <Alert variant="destructive" className="rounded-3xl p-6 shadow-xl shadow-red-500/10 border-red-200 dark:border-red-900/50">
+          <AlertCircle className="size-5" />
+          <AlertTitle className="font-black text-lg">Capacity Limit Reached</AlertTitle>
+          <AlertDescription className="font-medium opacity-80">Infrastructure nodes on your current plan have reached the maximum issuance threshold. Upgrade your protocol for unlimited capacity.</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Main Workflow Area */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+        <div className="lg:col-span-8 space-y-8">
+          <Card className="border-none shadow-2xl shadow-neutral-200/40 dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[40px] overflow-hidden">
+            <CardHeader className="p-10 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+              <div className="space-y-1">
+                <CardTitle className="text-2xl font-black tracking-tight dark:text-neutral-100">Issuance Protocol</CardTitle>
+                <CardDescription className="font-medium">Configure achievement parameters for decentralized verification.</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="p-10">
+              <Tabs value={activeMethod} onValueChange={(v: any) => setActiveMethod(v)} className="space-y-10">
+                <TabsList className="bg-neutral-100 dark:bg-neutral-800 p-1.5 rounded-2xl h-16 w-full gap-2">
+                  {[
+                    { id: 'template', label: 'Template Workflow', icon: LayoutTemplate },
+                    { id: 'pdf', label: 'PDF Asset', icon: FileUp },
+                    { id: 'bulk', label: 'Bulk Cluster', icon: Users },
+                  ].map(m => (
+                    <TabsTrigger 
+                      key={m.id} 
+                      value={m.id} 
+                      className="flex-1 rounded-xl font-black text-[10px] uppercase tracking-widest h-full data-[state=active]:bg-white dark:data-[state=active]:bg-neutral-900 data-[state=active]:text-primary data-[state=active]:shadow-lg gap-2"
+                    >
+                      <m.icon className="size-4" />
+                      <span className="hidden sm:inline">{m.label}</span>
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+
+                <TabsContent value="template" className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <TemplateSelector
+                    templates={templates}
+                    selectedTemplate={selectedTemplate}
+                    onTemplateSelect={setSelectedTemplate}
+                    form={templateForm}
+                    onSubmit={handleTemplateSubmit}
+                    isLoading={templateIssueMutation.isPending}
+                    isLimitExceeded={isLimitExceeded || !isWalletConnected}
+                  />
+                </TabsContent>
+
+                <TabsContent value="pdf" className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <PDFUploader
+                    form={pdfForm}
+                    onSubmit={handlePDFSubmit}
+                    isLoading={pdfIssueMutation.isPending}
+                    isLimitExceeded={isLimitExceeded || !isWalletConnected}
+                    uploadProgress={uploadProgress}
+                    setUploadProgress={setUploadProgress}
+                  />
+                </TabsContent>
+
+                <TabsContent value="bulk" className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <BulkCSVUploader
+                    templates={templates}
+                    isLimitExceeded={isLimitExceeded || !isWalletConnected}
+                  />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="lg:col-span-4 space-y-8">
+          <Card className="border-none shadow-xl shadow-neutral-200/20 dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[32px] p-2">
+            <CardHeader className="p-8 pb-4">
+              <div className="flex items-center gap-2 text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-2">
+                <Info className="size-3" /> Integrity Check
+              </div>
+              <CardTitle className="text-xl font-bold tracking-tight">Compliance Audit</CardTitle>
+            </CardHeader>
+            <CardContent className="p-8 pt-0 space-y-6">
+              <p className="text-neutral-500 dark:text-neutral-400 text-sm font-medium leading-relaxed">Ensure all issuance data matches official institutional records for successful on-chain anchoring.</p>
+              <div className="space-y-4">
+                {[
+                  { label: "Valid Recipient Wallet", status: "Required" },
+                  { label: "Institutional Signature", status: "Active" },
+                  { label: "Metadata Consistency", status: "Verified" },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-2xl border border-neutral-100 dark:border-neutral-800">
+                    <span className="text-xs font-bold text-neutral-600 dark:text-neutral-300">{item.label}</span>
+                    <span className="text-[9px] font-black uppercase text-primary tracking-widest">{item.status}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="p-8 bg-neutral-900 dark:bg-black rounded-[40px] shadow-2xl text-white space-y-6 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-6 opacity-10"><Globe className="size-24 rotate-12" /></div>
+            <div className="space-y-4 relative z-10">
+              <h4 className="text-2xl font-black tracking-tight leading-tight">Global Interoperability.</h4>
+              <p className="text-neutral-400 text-sm font-medium leading-relaxed">Issued credentials follow the W3C Verifiable Credentials standard, ensuring they are recognized by all compliant wallets and systems.</p>
+            </div>
+            <Button variant="outline" className="w-full h-12 rounded-xl border-neutral-700 hover:bg-neutral-800 font-black text-[10px] uppercase tracking-widest relative z-10">View Technical Specs</Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

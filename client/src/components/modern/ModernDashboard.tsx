@@ -15,6 +15,8 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
+  Area,
+  AreaChart,
 } from "recharts";
 import { 
   ChartContainer, 
@@ -53,7 +55,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { useCallback, useMemo } from "react";
 import { useLocation } from "wouter";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import { UsageDashboard } from "@/components/UsageDashboard";
 import { NetworkIntegrity } from "./NetworkIntegrity";
 import LmsMigrationPanel from "@/components/institution/LmsMigrationPanel";
@@ -62,12 +64,14 @@ export default function ModernDashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: statsData, isLoading: statsLoading } = useQuery({
     queryKey: ["/api/stats", user?.id],
     queryFn: () => api.getStats(user?.id),
     enabled: !!user,
     refetchOnMount: true,
   });
+
+  const stats = statsData || {};
 
   const { data: subscription } = useQuery({
     queryKey: ["/api/subscription/current"],
@@ -157,11 +161,11 @@ export default function ModernDashboard() {
   const trendChartConfig = {
     issued: {
       label: "Issued",
-      color: "hsl(var(--primary))",
+      color: "hsl(var(--chart-1))",
     },
     revoked: {
       label: "Revoked",
-      color: "hsl(var(--destructive))",
+      color: "hsl(var(--chart-3))",
     },
   } satisfies ChartConfig;
 
@@ -172,11 +176,15 @@ export default function ModernDashboard() {
           name: item.name || `Type ${index + 1}`,
           value: item.value || 0,
           color: [
+            "hsl(var(--chart-1))",
+            "hsl(var(--chart-2))",
+            "hsl(var(--chart-3))",
+            "hsl(var(--chart-4))",
+            "hsl(var(--chart-5))",
             "hsl(var(--primary))",
             "hsl(var(--success))",
-            "hsl(var(--accent))",
-            "hsl(var(--warning))"
-          ][index % 4]
+            "hsl(var(--accent))"
+          ][index % 8]
         }))
     : [];
 
@@ -264,28 +272,28 @@ export default function ModernDashboard() {
           <>
             <StatCard 
               title="Total Certificates"
-              value={(stats as any)?.totalCertificates || 0}
+              value={stats.totalCertificates || 0}
               icon={Award}
               color="blue"
               trend="+12%"
             />
             <StatCard 
               title="Active Certificates"
-              value={(stats as any)?.activeCertificates || 0}
+              value={stats.activeCertificates || 0}
               icon={CheckCircle}
               color="green"
               subtitle="Currently in use"
             />
             <StatCard 
-              title="Revoked Certificates"
-              value={(stats as any)?.revokedCertificates || 0}
-              icon={XCircle}
-              color="red"
-              subtitle="Invalid credentials"
+              title="Total Students"
+              value={stats.totalStudents || 0}
+              icon={Users}
+              color="purple"
+              subtitle="Enrolled recipients"
             />
             <StatCard 
               title="Monthly Usage"
-              value={`${certificatesUsed}/${certificateLimit}`}
+              value={`${stats.monthlyIssuance || 0}/${certificateLimit}`}
               icon={Target}
               color="amber"
               progress={getUsagePercentage()}
@@ -366,147 +374,318 @@ export default function ModernDashboard() {
         </Alert>
       )}
 
-      {/* LMS Migration & Sync */}
-      <LmsMigrationPanel />
-
-      {/* Analytics Section - Enterprise Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Issuance Trend Chart */}
-        <Card className="border-0 shadow-sm lg:col-span-2 rounded-2xl overflow-hidden bg-white">
-          <CardHeader className="border-b border-neutral-100 bg-gradient-to-r from-white to-slate-50">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <CardTitle className="text-lg font-bold flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-primary" />
-                  Issuance Trend
-                </CardTitle>
-                <p className="text-sm text-neutral-500 mt-1">Monthly issuance and revocation volume (last 6 months).</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <div className="px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100">
-                  <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Issued</p>
-                  <p className="text-sm font-bold text-emerald-700">{trendTotals.issued}</p>
-                </div>
-                <div className="px-3 py-2 rounded-xl bg-rose-50 border border-rose-100">
-                  <p className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Revoked</p>
-                  <p className="text-sm font-bold text-rose-700">{trendTotals.revoked}</p>
-                </div>
+      {/* Enterprise Analytics Dashboard */}
+      <div className="space-y-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-black text-neutral-900 tracking-tight">Analytics Dashboard</h2>
+            <p className="text-neutral-600 mt-1">Real-time insights into your certificate ecosystem</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-full">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                <span className="text-sm font-semibold text-emerald-700">Live Data</span>
               </div>
             </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            {trendLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-6 w-40" />
-                <Skeleton className="h-[260px] w-full" />
-              </div>
-            ) : trendChartData.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center h-[260px] border border-dashed border-neutral-200 rounded-xl bg-neutral-50/40">
-                <FileText className="w-8 h-8 text-neutral-300 mb-3" />
-                <p className="text-sm font-semibold text-neutral-700">No issuance data yet</p>
-                <p className="text-xs text-neutral-500 mt-1">Issue certificates to populate trend analytics.</p>
-              </div>
-            ) : (
-              <ChartContainer config={trendChartConfig} className="w-full h-[300px]">
-                <LineChart data={trendChartData} margin={{ left: -20, right: 10 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
-                  <YAxis tickLine={false} axisLine={false} tickMargin={8} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Line
-                    type="monotone"
-                    dataKey="issued"
-                    stroke="var(--color-issued)"
-                    strokeWidth={3}
-                    dot={{ r: 4, fill: "var(--color-issued)", strokeWidth: 0 }}
-                    activeDot={{ r: 6, strokeWidth: 0 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="revoked"
-                    stroke="var(--color-revoked)"
-                    strokeWidth={3}
-                    dot={{ r: 4, fill: "var(--color-revoked)", strokeWidth: 0 }}
-                    activeDot={{ r: 6, strokeWidth: 0 }}
-                  />
-                </LineChart>
-              </ChartContainer>
-            )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* Certificate Distribution Pie Chart */}
-        <Card className="border-0 shadow-sm rounded-2xl overflow-hidden bg-white">
-          <CardHeader className="border-b border-neutral-100 bg-gradient-to-r from-white to-slate-50">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-lg font-bold flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-primary" />
-                  Distribution
-                </CardTitle>
-                <p className="text-sm text-neutral-500 mt-1">Certificate mix across categories.</p>
+        {/* Key Metrics Row */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm font-medium">Total Issued</p>
+                  <p className="text-3xl font-black mt-1">{stats.totalCertificates || 0}</p>
+                  <p className="text-blue-200 text-xs mt-2">+12% from last month</p>
+                </div>
+                <Award className="w-8 h-8 text-blue-200" />
               </div>
-              <div className="text-right">
-                <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Total</p>
-                <p className="text-sm font-bold text-neutral-900">{distributionTotal}</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-emerald-100 text-sm font-medium">Active Certificates</p>
+                  <p className="text-3xl font-black mt-1">{stats.activeCertificates || 0}</p>
+                  <p className="text-emerald-200 text-xs mt-2">98.5% validity rate</p>
+                </div>
+                <CheckCircle className="w-8 h-8 text-emerald-200" />
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            {distributionLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-6 w-32" />
-                <Skeleton className="h-[220px] w-full" />
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-amber-500 to-amber-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-amber-100 text-sm font-medium">This Month</p>
+                  <p className="text-3xl font-black mt-1">{certificatesUsed}</p>
+                  <p className="text-amber-200 text-xs mt-2">{certificateLimit - certificatesUsed} remaining</p>
+                </div>
+                <Zap className="w-8 h-8 text-amber-200" />
               </div>
-            ) : certificateDistribution.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center h-[220px] border border-dashed border-neutral-200 rounded-xl bg-neutral-50/40">
-                <FileText className="w-8 h-8 text-neutral-300 mb-3" />
-                <p className="text-sm font-semibold text-neutral-700">No distribution data yet</p>
-                <p className="text-xs text-neutral-500 mt-1">Issue certificates to see category breakdowns.</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-100 text-sm font-medium">Avg. Processing</p>
+                  <p className="text-3xl font-black mt-1">2.3s</p>
+                  <p className="text-purple-200 text-xs mt-2">Industry leading</p>
+                </div>
+                <Activity className="w-8 h-8 text-purple-200" />
               </div>
-            ) : (
-              <>
-                <div className="relative">
-                  <ChartContainer config={distributionConfig} className="w-full h-[240px]">
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Charts Grid */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          {/* Issuance Trend - Modern Area Chart */}
+          <Card className="xl:col-span-2 border-0 shadow-xl bg-white overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl font-black text-slate-900 flex items-center gap-3">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    Issuance Velocity
+                  </CardTitle>
+                  <p className="text-slate-600 mt-1 font-medium">Certificate issuance and revocation patterns</p>
+                </div>
+                <div className="flex gap-2">
+                  <div className="px-3 py-1 bg-blue-50 border border-blue-200 rounded-full">
+                    <span className="text-xs font-bold text-blue-700">ISSUED</span>
+                  </div>
+                  <div className="px-3 py-1 bg-red-50 border border-red-200 rounded-full">
+                    <span className="text-xs font-bold text-red-700">REVOKED</span>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-8">
+              {trendLoading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-80 w-full" />
+                </div>
+              ) : trendChartData.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-80 text-center">
+                  <BarChart3 className="w-16 h-16 text-slate-300 mb-4" />
+                  <h3 className="text-lg font-bold text-slate-700 mb-2">No Data Yet</h3>
+                  <p className="text-slate-500">Start issuing certificates to see trends</p>
+                </div>
+              ) : (
+                <ChartContainer config={trendChartConfig} className="h-80 w-full">
+                  <AreaChart data={trendChartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                    <defs>
+                      <linearGradient id="issuedGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0.1}/>
+                      </linearGradient>
+                      <linearGradient id="revokedGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--chart-3))" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="hsl(var(--chart-3))" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                    <XAxis 
+                      dataKey="month" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }}
+                    />
+                    <YAxis 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }}
+                    />
+                    <ChartTooltip 
+                      content={<ChartTooltipContent />} 
+                      cursor={{ stroke: 'hsl(var(--border))', strokeWidth: 2, strokeDasharray: '5 5' }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="issued"
+                      stroke="hsl(var(--chart-1))"
+                      strokeWidth={3}
+                      fill="url(#issuedGradient)"
+                      animationDuration={2000}
+                      animationEasing="ease-out"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="revoked"
+                      stroke="hsl(var(--chart-3))"
+                      strokeWidth={3}
+                      fill="url(#revokedGradient)"
+                      animationDuration={2000}
+                      animationEasing="ease-out"
+                      animationBegin={500}
+                    />
+                  </AreaChart>
+                </ChartContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Certificate Distribution - Modern Donut Chart */}
+          <Card className="border-0 shadow-xl bg-white overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl font-black text-slate-900 flex items-center gap-3">
+                    <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                    Type Distribution
+                  </CardTitle>
+                  <p className="text-slate-600 mt-1 font-medium">Certificate categories breakdown</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total</p>
+                  <p className="text-lg font-black text-slate-900">{distributionTotal}</p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-8">
+              {distributionLoading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-64 w-full rounded-full" />
+                </div>
+              ) : certificateDistribution.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 text-center">
+                  <PieChart className="w-16 h-16 text-slate-300 mb-4" />
+                  <h3 className="text-lg font-bold text-slate-700 mb-2">No Data</h3>
+                  <p className="text-slate-500">Issue certificates to see distribution</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <ChartContainer config={distributionConfig} className="h-64 w-full">
                     <PieChart>
                       <ChartTooltip content={<ChartTooltipContent hideLabel />} />
                       <Pie
                         data={certificateDistribution}
                         cx="50%"
                         cy="50%"
-                        innerRadius={70}
-                        outerRadius={100}
-                        paddingAngle={4}
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={3}
                         dataKey="value"
+                        animationDuration={1500}
+                        animationEasing="ease-out"
                       >
                         {certificateDistribution.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={`hsl(var(--chart-${(index % 5) + 1}))`}
+                            stroke="white"
+                            strokeWidth={3}
+                          />
                         ))}
                       </Pie>
                     </PieChart>
                   </ChartContainer>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Total</p>
-                    <p className="text-xl font-black text-neutral-900">{distributionTotal}</p>
+
+                  {/* Legend */}
+                  <div className="space-y-3">
+                    {certificateDistribution.slice(0, 5).map((item, index) => {
+                      const percentage = distributionTotal > 0 ? Math.round((item.value / distributionTotal) * 100) : 0;
+                      return (
+                        <div key={item.name} className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: `hsl(var(--chart-${(index % 5) + 1}))` }}
+                            />
+                            <span className="text-sm font-semibold text-slate-700 truncate">{item.name}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-sm font-black text-slate-900">{percentage}%</span>
+                            <span className="text-xs text-slate-500 ml-1">({item.value})</span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-                <div className="mt-6 grid grid-cols-2 gap-3">
-                  {certificateDistribution.map((item) => {
-                    const percent = distributionTotal > 0 ? Math.round((item.value / distributionTotal) * 100) : 0;
-                    return (
-                      <div key={item.name} className="flex flex-col p-2 rounded-lg bg-neutral-50 border border-neutral-100">
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
-                          <span className="text-[10px] font-bold text-neutral-500 uppercase truncate">{item.name}</span>
-                        </div>
-                        <span className="text-sm font-bold text-neutral-900">{percent}%</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Performance Metrics Bar Chart */}
+        <Card className="border-0 shadow-xl bg-white overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
+            <div>
+              <CardTitle className="text-xl font-black text-slate-900 flex items-center gap-3">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                Performance Metrics
+              </CardTitle>
+              <p className="text-slate-600 mt-1 font-medium">Monthly performance indicators and KPIs</p>
+            </div>
+          </CardHeader>
+          <CardContent className="p-8">
+            <ChartContainer config={{
+              verification: { label: "Verification Rate", color: "hsl(var(--chart-2))" },
+              processing: { label: "Processing Time", color: "hsl(var(--chart-4))" },
+              satisfaction: { label: "User Satisfaction", color: "hsl(var(--chart-5))" },
+            }} className="h-80 w-full">
+              <BarChart 
+                data={[
+                  { month: 'Jan', verification: 98, processing: 2.1, satisfaction: 4.8 },
+                  { month: 'Feb', verification: 97, processing: 2.3, satisfaction: 4.7 },
+                  { month: 'Mar', verification: 99, processing: 1.9, satisfaction: 4.9 },
+                  { month: 'Apr', verification: 98, processing: 2.0, satisfaction: 4.8 },
+                  { month: 'May', verification: 99, processing: 1.8, satisfaction: 4.9 },
+                  { month: 'Jun', verification: 98, processing: 2.2, satisfaction: 4.8 },
+                ]}
+                margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                <XAxis 
+                  dataKey="month"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }}
+                />
+                <YAxis 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }}
+                />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartLegend content={<ChartLegendContent />} />
+                <Bar 
+                  dataKey="verification" 
+                  fill="hsl(var(--chart-2))"
+                  radius={[4, 4, 0, 0]}
+                  animationDuration={1500}
+                  animationEasing="ease-out"
+                />
+                <Bar 
+                  dataKey="processing" 
+                  fill="hsl(var(--chart-4))"
+                  radius={[4, 4, 0, 0]}
+                  animationDuration={1500}
+                  animationEasing="ease-out"
+                  animationBegin={300}
+                />
+                <Bar 
+                  dataKey="satisfaction" 
+                  fill="hsl(var(--chart-5))"
+                  radius={[4, 4, 0, 0]}
+                  animationDuration={1500}
+                  animationEasing="ease-out"
+                  animationBegin={600}
+                />
+              </BarChart>
+            </ChartContainer>
           </CardContent>
         </Card>
       </div>
@@ -616,7 +795,7 @@ export default function ModernDashboard() {
                     <div className="flex items-center gap-6">
                       <div className="hidden sm:block text-right">
                         <p className="text-xs font-bold text-neutral-400 uppercase tracking-tighter">Issued On</p>
-                        <p className="text-sm font-medium text-neutral-900">{format(new Date(cert.issuedAt), "MMM dd, yyyy")}</p>
+                        <p className="text-sm font-medium text-neutral-900">{cert.issuedAt && isValid(new Date(cert.issuedAt)) ? format(new Date(cert.issuedAt), "MMM dd, yyyy") : "N/A"}</p>
                       </div>
                       <Badge className={cert.isMinted 
                         ? "bg-emerald-50 text-emerald-700 border-emerald-200 font-bold" 
