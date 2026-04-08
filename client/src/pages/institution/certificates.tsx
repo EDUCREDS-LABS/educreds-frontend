@@ -217,11 +217,12 @@ export default function Certificates() {
     let revoked = 0;
     let archived = 0;
     allCerts.forEach((cert: Certificate) => {
+      const status = (cert as any).issuanceStatus;
       if ((cert as any).isArchived) {
         archived += 1;
-      } else if (!cert.isValid) {
+      } else if (status === "revoked" || cert.isValid === false) {
         revoked += 1;
-      } else if (cert.status === "pending" || !cert.isMinted) {
+      } else if (status === "pending_wallet_signature" || status === "pending" || cert.isMinted === false) {
         pending += 1;
       } else {
         active += 1;
@@ -823,8 +824,8 @@ export default function Certificates() {
                           </Avatar>
                           <div>
                             <p className="text-sm font-bold text-neutral-900 group-hover:text-primary transition-colors">
-                              {certificate.studentName && certificate.studentName.toLowerCase() !== "unknown student" 
-                                ? certificate.studentName 
+                              {certificate.studentName
+                                ? certificate.studentName
                                 : certificate.studentAddress 
                                   ? `${certificate.studentAddress.slice(0, 6)}...${certificate.studentAddress.slice(-4)}`
                                   : "Unknown Student"}
