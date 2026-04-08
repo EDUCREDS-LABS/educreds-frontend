@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppKitProvider } from "@/lib/appkit-provider";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { DevProvider } from "./DevContext";
 import { ChatWidget } from "@/components/ChatWidget";
 const RegisterVerifyOtp = lazy(() => import("@/pages/auth/register-verify-otp"));
 const EduCredsLabsLanding = lazy(() => import("@/pages/EduCredsLabsLanding"));
@@ -312,15 +313,17 @@ function Router() {
 
 function App() {
   return (
-    <AppKitProvider>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-          <ChatWidget />
-        </TooltipProvider>
-      </QueryClientProvider>
-    </AppKitProvider>
+    <DevProvider>
+      <AppKitProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+            <ChatWidget />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </AppKitProvider>
+    </DevProvider>
   );
 }
 

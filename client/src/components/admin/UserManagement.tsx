@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -24,19 +24,26 @@ import {
   Mail,
   MoreVertical,
   Activity,
-  Key
+  Key,
+  Lock,
+  ArrowRight,
+  ShieldCheck,
 } from "lucide-react";
-import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { AdminUser, AdminRole, ROLE_LABELS, ROLE_PERMISSIONS } from "@/types/admin";
+import { AdminUser, AdminRole, ROLE_LABELS } from "@/types/admin";
 import { cn } from "@/lib/utils";
+import { useAdminUsers, useCreateAdminUser, useUpdateAdminUser, useDeleteAdminUser } from "@/hooks/useAdmin";
 
 export default function UserManagement() {
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: usersData, isLoading } = useAdminUsers();
+  const createMutation = useCreateAdminUser();
+  const updateMutation = useUpdateAdminUser();
+  const deleteMutation = useDeleteAdminUser();
+  
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  
   const [createForm, setCreateForm] = useState({
     email: '',
     name: '',
@@ -48,211 +55,155 @@ export default function UserManagement() {
     role: 'reviewer' as AdminRole,
     isActive: true
   });
-  const [actionLoading, setActionLoading] = useState(false);
+  
   const { toast } = useToast();
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const response = await api.getAdminUsers();
-      setUsers(response.users || []);
-    } catch (error: any) {
-      toast({
-        title: "Session Alert",
-        description: "Failed to synchronize administrative team directory.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const users = usersData?.users || [];
 
   const handleCreateUser = async () => {
     if (!createForm.email || !createForm.name || !createForm.password) {
-      toast({
-        title: "Validation Error",
-        description: "All personnel credentials must be complete.",
-        variant: "destructive",
-      });
+      toast({ title: "Credential Incomplete", description: "All personnel fields are mandatory.", variant: "destructive" });
       return;
     }
-
-    setActionLoading(true);
     try {
-      await api.createAdminUser(createForm);
-      toast({
-        title: "Personnel Added",
-        description: "New administrative account successfully provisioned.",
-      });
+      await createMutation.mutateAsync(createForm);
+      toast({ title: "Personnel Provisioned", description: "Administrative node access granted." });
       setShowCreateModal(false);
       setCreateForm({ email: '', name: '', role: 'reviewer', password: '' });
-      fetchUsers();
     } catch (error: any) {
-      toast({
-        title: "Provisioning Error",
-        description: error.message || "Failed to create team member entry.",
-        variant: "destructive",
-      });
-    } finally {
-      setActionLoading(false);
+      toast({ title: "Provisioning Failed", description: error.message, variant: "destructive" });
     }
   };
 
   const handleUpdateUser = async () => {
     if (!selectedUser) return;
-
-    setActionLoading(true);
     try {
-      await api.updateAdminUser(selectedUser.id, editForm);
-      toast({
-        title: "Identity Verified",
-        description: "User permissions and profile updated.",
-      });
+      await updateMutation.mutateAsync({ userId: selectedUser.id, updates: editForm });
+      toast({ title: "Identity Re-Verified", description: "Access level updated in registry." });
       setShowEditModal(false);
       setSelectedUser(null);
-      fetchUsers();
     } catch (error: any) {
-      toast({
-        title: "Update Reverted",
-        description: error.message || "Critical error during profile modification.",
-        variant: "destructive",
-      });
-    } finally {
-      setActionLoading(false);
+      toast({ title: "Update Failed", description: error.message, variant: "destructive" });
     }
   };
 
   const handleDeleteUser = async (user: AdminUser) => {
-    // We'll use a better confirmation in the UI later, but for now:
-    if (!window.confirm(`Revoke all access for ${user.name}?`)) return;
-
+    if (!window.confirm(`Revoke all strategic access for ${user.name}?`)) return;
     try {
-      await api.deleteAdminUser(user.id);
-      toast({
-        title: "Access Revoked",
-        description: "Administrative account has been decommissioned.",
-      });
-      fetchUsers();
+      await deleteMutation.mutateAsync(user.id);
+      toast({ title: "Access Decommissioned", description: "Personnel credentials revoked." });
     } catch (error: any) {
-      toast({
-        title: "Revocation Error",
-        description: error.message || "Failed to delete administrative entry.",
-        variant: "destructive",
-      });
+      toast({ title: "Revocation Error", variant: "destructive" });
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 w-full bg-gray-900 rounded-2xl" />)}
+      <div className="space-y-12 animate-pulse">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 rounded-[32px] bg-white/5" />)}
         </div>
-        <Skeleton className="h-[400px] w-full bg-gray-900 rounded-3xl" />
+        <Skeleton className="h-[500px] rounded-[40px] bg-white/5" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Team Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
-            <Users className="w-6 h-6 text-blue-500" />
-            Administrative Team
-          </h2>
-          <p className="text-sm text-gray-500">Manage hierarchical access control and system permissions</p>
+    <div className="space-y-12 animate-in fade-in duration-700">
+      {/* Team Infrastructure Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-2">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-primary font-black uppercase tracking-[0.2em] text-[10px]">
+            <ShieldCheck className="size-4" />
+            Strategic Access Control
+          </div>
+          <h2 className="text-4xl font-black text-white tracking-tighter">Administrative <span className="text-primary">Team</span>.</h2>
+          <p className="text-neutral-500 font-medium max-w-lg">Manage hierarchical node authority and establish role-based security clearance across the protocol.</p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)} className="bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold px-6 shadow-xl shadow-blue-500/20">
-          <Plus className="w-4 h-4 mr-2" />
-          Provision User
+        <Button onClick={() => setShowCreateModal(true)} className="h-14 px-10 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black text-xs uppercase tracking-widest shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all">
+          <Plus className="size-5 mr-3" />
+          Provision Personnel
         </Button>
       </div>
 
-      {/* Analytics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <TeamMetricCard title="Total Personnel" value={users.length} icon={Users} color="blue" />
-        <TeamMetricCard title="Verified Active" value={users.filter(u => u.isActive).length} icon={UserCheck} color="green" />
-        <TeamMetricCard title="Pending Review" value={users.filter(u => u.role === 'reviewer').length} icon={ShieldAlert} color="amber" />
-        <TeamMetricCard title="Super Admins" value={users.filter(u => u.role === 'super_admin').length} icon={Shield} color="purple" />
+      {/* Analytics Clusters */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <TeamMetricCard title="Total Assets" value={users.length} sub="Identified Nodes" icon={Users} color="blue" />
+        <TeamMetricCard title="Operational" value={users.filter(u => u.isActive).length} sub="Active Sessions" icon={UserCheck} color="green" />
+        <TeamMetricCard title="Audit Level" value={users.filter(u => u.role === 'reviewer').length} sub="Registry Reviewers" icon={ShieldAlert} color="amber" />
+        <TeamMetricCard title="Root Power" value={users.filter(u => u.role === 'super_admin').length} sub="System Sovereignty" icon={Lock} color="purple" />
       </div>
 
-      {/* Main Table */}
-      <Card className="bg-gray-900 border-none shadow-2xl overflow-hidden rounded-3xl">
+      {/* Main Registry Table */}
+      <Card className="border-none shadow-2xl shadow-black/40 bg-white/5 backdrop-blur-3xl rounded-[40px] overflow-hidden">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="bg-gray-950/50">
-                <TableRow className="border-gray-800 hover:bg-transparent">
-                  <TableHead className="text-gray-500 font-bold uppercase tracking-widest text-[10px] py-6 px-8">Full Identity</TableHead>
-                  <TableHead className="text-gray-500 font-bold uppercase tracking-widest text-[10px] py-6">Email Authority</TableHead>
-                  <TableHead className="text-gray-500 font-bold uppercase tracking-widest text-[10px] py-6">Security Clearance</TableHead>
-                  <TableHead className="text-gray-500 font-bold uppercase tracking-widest text-[10px] py-6">Operational Status</TableHead>
-                  <TableHead className="text-gray-500 font-bold uppercase tracking-widest text-[10px] py-6 text-right px-8">Actions</TableHead>
+              <TableHeader className="bg-white/[0.02]">
+                <TableRow className="border-white/5 hover:bg-transparent">
+                  <TableHead className="text-neutral-500 font-black uppercase tracking-[0.2em] text-[10px] py-8 px-10">Personnel Identity</TableHead>
+                  <TableHead className="text-neutral-500 font-black uppercase tracking-[0.2em] text-[10px] py-8">Network Auth</TableHead>
+                  <TableHead className="text-neutral-500 font-black uppercase tracking-[0.2em] text-[10px] py-8">Clearance Level</TableHead>
+                  <TableHead className="text-neutral-500 font-black uppercase tracking-[0.2em] text-[10px] py-8">Linkage</TableHead>
+                  <TableHead className="text-neutral-500 font-black uppercase tracking-[0.2em] text-[10px] py-8 text-right px-10">Protocols</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <AnimatePresence>
                   {users.map((user, idx) => (
                     <motion.tr
-                      initial={{ opacity: 0, x: -10 }}
+                      initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.05 }}
+                      transition={{ delay: idx * 0.05, duration: 0.5 }}
                       key={user.id}
-                      className="bg-transparent border-gray-800/50 hover:bg-gray-800/20 transition-colors group"
+                      className="bg-transparent border-white/5 hover:bg-white/[0.02] transition-colors group"
                     >
-                      <TableCell className="py-6 px-8">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-gray-800 to-gray-700 flex items-center justify-center text-white font-bold text-sm shadow-inner">
+                      <TableCell className="py-8 px-10">
+                        <div className="flex items-center gap-6">
+                          <div className="size-14 rounded-2xl bg-gray-900 border border-white/5 flex items-center justify-center text-primary font-black text-lg shadow-xl group-hover:scale-105 transition-transform">
                             {user.name.split(' ').map(n => n[0]).join('')}
                           </div>
-                          <span className="text-sm font-bold text-white">{user.name}</span>
+                          <span className="text-lg font-black text-white tracking-tight">{user.name}</span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2 text-gray-400">
-                          <Mail className="w-3 h-3" />
-                          <span className="text-xs">{user.email}</span>
+                        <div className="flex items-center gap-3 text-neutral-400 font-bold">
+                          <Mail className="size-4 text-primary opacity-50" />
+                          <span className="text-sm tracking-tight">{user.email}</span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <Badge className={cn(
-                          "rounded-xl px-3 py-1 text-[10px] font-black tracking-widest uppercase border-none",
+                          "rounded-full px-4 py-1.5 text-[9px] font-black tracking-[0.1em] uppercase border-none shadow-lg",
                           getRoleStyle(user.role)
                         )}>
                           {ROLE_LABELS[user.role]}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className={cn("w-1.5 h-1.5 rounded-full", user.isActive ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-red-500")} />
-                          <span className={cn("text-xs font-bold", user.isActive ? "text-green-500" : "text-red-500")}>
-                            {user.isActive ? "Active Duty" : "Revoked"}
+                        <div className="flex items-center gap-3">
+                          <div className={cn("size-2 rounded-full", user.isActive ? "bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]" : "bg-red-500")} />
+                          <span className={cn("text-xs font-black uppercase tracking-widest", user.isActive ? "text-green-500" : "text-red-500")}>
+                            {user.isActive ? "Online" : "Revoked"}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="px-8 text-right">
-                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <TableCell className="px-10 text-right">
+                        <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="rounded-full hover:bg-blue-600/10 hover:text-blue-400 transition-all"
+                            className="size-10 rounded-xl bg-white/5 border border-white/5 text-neutral-400 hover:text-primary transition-all"
                             onClick={() => { setSelectedUser(user); setEditForm({ name: user.name, role: user.role, isActive: user.isActive }); setShowEditModal(true); }}
                           >
-                            <Edit className="w-4 h-4" />
+                            <Edit className="size-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="rounded-full hover:bg-red-600/10 hover:text-red-400 transition-all"
+                            className="size-10 rounded-xl bg-white/5 border border-white/5 text-neutral-400 hover:text-red-500 transition-all"
                             onClick={() => handleDeleteUser(user)}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="size-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -265,105 +216,105 @@ export default function UserManagement() {
         </CardContent>
       </Card>
 
-      {/* Create Modal */}
+      {/* Provisioning Modal */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent className="max-w-md bg-gray-900 border-gray-800 text-white rounded-3xl p-0 overflow-hidden shadow-2xl">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8">
-            <DialogTitle className="text-2xl font-black">TEAM PROVISIONING</DialogTitle>
-            <DialogDescription className="text-blue-100/80 font-medium">Issue high-level administrative credentials</DialogDescription>
+        <DialogContent className="max-w-xl bg-gray-950 border-white/5 text-white rounded-[40px] p-0 overflow-hidden shadow-2xl">
+          <div className="bg-gradient-to-br from-primary to-indigo-700 p-12 relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-8 opacity-10"><Users className="size-48 rotate-12" /></div>
+             <div className="relative z-10 space-y-4">
+                <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.3em]">Identity Protocol</p>
+                <DialogTitle className="text-4xl font-black tracking-tighter">Provision Personnel.</DialogTitle>
+                <DialogDescription className="text-blue-100/70 text-lg font-medium">Initialize institutional node access for new administrators.</DialogDescription>
+             </div>
           </div>
 
-          <div className="p-8 space-y-6">
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Full Personnel Name</Label>
-              <Input
-                value={createForm.name}
-                onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))}
-                className="bg-gray-850 border-gray-800 h-12 rounded-xl focus:ring-blue-500 transition-all"
-              />
+          <div className="p-12 space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-500 px-2">Personnel Legal Name</Label>
+                <Input value={createForm.name} onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))} className="h-14 bg-white/5 border-white/5 rounded-2xl focus:ring-primary/20 shadow-inner" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-500 px-2">Institutional Email</Label>
+                <Input type="email" value={createForm.email} onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))} className="h-14 bg-white/5 border-white/5 rounded-2xl focus:ring-primary/20 shadow-inner" />
+              </div>
             </div>
+
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Corporate Email</Label>
-              <Input
-                type="email"
-                value={createForm.email}
-                onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))}
-                className="bg-gray-850 border-gray-800 h-12 rounded-xl focus:ring-blue-500 transition-all"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Security Role</Label>
+              <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-500 px-2">Strategic Security Role</Label>
               <Select value={createForm.role} onValueChange={(v: AdminRole) => setCreateForm(f => ({ ...f, role: v }))}>
-                <SelectTrigger className="bg-gray-850 border-gray-800 h-12 rounded-xl text-white">
+                <SelectTrigger className="h-14 bg-white/5 border-white/5 rounded-2xl text-white font-bold">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                <SelectContent className="bg-gray-950 border-white/5 text-white">
                   {Object.entries(ROLE_LABELS).map(([r, l]) => (
-                    <SelectItem key={r} value={r} className="hover:bg-blue-600 focus:bg-blue-600">{l}</SelectItem>
+                    <SelectItem key={r} value={r} className="hover:bg-primary font-black uppercase text-[10px] tracking-widest py-3">{l}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Master Secret Key (Temporary)</Label>
-              <div className="relative">
-                <Input
-                  type="password"
-                  value={createForm.password}
-                  onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
-                  className="bg-gray-850 border-gray-800 h-12 rounded-xl pr-12"
-                />
-                <Key className="absolute right-4 top-3.5 w-5 h-5 text-gray-600" />
+              <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-500 px-2">Root Secret Key</Label>
+              <div className="relative group">
+                <Input type="password" value={createForm.password} onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))} className="h-14 bg-white/5 border-white/5 rounded-2xl pr-14 focus:ring-primary/20 shadow-inner" />
+                <Key className="absolute right-5 top-1/2 -translate-y-1/2 size-5 text-neutral-600 group-focus-within:text-primary transition-colors" />
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4">
-              <Button variant="ghost" onClick={() => setShowCreateModal(false)} className="text-gray-500 hover:text-white">Abort</Button>
-              <Button onClick={handleCreateUser} disabled={actionLoading} className="bg-blue-600 hover:bg-blue-500 text-white font-black px-8 h-12 rounded-xl">
-                {actionLoading ? <Loader2 className="animate-spin" /> : "PROVISION NOW"}
+            <div className="pt-6 flex gap-4">
+              <Button variant="ghost" onClick={() => setShowCreateModal(false)} className="h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-widest text-neutral-500">Discard</Button>
+              <Button onClick={handleCreateUser} disabled={createMutation.isPending} className="flex-1 h-14 bg-primary hover:bg-primary/90 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all">
+                {createMutation.isPending ? <Loader2 className="animate-spin size-6" /> : "Authorize & Provision"}
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Modal */}
+      {/* Modification Modal */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="max-w-md bg-gray-900 border-gray-800 text-white rounded-3xl p-8 shadow-2xl">
-          <DialogHeader className="mb-6">
-            <DialogTitle className="text-xl font-black">MODIFY ACCESS</DialogTitle>
-            <DialogDescription>Adjust security clearance for {selectedUser?.name}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Updated Name</Label>
-              <Input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className="bg-gray-850 border-gray-800 rounded-xl" />
+        <DialogContent className="max-w-xl bg-gray-950 border-white/5 text-white rounded-[40px] p-12 shadow-2xl">
+          <DialogHeader className="mb-10">
+            <div className="size-16 bg-primary/10 rounded-[24px] flex items-center justify-center text-primary mb-6">
+              <ShieldCheck className="size-8" />
             </div>
+            <DialogTitle className="text-3xl font-black tracking-tighter">Modify Node Access.</DialogTitle>
+            <DialogDescription className="text-neutral-500 font-medium">Adjust security clearance for {selectedUser?.name}</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-8">
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-gray-500">New Clearance Level</Label>
+              <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-500 px-2">Updated Personnel Name</Label>
+              <Input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className="h-14 bg-white/5 border-white/5 rounded-2xl focus:ring-primary/20 shadow-inner" />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-500 px-2">Strategic Security Role</Label>
               <Select value={editForm.role} onValueChange={(v: AdminRole) => setEditForm(f => ({ ...f, role: v }))}>
-                <SelectTrigger className="bg-gray-850 border-gray-800 text-white rounded-xl">
+                <SelectTrigger className="h-14 bg-white/5 border-white/5 rounded-2xl text-white font-bold">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                <SelectContent className="bg-gray-950 border-white/5 text-white">
                   {Object.entries(ROLE_LABELS).map(([r, l]) => (
-                    <SelectItem key={r} value={r} className="hover:bg-blue-600 focus:bg-blue-600">{l}</SelectItem>
+                    <SelectItem key={r} value={r} className="hover:bg-primary font-black uppercase text-[10px] tracking-widest py-3">{l}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center justify-between p-4 bg-gray-850 rounded-2xl border border-gray-800">
+
+            <div className="flex items-center justify-between p-6 bg-white/5 rounded-[32px] border border-white/5 shadow-inner">
               <div className="space-y-1">
-                <p className="text-xs font-bold">Access Status</p>
-                <p className="text-[10px] text-gray-500 opacity-80 uppercase tracking-widest font-black">Enable/Disable Platform Login</p>
+                <p className="text-sm font-black text-white">Access Protocol</p>
+                <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest">Enable/Disable Infrastructure Login</p>
               </div>
-              <Switch checked={editForm.isActive} onCheckedChange={c => setEditForm(f => ({ ...f, isActive: c }))} className="data-[state=checked]:bg-blue-600" />
+              <Switch checked={editForm.isActive} onCheckedChange={c => setEditForm(f => ({ ...f, isActive: c }))} className="data-[state=checked]:bg-primary" />
             </div>
 
-            <div className="flex justify-end gap-3 pt-6">
-              <Button variant="ghost" onClick={() => setShowEditModal(false)} className="text-gray-500 hover:text-white">Cancel</Button>
-              <Button onClick={handleUpdateUser} disabled={actionLoading} className="bg-white text-gray-900 font-black px-8 h-12 rounded-xl">
-                {actionLoading ? <Loader2 className="animate-spin" /> : "APPLY CHANGES"}
+            <div className="pt-8 flex gap-4">
+               <Button variant="ghost" onClick={() => setShowEditModal(false)} className="h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-widest text-neutral-500">Cancel</Button>
+               <Button onClick={handleUpdateUser} disabled={updateMutation.isPending} className="flex-1 h-14 bg-white text-gray-950 hover:bg-neutral-200 font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl transition-all hover:scale-[1.02]">
+                {updateMutation.isPending ? <Loader2 className="animate-spin size-6" /> : "Commit Modification"}
               </Button>
             </div>
           </div>
@@ -373,37 +324,40 @@ export default function UserManagement() {
   );
 }
 
-function TeamMetricCard({ title, value, icon: Icon, color }: any) {
+function TeamMetricCard({ title, value, sub, icon: Icon, color }: any) {
   const colors: any = {
-    blue: "text-blue-500 bg-blue-500/10 border-blue-500/20 shadow-blue-500/5",
-    green: "text-green-500 bg-green-500/10 border-green-500/20 shadow-green-500/5",
-    amber: "text-amber-500 bg-amber-500/10 border-amber-500/20 shadow-amber-500/5",
-    purple: "text-purple-500 bg-purple-500/10 border-purple-500/20 shadow-purple-500/5",
+    blue: "text-primary bg-primary/10 border-primary/20",
+    green: "text-green-500 bg-green-500/10 border-green-500/20",
+    amber: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+    purple: "text-purple-500 bg-purple-500/10 border-purple-500/20",
   };
 
   return (
-    <Card className="bg-gray-900 border-none shadow-2xl overflow-hidden relative group">
-      <CardContent className="p-6">
-        <div className="flex justify-between items-start mb-4">
-          <div className={cn("p-2.5 rounded-xl border", colors[color])}>
-            <Icon className="w-5 h-5" />
+    <Card className="border-none shadow-2xl bg-white/5 backdrop-blur-3xl rounded-[32px] overflow-hidden group hover:bg-white/[0.07] transition-all duration-500 relative">
+      <CardContent className="p-8 relative z-10">
+        <div className="flex justify-between items-start mb-6">
+          <div className={cn("size-12 rounded-2xl border flex items-center justify-center transition-transform group-hover:scale-110 duration-500", colors[color])}>
+            <Icon className="size-6" />
           </div>
-          <Activity className="w-4 h-4 text-gray-800 group-hover:text-gray-600 transition-colors" />
+          <Activity className="size-4 text-neutral-800 group-hover:text-primary transition-colors" />
         </div>
-        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-600 mb-1">{title}</h3>
-        <p className="text-3xl font-black text-white tracking-tight">{value}</p>
+        <div className="space-y-1">
+          <p className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.2em]">{title}</p>
+          <p className="text-4xl font-black text-white tracking-tighter">{value}</p>
+          <p className="text-[9px] font-bold text-neutral-600 uppercase tracking-widest">{sub}</p>
+        </div>
       </CardContent>
-      <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 blur-3xl pointer-events-none group-hover:bg-white/10 transition-all duration-700" />
+      <div className="absolute top-0 right-0 size-32 bg-white/5 blur-3xl pointer-events-none group-hover:bg-white/10 transition-all duration-700" />
     </Card>
   );
 }
 
 function getRoleStyle(role: AdminRole) {
   switch (role) {
-    case 'super_admin': return 'bg-red-500/10 text-red-500';
-    case 'reviewer': return 'bg-blue-500/10 text-blue-500';
-    case 'auditor': return 'bg-purple-500/10 text-purple-500';
-    case 'blockchain_registrar': return 'bg-indigo-500/10 text-indigo-500';
-    default: return 'bg-gray-800 text-gray-400';
+    case 'super_admin': return 'bg-red-500/20 text-red-500 shadow-red-500/10';
+    case 'reviewer': return 'bg-primary/20 text-primary shadow-primary/10';
+    case 'auditor': return 'bg-purple-500/20 text-purple-500 shadow-purple-500/10';
+    case 'blockchain_registrar': return 'bg-indigo-500/20 text-indigo-500 shadow-indigo-500/10';
+    default: return 'bg-white/10 text-neutral-400';
   }
 }

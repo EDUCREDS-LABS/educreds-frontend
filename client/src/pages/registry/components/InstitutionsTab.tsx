@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useQueries } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, Globe, Activity, Award, ArrowRight, Filter, SlidersHorizontal,
@@ -15,6 +16,8 @@ import { cn } from '@/lib/utils';
 import { useInstitutions } from '@/hooks/useGovernance';
 import type { InstitutionResponse } from '@/lib/governanceApiService';
 import InstitutionDetailSheet from './InstitutionDetailSheet';
+import { api } from '@/lib/api';
+import { useInstitutionStore } from '@/store/institutionStore';
 
 const PAGE_SIZE = 12;
 
@@ -37,6 +40,15 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
 
 function getStatusConfig(status: string) {
   return STATUS_CONFIG[status] ?? { label: status, className: 'bg-blue-500/10 text-blue-600' };
+}
+
+function isLikelyId(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return true;
+  if (/^0x[a-f0-9]{8,}$/i.test(trimmed)) return true;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(trimmed)) return true;
+  if (/^(institution|inst|node|did)[:_]/i.test(trimmed)) return true;
+  return false;
 }
 
 // ── Institution Card ───────────────────────────────────────────────────────
@@ -179,17 +191,66 @@ export default function InstitutionsTab() {
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useInstitutions(page, PAGE_SIZE);
+  const { namesById, setNames } = useInstitutionStore();
+
+  const idsToResolve = useMemo(() => {
+    const list = data?.data ?? [];
+    return list
+      .filter((inst) => {
+        const currentName = inst?.name ?? '';
+        return inst?.id && (!currentName || isLikelyId(currentName)) && !namesById[inst.id];
+      })
+      .map((inst) => inst.id);
+  }, [data, namesById]);
+
+  const nameQueries = useQueries({
+    queries: idsToResolve.map((id) => ({
+      queryKey: ['institution-name', id],
+      queryFn: () => api.getInstitutionPublicProfile(id),
+      enabled: Boolean(id),
+      staleTime: 5 * 60 * 1000,
+      gcTime: 30 * 60 * 1000,
+    })),
+  });
+
+  useEffect(() => {
+    if (!nameQueries.length) return;
+    const resolved: Record<string, string> = {};
+    nameQueries.forEach((q, idx) => {
+      if (q.status === 'success') {
+        const id = idsToResolve[idx];
+        const name = (q.data as any)?.name || (q.data as any)?.institutionName;
+        if (id && name) {
+          resolved[id] = String(name);
+        }
+      }
+    });
+    if (Object.keys(resolved).length) {
+      setNames(resolved);
+    }
+  }, [nameQueries, idsToResolve, setNames]);
 
   // Enrich raw API data with display fields
   const institutions: EnrichedInstitution[] = useMemo(() => {
     if (!data?.data) return [];
     return data.data.map((inst) => ({
       ...inst,
-      name:
-        inst.name?.trim() ||
-        (inst.iinTokenId != null ? `Institution #${inst.iinTokenId}` : '') ||
-        (inst.walletAddress ? `Institution ${inst.walletAddress.slice(0, 6)}…` : '') ||
-        'Unknown Institution',
+      name: (() => {
+        // First priority: use stored resolved name from secondary fetch
+        const storedName = namesById[inst.id ?? ''];
+        if (storedName && storedName.trim() && !isLikelyId(storedName)) return storedName;
+        
+        // Second priority: use institution's name field from API
+        const rawName = inst.name?.trim() || '';
+        if (rawName && !isLikelyId(rawName)) return rawName;
+        
+        // Fallback: generate display name from available data
+        return (
+          (inst.iinTokenId != null ? `Institution #${inst.iinTokenId}` : '') ||
+          (inst.walletAddress ? `Institution ${inst.walletAddress.slice(0, 6)}…` : '') ||
+          'Unknown Institution'
+        );
+      })(),
       walletAddress: inst.walletAddress ?? '',
       poicScore: Number.isFinite(inst.poicScore as number) ? Math.round(inst.poicScore as number) : null,
       issuanceCount: Number.isFinite(inst.issuanceCount as number)

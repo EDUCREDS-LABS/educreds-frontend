@@ -706,31 +706,148 @@ export const api = {
           ? (data as any).data
           : [];
 
-    const certificates = list.map((c: any) => ({
+    const normalizeText = (value: any) => {
+      if (typeof value !== 'string') return '';
+      const trimmed = value.trim();
+      if (!trimmed) return '';
+      return trimmed;
+    };
+
+    const normalizeName = (value: any) => {
+      const normalized = normalizeText(value);
+      if (!normalized) return '';
+      const lower = normalized.toLowerCase();
+      if (lower === 'unknown' || lower === 'unknown student' || lower === 'unknown program') return '';
+      return normalized;
+    };
+
+    const certificates = list.map((c: any) => {
+      const resolveStudentName = () => {
+        if (!c) return 'Unknown Student';
+
+        const direct = normalizeName(
+          c.studentName ||
+          c.student_name ||
+          c.studentFullName ||
+          c.student_full_name ||
+          c.recipientName ||
+          c.recipient_name ||
+          c.fullName
+        );
+        if (direct) return direct;
+
+        if (c.student && typeof c.student === 'object') {
+          const nested = normalizeName(
+            c.student.fullName ||
+            c.student.name ||
+            c.student.studentName ||
+            c.student.student_full_name ||
+            `${c.student.firstName || c.student.first_name || ''} ${c.student.lastName || c.student.last_name || ''}`
+          );
+          if (nested) return nested;
+        }
+
+        if (c.credentialSubject && typeof c.credentialSubject === 'object') {
+          const subject = normalizeName(
+            c.credentialSubject.fullName ||
+            c.credentialSubject.studentName ||
+            c.credentialSubject.name ||
+            c.credentialSubject.credentialName ||
+            c.credentialSubject.programName ||
+            c.credentialSubject.courseName
+          );
+          if (subject) return subject;
+        }
+
+        const first = normalizeText(c.studentFirstName || c.firstName || c.student_first_name || c.first_name);
+        const last = normalizeText(c.studentLastName || c.lastName || c.student_last_name || c.last_name);
+        const combined = [first, last].filter(Boolean).join(' ');
+        if (combined) return combined;
+
+        return 'Unknown Student';
+      };
+
+      const resolveCourseName = () => {
+        if (!c) return 'Unknown Program';
+
+        const direct = normalizeName(
+          c.courseName ||
+          c.course_name ||
+          c.program ||
+          c.programName ||
+          c.program_name ||
+          c.title ||
+          c.courseTitle ||
+          c.credential_name ||
+          c.credentialName
+        );
+        if (direct) return direct;
+
+        if (c.credentialSubject && typeof c.credentialSubject === 'object') {
+          const subject = normalizeName(
+            c.credentialSubject.courseName ||
+            c.credentialSubject.programName ||
+            c.credentialSubject.title ||
+            c.credentialSubject.name ||
+            c.credentialSubject.credentialName
+          );
+          if (subject) return subject;
+        }
+
+        if (c.course && typeof c.course === 'object') {
+          const nested = normalizeName(
+            c.course.name ||
+            c.course.courseName ||
+            c.course.programName ||
+            c.course.title ||
+            c.course.courseTitle
+          );
+          if (nested) return nested;
+        }
+
+        return 'Unknown Program';
+      };
+
+      const resolveStudentAddress = () => {
+        return (
+          c.studentAddress ||
+          c.studentWalletAddress ||
+          c.student_wallet_address ||
+          c.walletAddress ||
+          c.recipientWallet ||
+          c.recipientAddress ||
+          c.recipient_wallet ||
+          c.recipient_address ||
+          ''
+        );
+      };
+
+      return {
       ...(() => {
         const status =
-          c.issuanceStatus ??
-          (c.isValid === false
-            ? "revoked"
-            : (c.isMinted ?? Boolean(c.tokenId))
-              ? "minted"
-              : "pending_wallet_signature");
-        const minted = status === "minted" || Boolean(c.isMinted ?? c.tokenId);
+          normalizeName(c.issuanceStatus) ||
+          normalizeName(c.status) ||
+          (c.isValid === false || c.revocationReason
+            ? 'revoked'
+            : (Boolean(c.isMinted) || c.tokenId != null)
+              ? 'minted'
+              : 'pending_wallet_signature');
+        const minted = status === 'minted' || Boolean(c.isMinted ?? c.tokenId);
         return {
           issuanceStatus: status,
           isMinted: minted,
-          isValid: c.isValid ?? minted,
+          isValid: c.isValid ?? (!c.revocationReason && minted),
         };
       })(),
       id: c.id ?? c._id ?? c.uuid ?? String(c.tokenId ?? c._id ?? Math.random()),
-      studentAddress: c.studentAddress,
-      studentName: c.studentName,
-      courseName: c.courseName,
-      grade: c.grade ?? (c.gradescore !== undefined && c.gradescore !== null ? String(c.gradescore) : "N/A"),
+      studentAddress: resolveStudentAddress(),
+      studentName: resolveStudentName(),
+      courseName: resolveCourseName(),
+      grade: c.grade ?? (c.gradescore !== undefined && c.gradescore !== null ? String(c.gradescore) : 'N/A'),
       ipfsHash: c.ipfsHash,
       completionDate: c.completionDate,
-      certificateType: c.certificateType ?? "Academic",
-      issuedBy: c.issuedBy?._id ?? c.issuedBy ?? "",
+      certificateType: c.certificateType ?? 'Academic',
+      issuedBy: c.issuedBy?._id ?? c.issuedBy ?? '',
       institutionName: c.institutionName,
       issuedAt: c.issuedAt ?? c.createdAt ?? c.issueDate,
       tokenId: c.tokenId,
@@ -755,10 +872,16 @@ export const api = {
       revocationRequestedBy: c.revocationRequestedBy,
       revocationReviewedAt: c.revocationReviewedAt,
       revocationReviewedBy: c.revocationReviewedBy,
-    }));
+    };
+    });
 
     const meta = (data as any)?.meta ?? (data as any)?.pagination ?? undefined;
     return { certificates, meta } as any;
+  },
+
+  getInstitutionPublicProfile: async (institutionId: string) => {
+    const response = await fetch(API_CONFIG.INSTITUTIONS.BLOCKCHAIN_STATUS(institutionId));
+    return handleResponse(response);
   },
 
   updateCertificate: async (id: string, updates: any) => {

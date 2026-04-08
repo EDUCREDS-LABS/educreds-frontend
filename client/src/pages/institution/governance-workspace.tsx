@@ -15,6 +15,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Shield,
   Vote,
   TrendingUp,
@@ -35,6 +51,8 @@ import {
   Lock,
   Cpu,
   Globe,
+  Search,
+  Filter,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -55,6 +73,8 @@ export default function GovernanceWorkspace() {
   const [activeTab, setActiveTab] = useState("overview");
   const [proposalPage, setProposalPage] = useState(1);
   const [votingOnProposal, setVotingOnProposal] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
   // Check governance verification status
   const { data: governanceInstitution, isLoading: governanceLoading } = useQuery({
@@ -94,6 +114,20 @@ export default function GovernanceWorkspace() {
   const { data: poicScoresData, isLoading: poicLoading } = usePoICScores();
 
   const proposals = proposalsData?.data || [];
+  
+  const filteredProposals = useMemo(() => {
+    return proposals.filter((proposal: any) => {
+      const matchesSearch = 
+        (proposal.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (proposal.id || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (proposal.institution_name || "").toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesStatus = statusFilter === "ALL" || proposal.state === statusFilter;
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [proposals, searchQuery, statusFilter]);
+
   const summary = summaryData || {
     totalProposals: 0,
     activeProposals: 0,
@@ -391,8 +425,31 @@ export default function GovernanceWorkspace() {
                   <CardTitle className="text-2xl font-black tracking-tight dark:text-neutral-100">Governance Registry</CardTitle>
                   <CardDescription className="text-neutral-500 dark:text-neutral-400 font-medium">Archive of all institutional proposals and consensus events.</CardDescription>
                 </div>
-                <div className="flex gap-3">
-                  <Button variant="outline" className="rounded-xl border-neutral-200 dark:border-neutral-800 font-bold h-11 px-6 text-xs uppercase tracking-widest">Filter Archive</Button>
+                <div className="flex flex-wrap gap-3">
+                  <div className="relative w-full md:w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400" />
+                    <Input 
+                      placeholder="Search proposals..." 
+                      className="pl-10 h-11 rounded-xl border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[180px] h-11 rounded-xl border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
+                      <div className="flex items-center gap-2">
+                        <Filter className="size-3.5" />
+                        <SelectValue placeholder="All States" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-neutral-200 dark:border-neutral-800">
+                      <SelectItem value="ALL">All States</SelectItem>
+                      <SelectItem value="ACTIVE">Active</SelectItem>
+                      <SelectItem value="EXECUTED">Executed</SelectItem>
+                      <SelectItem value="REJECTED">Rejected</SelectItem>
+                      <SelectItem value="PENDING">Pending</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardHeader>
@@ -401,51 +458,86 @@ export default function GovernanceWorkspace() {
                 <div className="p-10 space-y-6">
                   {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-20 w-full rounded-2xl" />)}
                 </div>
-              ) : proposals.length === 0 ? (
+              ) : filteredProposals.length === 0 ? (
                 <div className="p-20 text-center space-y-4">
                   <div className="size-16 bg-neutral-100 dark:bg-neutral-800 rounded-2xl flex items-center justify-center mx-auto text-neutral-400">
                     <FileText className="size-8" />
                   </div>
-                  <p className="text-neutral-500 font-bold uppercase tracking-widest text-xs">Registry is currently empty</p>
+                  <p className="text-neutral-500 font-bold uppercase tracking-widest text-xs">No matching proposals found</p>
+                  {searchQuery || statusFilter !== "ALL" ? (
+                    <Button variant="ghost" className="text-primary font-bold text-xs" onClick={() => { setSearchQuery(""); setStatusFilter("ALL"); }}>Clear Filters</Button>
+                  ) : null}
                 </div>
               ) : (
-                <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                  {proposals.map((proposal: any) => (
-                    <div key={proposal.id} className="group p-8 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-all flex flex-col lg:flex-row lg:items-center gap-6">
-                      <div className="size-12 bg-neutral-100 dark:bg-neutral-800 rounded-2xl flex items-center justify-center flex-shrink-0 text-neutral-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                        <FileText className="size-6" />
-                      </div>
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-center gap-3 flex-wrap mb-1">
-                          <h4 className="text-lg font-black tracking-tight dark:text-neutral-100 truncate group-hover:text-primary transition-colors">
-                            {proposal.title || proposal.institution_name || "Infrastructure Proposal"}
-                          </h4>
+                <Table>
+                  <TableHeader className="bg-neutral-50/50 dark:bg-neutral-900/50">
+                    <TableRow className="border-b border-neutral-100 dark:border-neutral-800">
+                      <TableHead className="px-8 font-black text-[10px] uppercase tracking-widest py-5">Proposal Title</TableHead>
+                      <TableHead className="font-black text-[10px] uppercase tracking-widest">Status</TableHead>
+                      <TableHead className="font-black text-[10px] uppercase tracking-widest">Trust Score</TableHead>
+                      <TableHead className="font-black text-[10px] uppercase tracking-widest">Date</TableHead>
+                      <TableHead className="px-8 text-right font-black text-[10px] uppercase tracking-widest">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredProposals.map((proposal: any) => (
+                      <TableRow key={proposal.id} className="group border-b border-neutral-50 dark:border-neutral-800/50 hover:bg-neutral-50/50 dark:hover:bg-neutral-800/30 transition-all">
+                        <TableCell className="px-8 py-6">
+                          <div className="flex items-center gap-4">
+                            <div className="size-10 bg-neutral-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center text-neutral-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                              <FileText className="size-5" />
+                            </div>
+                            <div className="space-y-0.5">
+                              <p className="font-black text-sm tracking-tight group-hover:text-primary transition-colors">
+                                {proposal.title || proposal.institution_name || "Infrastructure Proposal"}
+                              </p>
+                              <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">ID: {proposal.id.slice(0, 8)}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
                           <Badge variant="outline" className={cn(
-                            "text-[9px] font-black uppercase tracking-widest px-2 h-5 rounded-full",
+                            "text-[9px] font-black uppercase tracking-widest px-2.5 h-6 rounded-lg",
                             proposal.state === "ACTIVE" ? "bg-primary/10 text-primary border-primary/20" :
-                            proposal.state === "EXECUTED" ? "bg-green-50 text-green-600 border-green-200" :
-                            proposal.state === "REJECTED" ? "bg-red-50 text-red-600 border-red-200" :
-                            "bg-neutral-50 text-neutral-400 border-neutral-200"
+                            proposal.state === "EXECUTED" ? "bg-green-50 text-green-600 border-green-200 dark:bg-green-900/20 dark:border-green-800" :
+                            proposal.state === "REJECTED" ? "bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:border-red-800" :
+                            "bg-neutral-100 text-neutral-400 border-neutral-200 dark:bg-neutral-800 dark:border-neutral-700"
                           )}>
                             {proposal.state}
                           </Badge>
-                        </div>
-                        <div className="flex items-center gap-4 text-xs font-bold text-neutral-400 dark:text-neutral-500">
-                          <span className="flex items-center gap-1.5"><Target className="size-3" /> Score: {Math.round(proposal.legitimacyScore || 0)}</span>
-                          <span className="flex items-center gap-1.5"><Clock className="size-3" /> {new Date(proposal.createdAt || Date.now()).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Link href={`/institution/governance/proposals/${proposal.id}`}>
-                          <Button variant="ghost" className="rounded-xl h-11 px-6 font-black text-[10px] uppercase tracking-[0.1em] hover:bg-neutral-200 dark:hover:bg-neutral-800">Review Data</Button>
-                        </Link>
-                        {proposal.state === "ACTIVE" && (
-                          <Button className="rounded-xl h-11 px-6 font-black text-[10px] uppercase tracking-[0.1em] shadow-lg shadow-primary/20" onClick={() => handleVote(proposal.id, 1)}>Vote Consensus</Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 max-w-[60px] h-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                              <div 
+                                className={cn(
+                                  "h-full rounded-full",
+                                  proposal.legitimacyScore >= 80 ? "bg-green-500" :
+                                  proposal.legitimacyScore >= 50 ? "bg-yellow-500" : "bg-red-500"
+                                )} 
+                                style={{ width: `${proposal.legitimacyScore}%` }} 
+                              />
+                            </div>
+                            <span className="text-xs font-black tracking-tight">{Math.round(proposal.legitimacyScore || 0)}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2 text-xs font-bold text-neutral-500">
+                            <Clock className="size-3 text-neutral-400" />
+                            {new Date(proposal.createdAt || Date.now()).toLocaleDateString()}
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-8 text-right">
+                          <Link href={`/institution/governance/proposals/${proposal.id}`}>
+                            <Button variant="outline" className="rounded-xl h-10 px-5 font-black text-[10px] uppercase tracking-widest hover:bg-neutral-100 dark:hover:bg-neutral-800 border-neutral-200 dark:border-neutral-800">
+                              View Audit <ArrowRight className="size-3 ml-2" />
+                            </Button>
+                          </Link>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
 
               {/* Pagination */}

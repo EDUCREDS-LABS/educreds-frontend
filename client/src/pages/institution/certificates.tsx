@@ -135,7 +135,7 @@ export default function Certificates() {
   );
 
   const { data: certificatesData, isLoading } = useQuery({
-    queryKey: ["/api/certificates/institution", queryParams],
+    queryKey: ["institutionCertificates", queryParams],
     queryFn: () => api.getCertificates(queryParams),
     enabled: !!user,
     refetchOnMount: true,
@@ -823,7 +823,7 @@ export default function Certificates() {
                           </Avatar>
                           <div>
                             <p className="text-sm font-bold text-neutral-900 group-hover:text-primary transition-colors">
-                              {certificate.studentName && certificate.studentName !== "unknown student" 
+                              {certificate.studentName && certificate.studentName.toLowerCase() !== "unknown student" 
                                 ? certificate.studentName 
                                 : certificate.studentAddress 
                                   ? `${certificate.studentAddress.slice(0, 6)}...${certificate.studentAddress.slice(-4)}`
@@ -837,8 +837,14 @@ export default function Certificates() {
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
-                          <p className="text-sm font-medium text-neutral-700">{certificate.courseName}</p>
-                          <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">{certificate.certificateType}</p>
+                          <p className="text-sm font-medium text-neutral-700">
+                            {certificate.courseName && certificate.courseName !== 'Unknown Program'
+                              ? certificate.courseName
+                              : 'Unknown Program'}
+                          </p>
+                          <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">
+                            {certificate.certificateType || 'Academic'}
+                          </p>
                         </div>
                       </TableCell>
                       <TableCell>

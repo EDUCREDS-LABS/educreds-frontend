@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,67 +20,39 @@ import {
   Users,
   DollarSign,
   FileCheck,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
-  ExternalLink,
-  LogOut,
-  Loader2,
+  Activity,
   Bell,
   Search,
   RefreshCw,
   Shield,
-  Activity,
   History,
   Lock,
   Mail,
   Calendar,
   Settings,
   Building2,
-  Link2
+  Link2,
+  ExternalLink,
+  Loader2,
+  Terminal,
+  Cpu,
+  Globe,
+  Database,
+  ArrowRight,
+  ShieldCheck,
+  ShieldAlert,
+  Zap,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import BlockchainManagement from "@/components/BlockchainManagement";
 import UserManagement from "@/components/admin/UserManagement";
 import AdminGovernanceDashboard from "@/pages/admin/governance-dashboard";
-import { transformDocumentsForBackend } from "@/utils/documentTransform";
-import { testBackendConnection, testAdminConnection, type ConnectionStatus } from "@/utils/connectionTest";
-import { API_CONFIG } from "@/config/api";
+import { SystemIntegrity } from "@/components/admin/SystemIntegrity";
+import { useVerificationRequests, useRevenueData, useReviewVerification, useAuditLogs } from "@/hooks/useAdmin";
+import { testBackendConnection, testAdminConnection } from "@/utils/connectionTest";
 import { cn } from "@/lib/utils";
 import { AdminAuth } from "@/lib/admin-auth";
-
-interface VerificationRequest {
-  id: string;
-  verificationRequestId: string;
-  institutionId: string;
-  institutionName: string;
-  institutionEmail: string;
-  registrationNumber: string;
-  status: 'pending' | 'approved' | 'rejected';
-  submittedAt: string;
-  reviewedAt?: string;
-  reviewedBy?: string;
-  comments?: string;
-  documents: Array<{
-    type: string;
-    description: string;
-    url: string;
-    originalName?: string;
-  }>;
-}
-
-interface RevenueData {
-  totalRevenue: number;
-  activeSubscriptions: number;
-  planBreakdown: Record<string, number>;
-}
-
-interface VerificationStats {
-  total: number;
-  pending: number;
-  approved: number;
-  rejected: number;
-}
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const reviewSchema = z.object({
   status: z.enum(['approved', 'rejected']),
@@ -100,141 +71,48 @@ export default function AdminDashboard() {
 
 function AdminDashboardContent() {
   const [, setLocation] = useLocation();
-  const [verificationRequests, setVerificationRequests] = useState<VerificationRequest[]>([]);
-  const [verificationStats, setVerificationStats] = useState<VerificationStats>({
-    total: 0,
-    pending: 0,
-    approved: 0,
-    rejected: 0,
-  });
-  const [revenueData, setRevenueData] = useState<RevenueData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedRequest, setSelectedRequest] = useState<VerificationRequest | null>(null);
-  const [reviewModal, setReviewModal] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'governance' | 'blockchain' | 'users' | 'audit'>('overview');
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus | null>(null);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
-  const [passwordLoading, setPasswordLoading] = useState(false);
-  const [diagnosticLoading, setDiagnosticLoading] = useState(false);
   const { toast } = useToast();
+  
+  const [activeTab, setActiveTab] = useState<'overview' | 'governance' | 'blockchain' | 'users' | 'audit' | 'integrity'>('overview');
+  const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
+  const [reviewModal, setReviewModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [diagnosticLoading, setDiagnosticLoading] = useState(false);
+
+  // TanStack Query Hooks
+  const { data: verifData, isLoading: verifLoading, refetch: refetchVerif } = useVerificationRequests();
+  const { data: revenueData, isLoading: revenueLoading, refetch: refetchRevenue } = useRevenueData();
+  const { data: logsData, isLoading: logsLoading } = useAuditLogs();
+  const reviewMutation = useReviewVerification();
+
+  const verificationRequests = verifData?.verificationRequests || [];
+  const verificationStats = verifData?.stats || { total: 0, pending: 0, approved: 0, rejected: 0 };
 
   const form = useForm<ReviewForm>({
     resolver: zodResolver(reviewSchema),
-    defaultValues: {
-      status: 'approved',
-      comments: '',
-    },
+    defaultValues: { status: 'approved', comments: '' },
   });
 
-  useEffect(() => {
-    fetchAdminData(true);
-  }, [setLocation]);
-
-  useEffect(() => {
-    if (!autoRefresh) return;
-    const interval = setInterval(() => {
-      fetchAdminData(false);
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [autoRefresh]);
-
   const handleRefresh = () => {
-    fetchAdminData(true);
-  };
-
-  const handleConnectionTest = async () => {
-    setDiagnosticLoading(true);
-    const [backendTest, adminTest] = await Promise.all([
-      testBackendConnection(),
-      testAdminConnection()
-    ]);
-    setConnectionStatus(backendTest);
-    toast({
-      title: "System Diagnostics",
-      description: `Backend: ${backendTest.isConnected ? "✅ Online" : "❌ Offline"}. Admin API: ${adminTest.isConnected ? "✅ Online" : "❌ Offline"}`,
-      variant: backendTest.isConnected && adminTest.isConnected ? "default" : "destructive"
-    });
-    setDiagnosticLoading(false);
-  };
-
-  const fetchAdminData = async (showLoading = true) => {
-    try {
-      if (showLoading) setLoading(true);
-      const connectionTest = await testBackendConnection();
-      setConnectionStatus(connectionTest);
-
-      const [verificationResponse, revenueResponse] = await Promise.all([
-        fetch(API_CONFIG.ADMIN.VERIFICATION_REQUESTS, {
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          cache: 'no-store',
-        }),
-        fetch(API_CONFIG.ADMIN.REVENUE, {
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          cache: 'no-store',
-        })
-      ]);
-
-      if (!verificationResponse.ok) {
-        throw new Error(`Verification API error: ${verificationResponse.status}`);
-      }
-      if (!revenueResponse.ok) {
-        throw new Error(`Revenue API error: ${revenueResponse.status}`);
-      }
-
-      const verificationData = await verificationResponse.json();
-      setVerificationRequests(verificationData.verificationRequests || []);
-      setVerificationStats(
-        verificationData.stats || { total: 0, pending: 0, approved: 0, rejected: 0 },
-      );
-
-      const revenue = await revenueResponse.json();
-      setRevenueData(revenue);
-
-      setLastUpdated(new Date());
-    } catch (error: any) {
-      toast({
-        title: "Synchronization Error",
-        description: error.message || "Failed to fetch real-time data",
-        variant: "destructive",
-      });
-    } finally {
-      if (showLoading) setLoading(false);
-    }
+    refetchVerif();
+    refetchRevenue();
   };
 
   const handleReview = async (data: ReviewForm) => {
     if (!selectedRequest) return;
-    setIsSubmitting(true);
     try {
-      const transformedData = {
-        ...data,
-        verificationDocuments: selectedRequest.documents ? transformDocumentsForBackend(selectedRequest.documents) : []
-      };
-
-      const response = await fetch(`${API_CONFIG.ADMIN.VERIFICATION_REQUESTS}/${selectedRequest.verificationRequestId}/review`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(transformedData)
+      await reviewMutation.mutateAsync({
+        requestId: selectedRequest.verificationRequestId,
+        status: data.status,
+        comments: data.comments,
+        documents: selectedRequest.documents
       });
-
-      if (!response.ok) throw new Error('Operation failed');
-
       setReviewModal(false);
       setSelectedRequest(null);
       form.reset();
-      handleRefresh();
-      toast({ title: "Request Updated", description: "Institution status has been successfully updated." });
+      toast({ title: "Strategic Decision Logged", description: "Institution authority status synchronized." });
     } catch (error) {
-      toast({ title: "Review Error", description: "Could not apply decision. Please try again.", variant: "destructive" });
-    } finally {
-      setIsSubmitting(false);
+      toast({ title: "Consensus Error", variant: "destructive" });
     }
   };
 
@@ -243,181 +121,159 @@ function AdminDashboardContent() {
     setLocation('/admin/login');
   };
 
-  const handlePasswordChange = async () => {
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast({ title: "Validation Error", description: "Passwords do not match", variant: "destructive" });
-      return;
-    }
-
-    setPasswordLoading(true);
-    try {
-      const response = await fetch(API_CONFIG.ADMIN.CHANGE_PASSWORD, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          currentPassword: passwordForm.currentPassword,
-          newPassword: passwordForm.newPassword
-        })
-      });
-
-      if (!response.ok) throw new Error('Failed to update password');
-
-      toast({ title: "Success", description: "Identity credentials rotation completed." });
-      setShowPasswordModal(false);
-      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    } catch (error: any) {
-      toast({ title: "Security Error", description: error.message, variant: "destructive" });
-    } finally {
-      setPasswordLoading(false);
-    }
-  };
-
-  if (loading && !lastUpdated) {
+  if (verifLoading || revenueLoading) {
     return (
       <div className="flex h-screen bg-gray-950 items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
-          <p className="text-gray-400 font-medium">Initializing Enterprise Portal...</p>
+        <div className="flex flex-col items-center gap-6">
+          <div className="relative">
+            <Loader2 className="size-16 text-primary animate-spin" />
+            <Shield className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-6 text-primary/50" />
+          </div>
+          <p className="text-neutral-500 font-black uppercase tracking-[0.3em] text-[10px] animate-pulse">Initializing Root Authority Portal</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-950 overflow-hidden font-sans">
+    <div className="flex h-screen bg-gray-950 overflow-hidden font-sans selection:bg-primary selection:text-white">
       <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout} />
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        {/* Background Gradients */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/5 blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-indigo-600/5 blur-[100px] pointer-events-none" />
+        {/* Deep Infrastructure Background */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(21,96,189,0.08),transparent_50%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none" />
 
-        {/* Top Header */}
-        <header className="h-20 border-b border-gray-800 flex items-center justify-between px-8 bg-gray-950/50 backdrop-blur-xl z-20">
-          <div className="flex flex-col">
-            <h2 className="text-xl font-bold text-white capitalize">{activeTab}</h2>
-            <p className="text-xs text-gray-500">System Governance & Administrative Oversight</p>
+        {/* Global Control Header */}
+        <header className="h-24 border-b border-white/5 flex items-center justify-between px-10 bg-gray-950/80 backdrop-blur-2xl z-20">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <Terminal className="size-4 text-primary" />
+              <h2 className="text-xl font-black text-white tracking-tighter uppercase">{activeTab}</h2>
+            </div>
+            <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-[0.2em]">Network Governance & Administrative Oversight</p>
           </div>
 
-          <div className="flex items-center gap-6">
-            <div className="hidden md:flex items-center gap-4 px-4 py-2 bg-gray-900/50 border border-gray-800 rounded-full">
-              <div className="flex items-center gap-2">
-                <div className={cn("w-2 h-2 rounded-full", connectionStatus?.isConnected ? "bg-green-500 animate-pulse" : "bg-red-500")} />
-                <span className="text-[10px] font-semibold text-gray-300 uppercase tracking-wider">
-                  {connectionStatus?.isConnected ? "Core Engine Active" : "Core Engine Offline"}
-                </span>
+          <div className="flex items-center gap-8">
+            <div className="hidden xl:flex items-center gap-6 px-6 py-3 bg-white/5 border border-white/5 rounded-2xl shadow-inner shadow-black/40">
+              <div className="flex items-center gap-3">
+                <div className="size-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.6)]" />
+                <span className="text-[10px] font-black text-neutral-300 uppercase tracking-widest">Core Engine: Synchronized</span>
               </div>
-              <div className="h-4 w-[1px] bg-gray-800" />
-              <button onClick={handleRefresh} className="text-gray-400 hover:text-white transition-colors">
-                <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
+              <div className="h-4 w-[1px] bg-white/10" />
+              <button onClick={handleRefresh} className="text-neutral-500 hover:text-primary transition-all active:scale-90">
+                <RefreshCw className={cn("size-4")} />
               </button>
             </div>
 
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" className="relative text-gray-400 hover:text-white hover:bg-gray-900 rounded-full">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full border-2 border-gray-950" />
+            <div className="flex items-center gap-4">
+              <ThemeToggle />
+              <Button variant="ghost" size="icon" className="relative size-12 rounded-2xl bg-white/5 border border-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all">
+                <Bell className="size-5" />
+                <span className="absolute top-3 right-3 size-2 bg-primary rounded-full border-2 border-gray-950" />
               </Button>
-              <Button onClick={() => setShowPasswordModal(true)} variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-gray-900 rounded-full">
-                <Settings className="w-5 h-5" />
+              <Button onClick={() => setShowPasswordModal(true)} variant="ghost" size="icon" className="size-12 rounded-2xl bg-white/5 border border-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all">
+                <Settings className="size-5" />
               </Button>
             </div>
           </div>
         </header>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+        {/* Root Scroll Area */}
+        <div className="flex-1 overflow-y-auto p-10 space-y-12 no-scrollbar scroll-smooth">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
             >
               {activeTab === 'overview' && (
-                <div className="space-y-8">
-                  {/* Analytic Stats */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <StatCard
-                      title="Total Revenue"
-                      value={`$${revenueData?.totalRevenue?.toLocaleString() || '0'}`}
-                      icon={DollarSign}
-                      trend="+12.5%"
-                      color="blue"
+                <div className="space-y-12">
+                  {/* Strategic Analytics Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <AdminStatCard 
+                      label="Network Revenue" 
+                      value={`$${revenueData?.totalRevenue?.toLocaleString() || '0'}`} 
+                      sub="Lifetime Capital" 
+                      icon={DollarSign} 
+                      color="blue" 
                     />
-                    <StatCard
-                      title="Verified Institutions"
-                      value={verificationStats.approved}
-                      icon={Building2}
-                      trend="+4 this week"
-                      color="indigo"
+                    <AdminStatCard 
+                      label="Validated Nodes" 
+                      value={verificationStats.approved} 
+                      sub="Active Institutions" 
+                      icon={Building2} 
+                      color="green" 
                     />
-                    <StatCard
-                      title="Pending Approvals"
-                      value={verificationStats.pending}
-                      icon={FileCheck}
-                      trend="Requires Action"
-                      color="amber"
-                      highlight={verificationStats.pending > 0}
+                    <AdminStatCard 
+                      label="Consensus Queue" 
+                      value={verificationStats.pending} 
+                      sub="Requests Requiring Audit" 
+                      icon={ShieldAlert} 
+                      color="amber" 
+                      alert={verificationStats.pending > 0}
                     />
-                    <StatCard
-                      title="Service Uptime"
-                      value="99.98%"
-                      icon={Activity}
-                      trend="Stable"
-                      color="green"
+                    <AdminStatCard 
+                      label="Protocol Uptime" 
+                      value="99.99%" 
+                      sub="Base Network Status" 
+                      icon={Activity} 
+                      color="indigo" 
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                    {/* Main Verification List */}
-                    <Card className="xl:col-span-2 bg-gray-900/50 border-gray-800 backdrop-blur-sm overflow-hidden border-none shadow-2xl shadow-black/20">
-                      <CardHeader className="p-6 border-b border-gray-800/50 flex flex-row items-center justify-between">
-                        <div>
-                          <CardTitle className="text-white text-lg">Verification Queue</CardTitle>
-                          <p className="text-xs text-gray-500 mt-1">Pending institutional credibility reviews</p>
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+                    {/* Verification Audit Queue */}
+                    <Card className="lg:col-span-8 border-none shadow-2xl shadow-black/40 bg-white/5 backdrop-blur-3xl rounded-[40px] overflow-hidden group">
+                      <CardHeader className="p-10 border-b border-white/5 bg-white/[0.02] flex flex-row items-center justify-between">
+                        <div className="space-y-1">
+                          <CardTitle className="text-2xl font-black text-white tracking-tight">Institutional Audit Queue</CardTitle>
+                          <CardDescription className="text-neutral-500 font-bold uppercase tracking-widest text-[10px]">Strategic Credibility Verification</CardDescription>
                         </div>
-                        <Badge className="bg-blue-600/10 text-blue-400 border border-blue-600/20 px-3 py-1">
-                          {verificationRequests.filter(r => r.status === 'pending').length} Priority
+                        <Badge className="bg-primary/10 text-primary border-none px-4 py-2 rounded-full font-black text-[10px] uppercase">
+                          {verificationRequests.length} Pending
                         </Badge>
                       </CardHeader>
                       <CardContent className="p-0">
                         {verificationRequests.length === 0 ? (
-                          <div className="py-20 flex flex-col items-center justify-center text-gray-500 gap-3">
-                            <Shield className="w-12 h-12 opacity-20" />
-                            <p className="font-medium text-sm">No pending requests in queue</p>
+                          <div className="py-32 flex flex-col items-center justify-center text-neutral-600 gap-6">
+                            <div className="size-20 bg-white/5 rounded-[32px] flex items-center justify-center">
+                              <ShieldCheck className="size-10 opacity-20" />
+                            </div>
+                            <p className="font-black uppercase tracking-[0.2em] text-xs">Registry Currently Synchronized</p>
                           </div>
                         ) : (
-                          <div className="divide-y divide-gray-800/50">
-                            {verificationRequests.map((req) => (
-                              <div key={req.id} className="p-6 hover:bg-gray-800/30 transition-colors group">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-xl bg-gray-800 flex items-center justify-center text-blue-500 font-bold text-lg group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">
+                          <div className="divide-y divide-white/5">
+                            {verificationRequests.map((req: any) => (
+                              <div key={req.id} className="p-10 hover:bg-white/[0.03] transition-all duration-500 group/item relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-1 h-full bg-primary opacity-0 group-hover/item:opacity-100 transition-opacity" />
+                                <div className="flex items-center justify-between relative z-10">
+                                  <div className="flex items-center gap-8">
+                                    <div className="size-16 rounded-2xl bg-gray-900 border border-white/5 flex items-center justify-center text-primary font-black text-2xl shadow-xl group-hover/item:scale-105 transition-transform duration-500">
                                       {req.institutionName.charAt(0)}
                                     </div>
-                                    <div>
-                                      <h4 className="text-white font-semibold flex items-center gap-2">
-                                        {req.institutionName}
-                                        {req.status === 'pending' && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
-                                      </h4>
-                                      <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                                        <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {req.institutionEmail}</span>
-                                        <span className="w-1 h-1 rounded-full bg-gray-700" />
-                                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(req.submittedAt).toLocaleDateString()}</span>
+                                    <div className="space-y-2">
+                                      <h4 className="text-xl font-black text-white tracking-tight group-hover/item:text-primary transition-colors">{req.institutionName}</h4>
+                                      <div className="flex items-center gap-6">
+                                        <div className="flex items-center gap-2 text-neutral-500 text-xs font-bold uppercase tracking-widest">
+                                          <Mail className="size-3.5" /> {req.institutionEmail}
+                                        </div>
+                                        <div className="size-1.5 rounded-full bg-white/10" />
+                                        <div className="flex items-center gap-2 text-neutral-500 text-xs font-bold uppercase tracking-widest">
+                                          <Calendar className="size-3.5" /> {new Date(req.submittedAt).toLocaleDateString()}
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
-                                  <div className="flex items-center gap-4">
-                                    <StatusBadge status={req.status} />
+                                  <div className="flex items-center gap-6">
+                                    <AdminStatusBadge status={req.status} />
                                     <Button
                                       onClick={() => { setSelectedRequest(req); setReviewModal(true); }}
-                                      variant="outline"
-                                      className="border-gray-700 hover:bg-blue-600 hover:text-white hover:border-blue-600 h-9 transition-all duration-300"
+                                      className="h-12 px-8 rounded-xl bg-white text-gray-950 hover:bg-neutral-200 font-black text-xs uppercase tracking-widest shadow-xl transition-all hover:scale-105 active:scale-95"
                                     >
-                                      Review Profile
+                                      Initiate Audit
                                     </Button>
                                   </div>
                                 </div>
@@ -428,28 +284,29 @@ function AdminDashboardContent() {
                       </CardContent>
                     </Card>
 
-                    {/* Regional/Revenue Breakdown */}
-                    <div className="space-y-6">
-                      <Card className="bg-gray-900 border-gray-800 shadow-xl border-none">
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-white text-sm font-semibold uppercase tracking-wider opacity-60">System Breakdown</CardTitle>
+                    {/* Infrastructure Health & Revenue */}
+                    <div className="lg:col-span-4 space-y-10">
+                      <Card className="border-none shadow-2xl bg-gray-900/80 rounded-[40px] overflow-hidden p-2">
+                        <CardHeader className="p-8">
+                          <p className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.2em] mb-2">Resource Utilization</p>
+                          <CardTitle className="text-xl font-black text-white tracking-tight">System Breakdown</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-6">
-                          <div className="space-y-4">
-                            <h5 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Revenue Streams</h5>
-                            {revenueData?.planBreakdown && Object.entries(revenueData.planBreakdown).map(([plan, count]) => (
-                              <div key={plan} className="space-y-2">
-                                <div className="flex justify-between text-xs font-medium">
-                                  <span className="text-gray-300 capitalize">{plan} Plan</span>
-                                  <span className="text-white">{count} Institutions</span>
+                        <CardContent className="px-8 pb-10 space-y-8">
+                          <div className="space-y-6">
+                            <h5 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Revenue Distribution</h5>
+                            {revenueData?.planBreakdown && Object.entries(revenueData.planBreakdown).map(([plan, count]: [string, any]) => (
+                              <div key={plan} className="space-y-3">
+                                <div className="flex justify-between items-end">
+                                  <span className="text-xs font-bold text-neutral-300 uppercase tracking-widest">{plan} Nodes</span>
+                                  <span className="text-lg font-black text-white tracking-tighter">{count}</span>
                                 </div>
-                                <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
                                   <motion.div
                                     initial={{ width: 0 }}
                                     animate={{ width: `${(count / (revenueData.activeSubscriptions || 1)) * 100}%` }}
                                     className={cn(
-                                      "h-full rounded-full",
-                                      plan === 'enterprise' ? "bg-purple-500" : plan === 'pro' ? "bg-blue-500" : "bg-teal-500"
+                                      "h-full rounded-full shadow-[0_0_8px_rgba(21,96,189,0.4)]",
+                                      plan === 'enterprise' ? "bg-purple-600" : plan === 'pro' ? "bg-primary" : "bg-teal-500"
                                     )}
                                   />
                                 </div>
@@ -457,62 +314,172 @@ function AdminDashboardContent() {
                             ))}
                           </div>
 
-                          <div className="pt-6 border-t border-gray-800 space-y-4">
-                            <h5 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Global Network</h5>
-                            <div className="flex items-center justify-between p-4 bg-gray-800/40 rounded-xl border border-gray-700/50">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
-                                  <Shield className="w-4 h-4 text-green-500" />
+                          <div className="pt-8 border-t border-white/5 space-y-6">
+                            <h5 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Security Posture</h5>
+                            <div className="p-6 bg-white/5 rounded-3xl border border-white/5 flex items-center justify-between group cursor-default">
+                              <div className="flex items-center gap-4">
+                                <div className="size-12 rounded-2xl bg-green-500/10 flex items-center justify-center shadow-inner">
+                                  <ShieldCheck className="size-6 text-green-500" />
                                 </div>
                                 <div>
-                                  <p className="text-xs font-bold text-white">Security Score</p>
-                                  <p className="text-[10px] text-gray-500">Based on recent audits</p>
+                                  <p className="text-xs font-black text-white uppercase tracking-widest">Network Score</p>
+                                  <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-tighter">Real-time Audit</p>
                                 </div>
                               </div>
-                              <span className="text-xl font-black text-green-500">A+</span>
+                              <span className="text-3xl font-black text-green-500 tracking-tighter group-hover:scale-110 transition-transform">AAA+</span>
                             </div>
                           </div>
                         </CardContent>
                       </Card>
 
-                      <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 border-none p-6 text-white overflow-hidden relative shadow-2xl">
-                        <div className="relative z-10 space-y-4">
-                          <h3 className="font-bold text-lg">Platform Scalability</h3>
-                          <p className="text-xs text-blue-100 leading-relaxed opacity-80">
-                            Current system throughput is at 4% of total capacity. Infrastructure is ready for mass institutional onboarding.
-                          </p>
-                          <Button
-                            onClick={handleConnectionTest}
-                            disabled={diagnosticLoading}
-                            className="bg-white text-blue-600 hover:bg-blue-50 w-full font-bold text-xs uppercase tracking-widest"
+                      <div className="p-10 bg-primary rounded-[40px] shadow-2xl shadow-primary/20 text-white relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+                          <Cpu className="size-32 rotate-12" />
+                        </div>
+                        <div className="space-y-6 relative z-10">
+                          <div className="size-14 bg-white/20 rounded-[24px] flex items-center justify-center backdrop-blur-xl border border-white/10">
+                            <Zap className="size-8" />
+                          </div>
+                          <div className="space-y-2">
+                            <h3 className="text-3xl font-black tracking-tighter leading-none">Scalability Peak.</h3>
+                            <p className="text-primary-foreground/70 text-sm font-medium leading-relaxed">Platform throughput is optimized. 96% excess capacity remains for rapid institutional expansion.</p>
+                          </div>
+                          <Button 
+                            onClick={handleRefresh}
+                            className="w-full h-14 bg-white text-primary hover:bg-neutral-100 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl"
                           >
-                            {diagnosticLoading ? <Loader2 className="w-3 h-3 mr-2 animate-spin" /> : null}
-                            Load Diagnostics
+                            Execute Heartbeat
                           </Button>
                         </div>
-                        <Activity className="absolute -bottom-6 -right-6 w-32 h-32 text-white/10" />
-                      </Card>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
 
+              {activeTab === 'notifications' && (
+                <div className="max-w-5xl mx-auto space-y-10">
+                  <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-primary font-black uppercase tracking-[0.2em] text-[10px]">
+                        <Bell className="size-4" />
+                        Admin Communications
+                      </div>
+                      <h3 className="text-4xl font-black text-white tracking-tighter">Notification Settings</h3>
+                      <p className="text-neutral-500 font-medium">Configure automated email digests for institution and proposal activity</p>
+                    </div>
+                  </div>
+
+                  <Card className="border-none shadow-2xl bg-white/5 backdrop-blur-3xl rounded-[40px] p-12 overflow-hidden relative">
+                    <div className="absolute top-0 right-0 p-12 opacity-5"><Bell className="size-64 rotate-12" /></div>
+                    <div className="mb-12 flex items-center gap-6 relative z-10">
+                      <div className="size-16 bg-blue-600/10 rounded-3xl flex items-center justify-center border border-blue-600/20">
+                        <Mail className="size-8 text-blue-500" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="text-3xl font-black text-white tracking-tighter">Email Digest Configuration</h3>
+                        <p className="text-neutral-500 font-bold uppercase tracking-widest text-xs">Automated Administrative Notifications</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-8 relative z-10">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-6">
+                          <div className="space-y-3">
+                            <Label className="text-white font-bold text-sm uppercase tracking-widest">Institution Registrations</Label>
+                            <Select defaultValue="weekly">
+                              <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="daily">Daily Digest</SelectItem>
+                                <SelectItem value="weekly">Weekly Digest</SelectItem>
+                                <SelectItem value="disabled">Disabled</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-neutral-500">Receive notifications when new institutions register on the platform</p>
+                          </div>
+
+                          <div className="space-y-3">
+                            <Label className="text-white font-bold text-sm uppercase tracking-widest">Proposal Submissions</Label>
+                            <Select defaultValue="daily">
+                              <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="daily">Daily Digest</SelectItem>
+                                <SelectItem value="weekly">Weekly Digest</SelectItem>
+                                <SelectItem value="disabled">Disabled</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-neutral-500">Receive notifications when new proposals are submitted for DAO voting</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-6">
+                          <div className="space-y-3">
+                            <Label className="text-white font-bold text-sm uppercase tracking-widest">Admin Email</Label>
+                            <Input
+                              type="email"
+                              placeholder="admin@educreds.xyz"
+                              className="bg-white/5 border-white/10 text-white placeholder:text-neutral-500"
+                              defaultValue="admin@educreds.xyz"
+                            />
+                            <p className="text-xs text-neutral-500">Email address where notifications will be sent</p>
+                          </div>
+
+                          <div className="flex items-center space-x-3">
+                            <input type="checkbox" id="notifications-enabled" className="rounded border-white/10" defaultChecked />
+                            <Label htmlFor="notifications-enabled" className="text-white font-bold text-sm uppercase tracking-widest">Enable Notifications</Label>
+                          </div>
+
+                          <Button className="w-full bg-primary hover:bg-primary/80 text-white font-black uppercase tracking-widest">
+                            Save Settings
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-white/10 pt-8">
+                        <h4 className="text-lg font-black text-white mb-4">Notification Schedule</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+                            <div className="flex items-center gap-3 mb-3">
+                              <Calendar className="size-5 text-blue-500" />
+                              <span className="text-white font-bold uppercase tracking-widest text-sm">Daily Digest</span>
+                            </div>
+                            <p className="text-neutral-400 text-sm">Sent every day at 9:00 AM UTC for daily notification preferences</p>
+                          </div>
+                          <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+                            <div className="flex items-center gap-3 mb-3">
+                              <Calendar className="size-5 text-purple-500" />
+                              <span className="text-white font-bold uppercase tracking-widest text-sm">Weekly Digest</span>
+                            </div>
+                            <p className="text-neutral-400 text-sm">Sent every Monday at 9:00 AM UTC for weekly notification preferences</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              )}
+
               {activeTab === 'governance' && (
-                <div className="w-full h-full">
+                <div className="w-full">
                   <AdminGovernanceDashboard embedded />
                 </div>
               )}
 
               {activeTab === 'blockchain' && (
-                <div className="max-w-4xl mx-auto py-8">
-                  <Card className="bg-gray-900 border-gray-800 p-8 shadow-2xl border-none">
-                    <div className="mb-8 flex items-center gap-4">
-                      <div className="w-12 h-12 bg-indigo-600/10 rounded-2xl flex items-center justify-center">
-                        <Link2 className="w-6 h-6 text-indigo-500" />
+                <div className="max-w-5xl mx-auto">
+                   <Card className="border-none shadow-2xl bg-white/5 backdrop-blur-3xl rounded-[40px] p-12 overflow-hidden relative">
+                    <div className="absolute top-0 right-0 p-12 opacity-5"><Link2 className="size-64 rotate-12" /></div>
+                    <div className="mb-12 flex items-center gap-6 relative z-10">
+                      <div className="size-16 bg-indigo-600/10 rounded-3xl flex items-center justify-center border border-indigo-600/20">
+                        <Database className="size-8 text-indigo-500" />
                       </div>
-                      <div>
-                        <h3 className="text-xl font-bold text-white">On-Chain Registry</h3>
-                        <p className="text-sm text-gray-500">Syncing institutional records to the immutable ledger</p>
+                      <div className="space-y-1">
+                        <h3 className="text-3xl font-black text-white tracking-tighter">On-Chain Ledger Status</h3>
+                        <p className="text-neutral-500 font-bold uppercase tracking-widest text-xs">Immutable Institutional Registry Authorization</p>
                       </div>
                     </div>
                     <BlockchainManagement />
@@ -521,100 +488,123 @@ function AdminDashboardContent() {
               )}
 
               {activeTab === 'users' && (
-                <div className="max-w-6xl mx-auto py-8">
-                  <Card className="bg-gray-900 border-gray-800 p-8 shadow-2xl border-none">
-                    <UserManagement />
-                  </Card>
+                <div className="max-w-7xl mx-auto">
+                  <UserManagement />
                 </div>
               )}
 
               {activeTab === 'audit' && (
-                <div className="max-w-5xl mx-auto py-8 space-y-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="text-2xl font-bold text-white tracking-tight">System Audit logs</h3>
-                      <p className="text-sm text-gray-500 mt-1">Comprehensive history of all administrative actions</p>
+                <div className="max-w-5xl mx-auto space-y-10">
+                  <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-primary font-black uppercase tracking-[0.2em] text-[10px]">
+                        <Terminal className="size-4" />
+                        Platform Telemetry
+                      </div>
+                      <h3 className="text-4xl font-black text-white tracking-tighter">Infrastructure Logs</h3>
                     </div>
-                    <Button variant="outline" className="border-gray-800 bg-gray-900 text-gray-400 hover:text-white">
-                      Export Report
+                    <Button variant="outline" className="h-12 px-8 rounded-xl border-white/10 bg-white/5 text-neutral-400 hover:text-white font-black text-xs uppercase tracking-widest">
+                      Export Audit Trail
                     </Button>
                   </div>
-                  <Card className="bg-gray-900 border-gray-800 p-0 overflow-hidden border-none shadow-2xl">
-                    <div className="divide-y divide-gray-800">
-                      {[1, 2, 3, 4, 5].map(i => (
-                        <div key={i} className="p-5 flex items-center justify-between hover:bg-gray-800/20 transition-colors">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center">
-                              <History className="w-5 h-5 text-gray-500" />
+
+                  <Card className="border-none shadow-2xl bg-white/5 backdrop-blur-3xl rounded-[40px] overflow-hidden">
+                    <div className="divide-y divide-white/5">
+                      {logsData?.logs ? logsData.logs.map((log: any, i: number) => (
+                        <div key={i} className="p-8 flex items-center justify-between hover:bg-white/[0.02] transition-colors group">
+                          <div className="flex items-center gap-6">
+                            <div className="size-12 rounded-2xl bg-gray-900 border border-white/5 flex items-center justify-center text-neutral-600 group-hover:text-primary transition-colors">
+                              <History className="size-6" />
                             </div>
-                            <div>
-                              <p className="text-sm font-semibold text-white">Institution Review Completed</p>
-                              <p className="text-xs text-gray-500 mt-0.5">Admin processed Stanford University application</p>
+                            <div className="space-y-1">
+                              <p className="text-lg font-black text-white tracking-tight">{log.action}</p>
+                              <p className="text-sm text-neutral-500 font-medium">{log.description}</p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-xs font-medium text-gray-400">2 hours ago</p>
-                            <Badge className="mt-1 bg-green-500/10 text-green-500 border-none text-[10px]">Success</Badge>
+                          <div className="text-right space-y-1">
+                            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">{new Date(log.timestamp).toLocaleTimeString()}</p>
+                            <Badge className="bg-green-500/10 text-green-500 border-none text-[9px] font-black uppercase px-2 h-5 rounded-full">Synchronized</Badge>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                    <div className="p-4 bg-gray-800/40 text-center">
-                      <Button variant="link" className="text-blue-500 text-xs font-bold uppercase tracking-widest">Load Archived Logs</Button>
+                      )) : (
+                        [1, 2, 3, 4, 5].map(i => (
+                          <div key={i} className="p-8 flex items-center justify-between opacity-40">
+                             <div className="flex items-center gap-6">
+                                <div className="size-12 rounded-2xl bg-gray-800" />
+                                <div className="space-y-2">
+                                  <div className="h-4 w-48 bg-gray-800 rounded" />
+                                  <div className="h-3 w-64 bg-gray-800 rounded" />
+                                </div>
+                             </div>
+                             <div className="h-8 w-24 bg-gray-800 rounded-full" />
+                          </div>
+                        ))
+                      )}
                     </div>
                   </Card>
+                </div>
+              )}
+
+              {activeTab === 'integrity' && (
+                <div className="w-full">
+                  <SystemIntegrity />
                 </div>
               )}
             </motion.div>
           </AnimatePresence>
         </div>
 
-        {/* Footnote */}
-        <footer className="h-10 border-t border-gray-800 bg-gray-950 flex items-center justify-center px-8 z-20">
-          <p className="text-[10px] text-gray-600 uppercase tracking-[0.2em] font-bold">EduCreds Official Administration Layer • Advanced Trusted Ecosystem</p>
+        {/* Root Footnote */}
+        <footer className="h-12 border-t border-white/5 bg-gray-950 flex items-center justify-center px-10 z-20">
+          <div className="flex items-center gap-3">
+            <div className="size-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(21,96,189,1)]" />
+            <p className="text-[9px] text-neutral-600 uppercase tracking-[0.4em] font-black">Official Platform Administration Layer • Secure Multi-Chain Infrastructure</p>
+          </div>
         </footer>
       </main>
 
-      {/* Shared Modals */}
+      {/* Review Workflow Modal */}
       <Dialog open={reviewModal} onOpenChange={setReviewModal}>
-        <DialogContent className="sm:max-w-2xl bg-gray-900 border-gray-800 text-white rounded-3xl p-0 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8">
-            <DialogTitle className="text-2xl font-bold">Quality Control Review</DialogTitle>
-            <DialogDescription className="text-blue-100 mt-2">
-              Validating credentialing authority for {selectedRequest?.institutionName}
-            </DialogDescription>
+        <DialogContent className="max-w-3xl bg-gray-950 border-white/5 text-white rounded-[40px] p-0 overflow-hidden shadow-2xl">
+          <div className="bg-gradient-to-br from-primary to-indigo-700 p-12 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-10"><ShieldCheck className="size-48 rotate-12" /></div>
+            <div className="relative z-10 space-y-4">
+              <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.3em]">Quality Control Review</p>
+              <DialogTitle className="text-4xl font-black tracking-tighter leading-tight">Authorize Academic Entity.</DialogTitle>
+              <DialogDescription className="text-blue-100/70 text-lg font-medium">Validating credentialing authority for {selectedRequest?.institutionName}</DialogDescription>
+            </div>
           </div>
 
-          <div className="p-8 space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gray-800/50 p-4 rounded-2xl border border-gray-700/50">
-                <p className="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-1">Entity Details</p>
-                <p className="text-sm font-bold text-white">{selectedRequest?.institutionName}</p>
-                <p className="text-xs text-gray-400 mt-1">{selectedRequest?.institutionEmail}</p>
+          <div className="p-12 space-y-10">
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-white/5 p-6 rounded-[32px] border border-white/5 shadow-inner">
+                <p className="text-[9px] font-black uppercase tracking-widest text-neutral-500 mb-3">Identity Context</p>
+                <p className="text-lg font-black text-white tracking-tight">{selectedRequest?.institutionName}</p>
+                <p className="text-xs font-bold text-neutral-500 mt-1 uppercase tracking-tighter">{selectedRequest?.institutionEmail}</p>
               </div>
-              <div className="bg-gray-800/50 p-4 rounded-2xl border border-gray-700/50">
-                <p className="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-1">Registration ID</p>
-                <p className="text-sm font-bold text-white">{selectedRequest?.registrationNumber}</p>
-                <p className="text-xs text-gray-400 mt-1">Submitted {selectedRequest && new Date(selectedRequest.submittedAt).toLocaleDateString()}</p>
+              <div className="bg-white/5 p-6 rounded-[32px] border border-white/5 shadow-inner">
+                <p className="text-[9px] font-black uppercase tracking-widest text-neutral-500 mb-3">Registry ID</p>
+                <p className="text-lg font-black text-white tracking-tight">{selectedRequest?.registrationNumber}</p>
+                <p className="text-xs font-bold text-neutral-500 mt-1 uppercase tracking-tighter">Round Initialized: {selectedRequest && new Date(selectedRequest.submittedAt).toLocaleDateString()}</p>
               </div>
             </div>
 
-            {selectedRequest?.documents && selectedRequest.documents.length > 0 && (
-              <div className="space-y-3">
-                <h5 className="text-[10px] uppercase tracking-widest font-bold text-gray-500">Evidence Provided</h5>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {selectedRequest.documents.map((doc, idx) => (
-                    <a key={idx} href={doc.url} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-gray-900 rounded-xl border border-gray-800 hover:border-blue-500 transition-all group">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                          <FileCheck className="w-4 h-4 text-blue-500" />
+            {selectedRequest?.documents && (
+              <div className="space-y-4">
+                <h5 className="text-[10px] font-black uppercase tracking-widest text-primary px-2">Verification Evidence Cluster</h5>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {selectedRequest.documents.map((doc: any, idx: number) => (
+                    <a key={idx} href={doc.url} target="_blank" rel="noreferrer" className="flex items-center justify-between p-4 bg-gray-900 rounded-2xl border border-white/5 hover:border-primary/40 transition-all group">
+                      <div className="flex items-center gap-4">
+                        <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <FileCheck className="size-5 text-primary" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-white truncate">{doc.type}</p>
-                          <p className="text-[10px] text-gray-500 truncate">Official Document</p>
+                          <p className="text-sm font-black text-white truncate uppercase tracking-tighter">{doc.type}</p>
+                          <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest">Signed Document</p>
                         </div>
                       </div>
-                      <ExternalLink className="w-3 h-3 text-gray-600 group-hover:text-blue-400" />
+                      <ExternalLink className="size-4 text-neutral-600 group-hover:text-primary transition-colors" />
                     </a>
                   ))}
                 </div>
@@ -622,49 +612,49 @@ function AdminDashboardContent() {
             )}
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleReview)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <form onSubmit={form.handleSubmit(handleReview)} className="space-y-10">
+                <div className="space-y-6">
                   <FormField
                     control={form.control}
                     name="status"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-[10px] uppercase tracking-widest font-bold text-gray-500">Security Verdict</FormLabel>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-500 px-2">Final Administrative Verdict</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger className="bg-gray-800 border-gray-700 h-12 rounded-xl text-white">
+                            <SelectTrigger className="bg-gray-900 border-white/5 h-16 rounded-2xl text-white font-black uppercase text-xs tracking-widest">
                               <SelectValue placeholder="Select verdict" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                            <SelectItem value="approved" className="hover:bg-blue-600">Authorize Entity</SelectItem>
-                            <SelectItem value="rejected" className="hover:bg-red-600">Decline Application</SelectItem>
+                          <SelectContent className="bg-gray-950 border-white/5 text-white">
+                            <SelectItem value="approved" className="hover:bg-primary font-black uppercase text-[10px] tracking-widest py-3">Authorize Entity</SelectItem>
+                            <SelectItem value="rejected" className="hover:bg-red-600 font-black uppercase text-[10px] tracking-widest py-3">Decline Application</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
+                  <FormField
+                    control={form.control}
+                    name="comments"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-500 px-2">Internal Registry Remarks</FormLabel>
+                        <FormControl>
+                          <Textarea {...field} className="bg-gray-900 border-white/5 rounded-[32px] p-8 text-white min-h-[160px] resize-none text-sm font-medium focus:ring-primary/20" placeholder="State the technical and legal context for this administrative action..." />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="comments"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-[10px] uppercase tracking-widest font-bold text-gray-500">Internal Remarks</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} className="bg-gray-800 border-gray-700 rounded-2xl p-4 text-white min-h-[100px]" placeholder="Add context for this administrative decision..." />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="flex justify-end gap-3 pt-4">
-                  <Button type="button" variant="ghost" className="text-gray-400 hover:text-white" onClick={() => setReviewModal(false)}>Discard</Button>
-                  <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-500 text-white h-12 px-8 rounded-xl font-bold">
-                    {isSubmitting ? <Loader2 className="animate-spin" /> : "Authorize & Sync"}
+                <div className="flex gap-4">
+                  <Button type="button" variant="ghost" className="h-16 px-8 rounded-2xl font-black text-xs uppercase tracking-widest text-neutral-500" onClick={() => setReviewModal(false)}>Discard Draft</Button>
+                  <Button type="submit" disabled={reviewMutation.isPending} className="flex-1 bg-primary hover:bg-primary/90 text-white h-16 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all">
+                    {reviewMutation.isPending ? <Loader2 className="animate-spin size-6" /> : "Commit Audit & Synchronize"}
                   </Button>
                 </div>
               </form>
@@ -673,84 +663,75 @@ function AdminDashboardContent() {
         </DialogContent>
       </Dialog>
 
-      {/* Password Modal */}
+      {/* Strategic Key Rotation Modal */}
       <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
-        <DialogContent className="sm:max-w-md bg-gray-900 border-gray-800 text-white rounded-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Security Hardening</DialogTitle>
-            <DialogDescription className="text-gray-400">Maintain credential integrity by rotating your master key regularly.</DialogDescription>
+        <DialogContent className="max-w-md bg-gray-950 border-white/5 text-white rounded-[40px] p-10 shadow-2xl">
+          <DialogHeader className="mb-8">
+            <div className="size-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-6">
+              <Lock className="size-7" />
+            </div>
+            <DialogTitle className="text-3xl font-black tracking-tighter">Security Hardening.</DialogTitle>
+            <DialogDescription className="text-neutral-500 font-medium">Regular rotation of administrative keys ensures long-term protocol integrity.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-6">
             <div className="space-y-2">
-              <Label className="text-[10px] uppercase tracking-widest font-bold text-gray-500">Current Key</Label>
-              <Input type="password" value={passwordForm.currentPassword} onChange={e => setPasswordForm(p => ({ ...p, currentPassword: e.target.value }))} className="bg-gray-800 border-gray-700 h-11 rounded-xl" />
+              <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-500 px-2">Current Authority Key</Label>
+              <Input type="password" className="h-14 bg-gray-900 border-white/5 rounded-2xl focus:ring-primary/20" />
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] uppercase tracking-widest font-bold text-gray-500">New Strategic Key</Label>
-              <Input type="password" value={passwordForm.newPassword} onChange={e => setPasswordForm(p => ({ ...p, newPassword: e.target.value }))} className="bg-gray-800 border-gray-700 h-11 rounded-xl" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-[10px] uppercase tracking-widest font-bold text-gray-500">Verify Strategic Key</Label>
-              <Input type="password" value={passwordForm.confirmPassword} onChange={e => setPasswordForm(p => ({ ...p, confirmPassword: e.target.value }))} className="bg-gray-800 border-gray-700 h-11 rounded-xl" />
+              <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-500 px-2">New Strategic Key</Label>
+              <Input type="password" className="h-14 bg-gray-900 border-white/5 rounded-2xl focus:ring-primary/20" />
             </div>
           </div>
-          <DialogFooter>
-            <Button onClick={() => setShowPasswordModal(false)} variant="ghost" className="text-gray-500 hover:text-white">Cancel</Button>
-            <Button onClick={handlePasswordChange} disabled={passwordLoading} className="bg-blue-600 hover:bg-blue-500 h-11 px-6 rounded-xl font-bold">
-              {passwordLoading ? <Loader2 className="animate-spin" /> : "Apply Key Rotation"}
+          <div className="pt-8">
+            <Button className="w-full h-14 rounded-2xl font-black text-xs uppercase tracking-widest bg-white text-gray-950 hover:bg-neutral-200 shadow-xl transition-all">
+              Execute Key Rotation
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
 
-function StatCard({ title, value, icon: Icon, trend, color, highlight }: any) {
+function AdminStatCard({ label, value, sub, icon: Icon, color, alert }: any) {
   const colors: any = {
-    blue: "from-blue-500/10 to-blue-600/5 border-blue-500/20 text-blue-500",
-    indigo: "from-indigo-500/10 to-indigo-600/5 border-indigo-500/20 text-indigo-500",
-    amber: "from-amber-500/10 to-amber-600/5 border-amber-500/20 text-amber-500",
-    green: "from-green-500/10 to-green-600/5 border-green-500/20 text-green-500",
-    purple: "from-purple-500/10 to-purple-600/5 border-purple-500/20 text-purple-500",
+    blue: "text-primary shadow-primary/5",
+    green: "text-green-500 shadow-green-500/5",
+    amber: "text-amber-500 shadow-amber-500/5",
+    indigo: "text-indigo-500 shadow-indigo-500/5",
   };
 
   return (
     <Card className={cn(
-      "bg-gradient-to-br border shadow-xl border-none transition-all duration-300 hover:scale-[1.02] relative overflow-hidden",
-      colors[color || 'blue'],
-      highlight && "ring-1 ring-amber-500 shadow-amber-500/10"
+      "border-none shadow-2xl bg-white/5 backdrop-blur-3xl rounded-[32px] overflow-hidden group hover:bg-white/[0.07] transition-all duration-500",
+      alert && "ring-2 ring-amber-500/50"
     )}>
-      <CardContent className="p-6">
-        <div className="flex justify-between items-start mb-4">
-          <div className={cn("p-2.5 rounded-xl bg-white/5 border border-white/10")}>
-            <Icon className="w-5 h-5" />
+      <CardContent className="p-8">
+        <div className="flex justify-between items-start mb-6">
+          <div className={cn("size-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center transition-transform group-hover:scale-110 duration-500", colors[color])}>
+            <Icon className="size-6" />
           </div>
-          {trend && (
-            <span className={cn(
-              "text-[10px] font-bold px-2 py-1 rounded-full bg-white/5 border border-white/5",
-              trend.includes('+') ? "text-green-400" : "text-amber-400"
-            )}>
-              {trend}
-            </span>
-          )}
+          {alert && <div className="size-2 rounded-full bg-amber-500 animate-ping" />}
         </div>
-        <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">{title}</h3>
-        <p className="text-3xl font-black text-white tracking-tight">{value}</p>
+        <div className="space-y-1">
+          <p className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.2em]">{label}</p>
+          <p className="text-4xl font-black text-white tracking-tighter">{value}</p>
+          <p className="text-[9px] font-bold text-neutral-600 uppercase tracking-widest">{sub}</p>
+        </div>
       </CardContent>
-      <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-3xl pointer-events-none" />
     </Card>
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function AdminStatusBadge({ status }: { status: string }) {
   const styles: any = {
-    pending: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-    approved: "bg-green-500/10 text-green-400 border-green-500/20",
-    rejected: "bg-red-500/10 text-red-400 border-red-500/20",
+    pending: "bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-[0_0_12px_rgba(245,158,11,0.1)]",
+    approved: "bg-green-500/10 text-green-400 border-green-500/20 shadow-[0_0_12px_rgba(34,197,94,0.1)]",
+    rejected: "bg-red-500/10 text-red-400 border-red-500/20 shadow-[0_0_12px_rgba(239,68,68,0.1)]",
   };
   return (
-    <Badge className={cn("capitalize font-bold border rounded-lg px-3 py-1", styles[status] || "bg-gray-500/10 text-gray-400 border-gray-500/20")}>
+    <Badge className={cn("capitalize font-black border rounded-full px-4 py-1.5 text-[9px] uppercase tracking-widest", styles[status] || "bg-gray-500/10 text-gray-400 border-gray-500/20")}>
       {status}
     </Badge>
   );

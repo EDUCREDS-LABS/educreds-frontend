@@ -7,9 +7,13 @@ import {
     History,
     ChevronRight,
     LogOut,
-    Building2,
-    TrendingUp,
-    Settings
+    Lock,
+    Cpu,
+    Database,
+    ShieldAlert,
+    Terminal,
+    Bell,
+    Activity,
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
@@ -21,89 +25,95 @@ interface SidebarProps {
 
 export function AdminSidebar({ activeTab, setActiveTab, onLogout }: SidebarProps) {
     const menuItems = [
-        { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'governance', label: 'Governance', icon: ShieldCheck },
-        { id: 'blockchain', label: 'Blockchain', icon: Link2 },
-        { id: 'users', label: 'Team', icon: Users },
-        { id: 'audit', label: 'Audit Logs', icon: History },
+        { id: 'overview', label: 'Network Control', icon: LayoutDashboard },
+        { id: 'notifications', label: 'Admin Notifications', icon: Bell },
+        { id: 'governance', label: 'DAO Governance', icon: ShieldCheck },
+        { id: 'blockchain', label: 'On-Chain Ledger', icon: Link2 },
+        { id: 'users', label: 'Administrative Team', icon: Users },
+        { id: 'audit', label: 'Infrastructure Logs', icon: Terminal },
+        { id: 'integrity', label: 'System Integrity', icon: Activity },
     ];
 
     return (
-        <div className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col h-full">
-            <div className="p-6">
-                <div className="flex items-center gap-3 mb-8">
-                    <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-                        <Lock className="w-6 h-6 text-white" />
+        <div className="w-80 bg-gray-950 border-r border-gray-800 flex flex-col h-full shadow-2xl relative z-30">
+            <div className="p-8">
+                <div className="flex items-center gap-4 mb-12">
+                    <div className="size-12 bg-primary rounded-2xl flex items-center justify-center shadow-xl shadow-primary/20">
+                        <Lock className="size-6 text-white" />
                     </div>
-                    <span className="text-xl font-bold text-white tracking-tight">Admin<span className="text-blue-500">Portal</span></span>
+                    <div className="flex flex-col">
+                        <span className="text-xl font-black text-white tracking-tighter">EduCreds</span>
+                        <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Platform Admin</span>
+                    </div>
                 </div>
 
-                <nav className="space-y-1">
-                    {menuItems.map((item) => (
-                        <button
-                            key={item.id}
-                            onClick={() => setActiveTab(item.id)}
-                            className={cn(
-                                "w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group text-sm font-medium",
-                                activeTab === item.id
-                                    ? "bg-blue-600/10 text-blue-400 border border-blue-600/20 shadow-sm"
-                                    : "text-gray-400 hover:text-white hover:bg-gray-800/50"
-                            )}
-                        >
-                            <item.icon className={cn(
-                                "w-5 h-5 transition-colors",
-                                activeTab === item.id ? "text-blue-400" : "text-gray-500 group-hover:text-white"
-                            )} />
-                            {item.label}
-                            {activeTab === item.id && (
-                                <ChevronRight className="w-4 h-4 ml-auto" />
-                            )}
-                        </button>
-                    ))}
-                </nav>
+                <div className="space-y-8">
+                    <div>
+                        <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.2em] mb-4 px-4">Management Layer</p>
+                        <nav className="space-y-1">
+                            {menuItems.map((item) => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setActiveTab(item.id)}
+                                    className={cn(
+                                        "w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group text-sm font-bold",
+                                        activeTab === item.id
+                                            ? "bg-white/5 text-primary border border-white/5 shadow-inner shadow-black/20"
+                                            : "text-gray-500 hover:text-white hover:bg-white/5"
+                                    )}
+                                >
+                                    <item.icon className={cn(
+                                        "size-5 transition-transform duration-300 group-hover:scale-110",
+                                        activeTab === item.id ? "text-primary" : "text-gray-600 group-hover:text-gray-400"
+                                    )} />
+                                    <span className="tracking-tight">{item.label}</span>
+                                    {activeTab === item.id && (
+                                        <div className="size-1.5 rounded-full bg-primary ml-auto shadow-[0_0_8px_rgba(21,96,189,0.8)]" />
+                                    )}
+                                </button>
+                            ))}
+                        </nav>
+                    </div>
+
+                    <div>
+                        <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.2em] mb-4 px-4">System Integrity</p>
+                        <div className="px-4 space-y-4">
+                            <div className="flex items-center justify-between p-4 bg-gray-900 rounded-2xl border border-white/5">
+                                <div className="flex items-center gap-3">
+                                    <Database className="size-4 text-gray-600" />
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">DB Sync</span>
+                                </div>
+                                <div className="size-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div className="mt-auto p-6 space-y-4">
-                <div className="bg-gray-800/40 rounded-xl p-4 border border-gray-700/50">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white">
+            <div className="mt-auto p-8 border-t border-white/5">
+                <div className="bg-gray-900 rounded-3xl p-5 mb-6 border border-white/5 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                        <Cpu className="size-16 rotate-12" />
+                    </div>
+                    <div className="flex items-center gap-4 relative z-10">
+                        <div className="size-10 rounded-xl bg-gradient-to-tr from-primary to-indigo-600 flex items-center justify-center text-xs font-black text-white shadow-lg">
                             SA
                         </div>
-                        <div>
-                            <p className="text-xs font-semibold text-white">Super Admin</p>
-                            <p className="text-[10px] text-gray-500">admin@educreds.xyz</p>
+                        <div className="min-w-0">
+                            <p className="text-sm font-black text-white truncate tracking-tight">Root Authority</p>
+                            <p className="text-[10px] text-gray-500 font-bold truncate tracking-tighter uppercase">admin@educreds.xyz</p>
                         </div>
                     </div>
                 </div>
 
                 <button
                     onClick={onLogout}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-400/10 transition-all duration-200 text-sm font-medium"
+                    className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-gray-500 hover:text-red-500 hover:bg-red-500/5 transition-all duration-300 text-xs font-black uppercase tracking-widest"
                 >
-                    <LogOut className="w-5 h-5" />
-                    Sign Out
+                    <LogOut className="size-5" />
+                    Terminate Access
                 </button>
             </div>
         </div>
-    );
-}
-
-function Lock(props: any) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-        </svg>
     );
 }
