@@ -135,7 +135,7 @@ export default function Certificates() {
   );
 
   const { data: certificatesData, isLoading } = useQuery({
-    queryKey: ["institutionCertificates", queryParams],
+    queryKey: ["/api/certificates/institution", queryParams],
     queryFn: () => api.getCertificates(queryParams),
     enabled: !!user,
     refetchOnMount: true,
@@ -152,7 +152,7 @@ export default function Certificates() {
     if (!certificates.length) return [];
     if (serverPaged) return certificates;
     return certificates.filter((cert: Certificate) => {
-      const studentName = (cert.studentName && cert.studentName !== "unknown student") ? cert.studentName.toLowerCase() : "";
+      const studentName = cert.studentName ? cert.studentName.toLowerCase() : "";
       const courseName = cert.courseName?.toLowerCase() || "";
       const studentAddress = cert.studentAddress?.toLowerCase() || "";
       const matchesSearch = !searchValue || 
@@ -838,9 +838,9 @@ export default function Certificates() {
                       <TableCell>
                         <div className="space-y-1">
                           <p className="text-sm font-medium text-neutral-700">
-                            {certificate.courseName && certificate.courseName !== 'Unknown Program'
+                            {certificate.courseName
                               ? certificate.courseName
-                              : 'Unknown Program'}
+                              : (certificate as any).courseCode || 'Unknown Program'}
                           </p>
                           <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">
                             {certificate.certificateType || 'Academic'}

@@ -82,7 +82,7 @@ export default function ModernDashboard() {
 
   const { data: certificatesData } = useQuery({
     queryKey: ["/api/certificates/institution"],
-    queryFn: api.getCertificates,
+    queryFn: () => api.getCertificates(),
     enabled: !!user,
     refetchOnMount: true,
   });

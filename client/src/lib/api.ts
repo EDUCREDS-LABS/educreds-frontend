@@ -706,133 +706,86 @@ export const api = {
           ? (data as any).data
           : [];
 
-    const normalizeText = (value: any) => {
-      if (typeof value !== 'string') return '';
-      const trimmed = value.trim();
-      if (!trimmed) return '';
-      return trimmed;
-    };
-
-    const normalizeName = (value: any) => {
-      const normalized = normalizeText(value);
-      if (!normalized) return '';
-      const lower = normalized.toLowerCase();
-      if (lower === 'unknown' || lower === 'unknown student' || lower === 'unknown program') return '';
-      return normalized;
-    };
-
     const certificates = list.map((c: any) => {
       const resolveStudentName = () => {
-        if (!c) return 'Unknown Student';
-
-        const direct = normalizeName(
-          c.studentName ||
-          c.student_name ||
-          c.studentFullName ||
-          c.student_full_name ||
-          c.recipientName ||
-          c.recipient_name ||
-          c.fullName
-        );
-        if (direct) return direct;
-
+        if (!c) return undefined;
+        
+        // Direct name fields
+        const direct = c.studentName || c.student_name || c.studentFullName || 
+          c.student_full_name || c.fullName || c.name;
+        if (direct && typeof direct === 'string' && direct.trim() && 
+            direct.toLowerCase() !== 'unknown' && direct.toLowerCase() !== 'unknown student') {
+          return direct.trim();
+        }
+        
+        // Nested student object
         if (c.student && typeof c.student === 'object') {
-          const nested = normalizeName(
-            c.student.fullName ||
-            c.student.name ||
-            c.student.studentName ||
-            c.student.student_full_name ||
-            `${c.student.firstName || c.student.first_name || ''} ${c.student.lastName || c.student.last_name || ''}`
-          );
-          if (nested) return nested;
+          const name = c.student.fullName || c.student.name ||
+            [c.student.firstName, c.student.lastName].filter(Boolean).join(' ');
+          if (name) return name;
         }
-
+        
+        // W3C credential subject
         if (c.credentialSubject && typeof c.credentialSubject === 'object') {
-          const subject = normalizeName(
-            c.credentialSubject.fullName ||
-            c.credentialSubject.studentName ||
-            c.credentialSubject.name ||
-            c.credentialSubject.credentialName ||
-            c.credentialSubject.programName ||
-            c.credentialSubject.courseName
-          );
-          if (subject) return subject;
+          const name = c.credentialSubject.fullName || c.credentialSubject.name || 
+            c.credentialSubject.studentName;
+          if (name) return name;
         }
-
-        const first = normalizeText(c.studentFirstName || c.firstName || c.student_first_name || c.first_name);
-        const last = normalizeText(c.studentLastName || c.lastName || c.student_last_name || c.last_name);
+        
+        // Separate first/last name fields
+        const first = c.studentFirstName || c.firstName || c.first_name;
+        const last = c.studentLastName || c.lastName || c.last_name;
         const combined = [first, last].filter(Boolean).join(' ');
         if (combined) return combined;
-
-        return 'Unknown Student';
+        
+        return undefined;
       };
 
       const resolveCourseName = () => {
-        if (!c) return 'Unknown Program';
-
-        const direct = normalizeName(
-          c.courseName ||
-          c.course_name ||
-          c.program ||
-          c.programName ||
-          c.program_name ||
-          c.title ||
-          c.courseTitle ||
-          c.credential_name ||
-          c.credentialName
-        );
+        if (!c) return undefined;
+        
+        // Direct course/program name fields
+        const direct = c.courseName || c.course_name || c.program || c.programName || 
+          c.program_name || c.title || c.courseTitle || c.credential_name;
         if (direct) return direct;
-
+        
+        // W3C credential subject
         if (c.credentialSubject && typeof c.credentialSubject === 'object') {
-          const subject = normalizeName(
-            c.credentialSubject.courseName ||
-            c.credentialSubject.programName ||
-            c.credentialSubject.title ||
-            c.credentialSubject.name ||
-            c.credentialSubject.credentialName
-          );
-          if (subject) return subject;
+          const course = c.credentialSubject.courseName || c.credentialSubject.programName || 
+            c.credentialSubject.name || c.credentialSubject.credentialName;
+          if (course) return course;
         }
-
+        
+        // Nested course/program object
         if (c.course && typeof c.course === 'object') {
-          const nested = normalizeName(
-            c.course.name ||
-            c.course.courseName ||
-            c.course.programName ||
-            c.course.title ||
-            c.course.courseTitle
-          );
-          if (nested) return nested;
+          const course = c.course.name || c.course.courseName || c.course.programName;
+          if (course) return course;
         }
-
-        return 'Unknown Program';
+        
+        return undefined;
       };
 
       const resolveStudentAddress = () => {
         return (
           c.studentAddress ||
           c.studentWalletAddress ||
-          c.student_wallet_address ||
           c.walletAddress ||
           c.recipientWallet ||
-          c.recipientAddress ||
-          c.recipient_wallet ||
-          c.recipient_address ||
-          ''
+          c.recipientAddress
         );
       };
 
       return {
       ...(() => {
         const status =
-          normalizeName(c.issuanceStatus) ||
-          normalizeName(c.status) ||
+          c.issuanceStatus ??
+          c.status ??
           (c.isValid === false || c.revocationReason
-            ? 'revoked'
-            : (Boolean(c.isMinted) || c.tokenId != null)
-              ? 'minted'
-              : 'pending_wallet_signature');
-        const minted = status === 'minted' || Boolean(c.isMinted ?? c.tokenId);
+            ? "revoked"
+            : (c.isMinted ?? Boolean(c.tokenId))
+              ? "minted"
+              : "pending_wallet_signature");
+        const minted = status === "minted" || Boolean(c.isMinted ?? c.tokenId);
         return {
           issuanceStatus: status,
           isMinted: minted,
@@ -843,11 +796,11 @@ export const api = {
       studentAddress: resolveStudentAddress(),
       studentName: resolveStudentName(),
       courseName: resolveCourseName(),
-      grade: c.grade ?? (c.gradescore !== undefined && c.gradescore !== null ? String(c.gradescore) : 'N/A'),
+      grade: c.grade ?? (c.gradescore !== undefined && c.gradescore !== null ? String(c.gradescore) : "N/A"),
       ipfsHash: c.ipfsHash,
       completionDate: c.completionDate,
-      certificateType: c.certificateType ?? 'Academic',
-      issuedBy: c.issuedBy?._id ?? c.issuedBy ?? '',
+      certificateType: c.certificateType ?? "Academic",
+      issuedBy: c.issuedBy?._id ?? c.issuedBy ?? "",
       institutionName: c.institutionName,
       issuedAt: c.issuedAt ?? c.createdAt ?? c.issueDate,
       tokenId: c.tokenId,

@@ -120,8 +120,10 @@ export const CertificateManagement: React.FC = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig = {
+  type StatusType = 'active' | 'revoked' | 'expired' | 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'frozen';
+
+  const getStatusBadge = (status: StatusType) => {
+    const statusConfig: Record<StatusType, { label: string; className: string }> = {
       active: { label: 'Active', className: 'bg-green-100 text-green-800 border-green-200' },
       revoked: { label: 'Revoked', className: 'bg-red-100 text-red-800 border-red-200' },
       expired: { label: 'Expired', className: 'bg-gray-100 text-gray-800 border-gray-200' },
