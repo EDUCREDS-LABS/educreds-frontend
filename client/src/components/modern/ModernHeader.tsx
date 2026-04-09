@@ -38,7 +38,13 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
           <Link href="/">
             <div className="flex items-center space-x-3 group cursor-pointer">
               <div className="relative">
-                <img src="/logo.png" alt="EduCreds" className="h-8 w-auto" />
+                <div className="h-10 w-10 rounded-2xl bg-white/90 ring-1 ring-neutral-200 shadow-sm flex items-center justify-center">
+                  <img
+                    src="/logo.png"
+                    alt="EduCreds"
+                    className="h-6 w-6 object-contain drop-shadow-sm"
+                  />
+                </div>
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse" />
               </div>
               <div>
@@ -173,8 +179,9 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
           <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
             New
           </Badge>
-          <span>🎉 Template Marketplace now live! Create and sell certificate designs.</span>
-          <Link href="/marketplace" className="underline hover:no-underline">
+          <span>📋</span>
+          <span>our public registry is live track your onchain transactions.</span>
+          <Link href="/trust-registry" className="underline hover:no-underline">
             Explore →
           </Link>
         </div>

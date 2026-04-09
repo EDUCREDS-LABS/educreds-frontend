@@ -77,23 +77,69 @@ export function BulkCSVUploader({
   const [pendingIssuances, setPendingIssuances] = useState<PendingIssuance[]>([]);
   const [signingAll, setSigningAll] = useState(false);
 
+  // Poll job status function
+  const pollJobStatus = async (jobId: string): Promise<any> => {
+    const maxAttempts = 60; // 5 minutes max (5 seconds * 60)
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+      try {
+        const data = await api.getBulkIssuanceJobStatus(jobId);
+        console.log('Job status:', data);
+        
+        // Handle different response formats
+        const current = data.progress?.current || data.progress?.processed || data.processedItems || 0;
+        const total = data.progress?.total || data.totalItems || 0;
+        const successful = data.progress?.successful || data.successfulItems || 0;
+        const failed = data.progress?.failed || data.failedItems || 0;
+        
+        setProcessingStatus(`Processing: ${current}/${total} (${successful} successful, ${failed} failed)`);
+
+        if (data.status === 'completed' || data.status === 'COMPLETED') {
+          return {
+            successful,
+            failed,
+            pending: 0,
+            errors: data.errors || [],
+            totalProcessed: total,
+          };
+        } else if (data.status === 'failed' || data.status === 'FAILED') {
+          throw new Error(data.error || data.errorMessage || 'Bulk job failed');
+        }
+
+        // Wait 5 seconds before next poll
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        attempts++;
+      } catch (error) {
+        console.error('Poll error:', error);
+        throw error;
+      }
+    }
+
+    throw new Error('Job timeout - taking longer than expected');
+  };
+
   const bulkIssueMutation = useMutation({
     mutationFn: async (data: { file: File; templateId?: string }) => {
-      const formData = new FormData();
-      formData.append('file', data.file);
-      if (data.templateId) {
-        formData.append('templateId', data.templateId);
-      }
-      
       // Simulate progress
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) => Math.min(prev + 10, 90));
       }, 500);
 
       try {
-        const result = await api.bulkIssueCertificates(formData);
+        // Call the new bulk issuance CSV endpoint via API service
+        const result = await api.bulkIssueCertificatesFromCSV(data.file);
         clearInterval(progressInterval);
         setUploadProgress(100);
+        
+        console.log('Bulk issuance response:', result);
+        
+        // Start polling for job status
+        if (result.jobId) {
+          setProcessingStatus('Job created, processing certificates...');
+          return await pollJobStatus(result.jobId);
+        }
+        
         return result;
       } catch (error) {
         clearInterval(progressInterval);
@@ -106,33 +152,20 @@ export function BulkCSVUploader({
         failed: data.failed || 0,
         pending: data.pending || 0,
         errors: data.errors || [],
-        totalProcessed: (data.successful || 0) + (data.failed || 0) + (data.pending || 0),
+        totalProcessed: data.totalProcessed || (data.successful || 0) + (data.failed || 0),
       };
       
       setBulkResult(result);
-      const pending = Array.isArray(data?.results)
-        ? data.results
-            .filter((item: any) => item?.walletDirectRequired || item?.status === 'pending_wallet_signature')
-            .map((item: any, index: number) => ({
-              id: item?.issuanceRequestId || item?.certificateId || `pending-${index}`,
-              recipientName: item?.recipient?.name || 'Unknown',
-              recipientWallet: item?.recipient?.wallet || 'Unknown',
-              status: 'pending' as const,
-              issuanceRequestId: item?.issuanceRequestId,
-              transactionData: item?.transactionData,
-            }))
-        : [];
-      setPendingIssuances(pending);
+      setPendingIssuances([]); // No manual signing needed with batch processing
       
       toast({
         title: 'Bulk Issuance Complete',
-        description: `Minted ${result.successful} certificates. ${
-          result.pending > 0 ? `${result.pending} pending wallet signature. ` : ''
-        }${result.failed > 0 ? `${result.failed} failed.` : ''}`,
+        description: `Successfully issued ${result.successful} out of ${result.totalProcessed} certificates. ${result.failed > 0 ? `${result.failed} failed.` : ''}`,
       });
       
       queryClient.invalidateQueries({ queryKey: ['/api/certificates/institution'] });
       queryClient.invalidateQueries({ queryKey: ['/api/subscription/current'] });
+      setProcessingStatus('');
     },
     onError: (error: any) => {
       toast({
@@ -222,9 +255,10 @@ export function BulkCSVUploader({
   }, [csvFile, selectedTemplate, isLimitExceeded, bulkIssueMutation, toast]);
 
   const handleDownloadTemplate = useCallback(() => {
-    const csvContent = `recipientWallet,recipientName,completionDate,certificateType,grade,courseId
-0x1234567890123456789012345678901234567890,John Doe,2024-01-15,Course Completion,A,CS101
-0xabcdefabcdefabcdefabcdefabcdefabcdefabcd,Jane Smith,2024-01-15,Degree,4.0 GPA,ENG201`;
+    const csvContent = `wallet,name,email,course,grade,completionDate,certificateType
+0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1,John Doe,john@example.com,Mathematics 101,A,2024-01-15,Course Completion
+0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb2,Jane Smith,jane@example.com,Physics 201,B+,2024-01-15,Course Completion
+0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb3,Bob Johnson,bob@example.com,Chemistry 301,A-,2024-01-15,Course Completion`;
     
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -238,7 +272,7 @@ export function BulkCSVUploader({
     
     toast({
       title: 'Template Downloaded',
-      description: 'CSV template has been downloaded successfully',
+      description: 'CSV template downloaded. Replace example wallet addresses with real ones. Wallet, name, and course columns are required.',
     });
   }, [toast]);
 
@@ -264,18 +298,16 @@ export function BulkCSVUploader({
           <AlertDescription className="text-blue-800 mt-2">
             <ul className="list-disc list-inside space-y-1 text-sm">
               <li>
-                <strong>Required columns:</strong> recipientWallet, recipientName,
-                completionDate, certificateType
+                <strong>Required columns:</strong> wallet (or walletAddress), name (or studentName), course (or courseName)
               </li>
               <li>
-                <strong>Optional columns:</strong> grade, courseId
+                <strong>Optional columns:</strong> email, grade, completionDate (YYYY-MM-DD), certificateType
               </li>
               <li>
-                Wallet addresses must be valid Ethereum addresses (42 characters
-                starting with 0x)
+                Wallet addresses must be valid Ethereum addresses (0x followed by 40 hex characters)
               </li>
-              <li>Dates should be in YYYY-MM-DD format</li>
-              <li>Maximum 100 certificates per upload</li>
+              <li>Column names are flexible - see examples for accepted variations</li>
+              <li>The CSV parser on the server handles quoted values and special characters</li>
             </ul>
           </AlertDescription>
         </Alert>
@@ -422,22 +454,13 @@ export function BulkCSVUploader({
                 Issuance Complete
               </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <p className="text-sm font-medium text-green-900">Successful</p>
                   <p className="text-2xl font-bold text-green-600 mt-1">
                     {bulkResult.successful}
                   </p>
                 </div>
-                
-                {bulkResult.pending > 0 && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <p className="text-sm font-medium text-amber-900">Pending Signatures</p>
-                    <p className="text-2xl font-bold text-amber-600 mt-1">
-                      {bulkResult.pending}
-                    </p>
-                  </div>
-                )}
 
                 {bulkResult.failed > 0 && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -455,56 +478,6 @@ export function BulkCSVUploader({
                   </p>
                 </div>
               </div>
-
-              {pendingIssuances.length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-md font-semibold text-neutral-900">Pending Wallet Signatures</h4>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={signAllPending}
-                      disabled={signingAll}
-                    >
-                      {signingAll ? 'Signing...' : 'Sign All'}
-                    </Button>
-                  </div>
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {pendingIssuances.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 border rounded-md p-3"
-                      >
-                        <div className="text-sm">
-                          <div className="font-medium text-neutral-900">{item.recipientName}</div>
-                          <div className="text-neutral-600">{item.recipientWallet}</div>
-                          {item.error && (
-                            <div className="text-red-600 mt-1">{item.error}</div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            className={
-                              item.status === 'minted'
-                                ? 'bg-green-100 text-green-800'
-                                : item.status === 'failed'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-amber-100 text-amber-800'
-                            }
-                          >
-                            {item.status}
-                          </Badge>
-                          {item.status === 'pending' && (
-                            <Button size="sm" onClick={() => signPendingIssuance(item)}>
-                              Sign
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {bulkResult.errors.length > 0 && (
                 <Alert className="border-red-200 bg-red-50">

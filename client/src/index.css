@@ -2,13 +2,25 @@
 
 @import "tailwindcss";
 
-@theme inline {
+@theme {
   --font-sans: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
   --font-heading: "Space Grotesk", sans-serif;
   
   --color-primary: #1560BD;
   --color-secondary: #00416A;
   --color-accent: #15BCA9;
+  --color-card: rgb(255 255 255 / <alpha-value>);
+  --color-background: rgb(248 250 252 / <alpha-value>);
+  --color-foreground: rgb(15 23 42 / <alpha-value>);
+  --color-muted: rgb(241 245 249 / <alpha-value>);
+  --color-muted-foreground: rgb(100 116 139 / <alpha-value>);
+  --color-popover: rgb(255 255 255 / <alpha-value>);
+  --color-popover-foreground: rgb(15 23 42 / <alpha-value>);
+  --color-border: rgb(226 232 240 / <alpha-value>);
+  --color-input: rgb(226 232 240 / <alpha-value>);
+  --color-destructive: hsl(0 84.2% 60.2% / <alpha-value>);
+  --color-destructive-foreground: hsl(60 9.1% 97.8% / <alpha-value>);
+  --color-ring: rgb(21 96 189 / <alpha-value>);
   
   --radius-xl: 16px;
   --radius-2xl: 24px;
@@ -77,11 +89,11 @@
   }
   
   .glass-card {
-    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-xl;
+    @apply bg-card border border-border shadow-card;
   }
   
   .dark .glass-card {
-    @apply bg-neutral-900/80 border-white/5;
+    @apply bg-card border-border;
   }
 }
 

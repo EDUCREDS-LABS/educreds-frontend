@@ -1173,6 +1173,51 @@ export const api = {
     return confirmWalletDirectIssuanceIfNeeded(payload, authHeaders);
   },
 
+  // Bulk issuance via CSV upload endpoint
+  bulkIssueCertificatesFromCSV: async (csvFile: File) => {
+    const authHeaders = getAuthHeaders();
+    
+    // Create FormData for multipart/form-data request
+    const formData = new FormData();
+    formData.append('csvFile', csvFile);
+    
+    // Add options
+    const options = {
+      batchSize: 10,
+      continueOnError: true,
+    };
+    formData.append('options', JSON.stringify(options));
+    
+    try {
+      const response = await fetch(`${API_CONFIG.CERT}/api/certificates/bulk-issue-csv`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: formData,
+      });
+      
+      return handleResponse(response);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new ApiError(0, `Failed to upload CSV: ${message}`);
+    }
+  },
+
+  // Get bulk job status
+  getBulkIssuanceJobStatus: async (jobId: string) => {
+    const authHeaders = getAuthHeaders();
+    
+    try {
+      const response = await fetch(`${API_CONFIG.CERT}/api/certificates/bulk/status/${jobId}`, {
+        headers: authHeaders,
+      });
+      
+      return handleResponse(response);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new ApiError(0, `Failed to get job status: ${message}`);
+    }
+  },
+
   // Verification Methods
   verifyCertificate: async (id: string) => {
     const response = await fetch(API_CONFIG.CERTIFICATES.VERIFY(id));

@@ -632,7 +632,7 @@ export default function Certificates() {
               <Separator orientation="vertical" className="h-10 hidden xl:block mx-2" />
               <div className="flex items-center gap-2">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[150px] border-neutral-200 bg-neutral-50/50 h-11 rounded-xl">
+                  <SelectTrigger className="w-[150px] border-neutral-200 bg-neutral-50 h-11 rounded-xl">
                     <ListFilter className="w-4 h-4 mr-2 text-neutral-500" />
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
@@ -646,7 +646,7 @@ export default function Certificates() {
                 </Select>
 
                 <Select value={programFilter} onValueChange={setProgramFilter}>
-                  <SelectTrigger className="w-[200px] border-neutral-200 bg-neutral-50/50 h-11 rounded-xl">
+                  <SelectTrigger className="w-[200px] border-neutral-200 bg-neutral-50 h-11 rounded-xl">
                     <Filter className="w-4 h-4 mr-2 text-neutral-500" />
                     <SelectValue placeholder="Program" />
                   </SelectTrigger>
@@ -664,7 +664,7 @@ export default function Certificates() {
 
             <div className="flex flex-wrap items-center gap-3">
               <Select value={activePresetId} onValueChange={handleApplyPreset}>
-                <SelectTrigger className="w-[180px] border-neutral-200 bg-neutral-50/50 h-11 rounded-xl">
+                <SelectTrigger className="w-[180px] border-neutral-200 bg-neutral-50 h-11 rounded-xl">
                   <LayoutGrid className="w-4 h-4 mr-2 text-neutral-500" />
                   <SelectValue placeholder="Saved Views" />
                 </SelectTrigger>

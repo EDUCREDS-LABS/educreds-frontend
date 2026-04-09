@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Key, Bell, Mail, Smartphone, Globe, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import BatchSigningSettings from "./BatchSigningSettings";
 
 export default function InstitutionSettings() {
   const { user } = useAuth();
@@ -27,6 +28,9 @@ export default function InstitutionSettings() {
         <h1 className="text-2xl font-bold text-neutral-900">Institution Settings</h1>
         <p className="text-neutral-600">Manage your account preferences and security settings</p>
       </div>
+
+      {/* Batch Signing Settings - NEW */}
+      <BatchSigningSettings />
 
       {/* Security Settings */}
       <Card>

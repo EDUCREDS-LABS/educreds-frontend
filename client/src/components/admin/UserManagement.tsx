@@ -243,7 +243,7 @@ export default function UserManagement() {
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-500 px-2">Strategic Security Role</Label>
               <Select value={createForm.role} onValueChange={(v: AdminRole) => setCreateForm(f => ({ ...f, role: v }))}>
-                <SelectTrigger className="h-14 bg-white/5 border-white/5 rounded-2xl text-white font-bold">
+                <SelectTrigger className="h-14 bg-neutral-900 border-white/10 rounded-2xl text-white font-bold">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-950 border-white/5 text-white">
@@ -292,7 +292,7 @@ export default function UserManagement() {
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-500 px-2">Strategic Security Role</Label>
               <Select value={editForm.role} onValueChange={(v: AdminRole) => setEditForm(f => ({ ...f, role: v }))}>
-                <SelectTrigger className="h-14 bg-white/5 border-white/5 rounded-2xl text-white font-bold">
+                <SelectTrigger className="h-14 bg-neutral-900 border-white/10 rounded-2xl text-white font-bold">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-950 border-white/5 text-white">

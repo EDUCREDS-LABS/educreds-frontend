@@ -83,7 +83,7 @@ export default function AdminLogin() {
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                 {error && (
                   <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
-                    <Alert variant="destructive" className="bg-red-500/10 border-red-500/20 text-red-400 rounded-2xl p-4">
+                    <Alert variant="destructive" className="rounded-2xl p-4">
                       <AlertCircle className="size-4" />
                       <AlertDescription className="font-bold text-xs uppercase tracking-widest">{error}</AlertDescription>
                     </Alert>

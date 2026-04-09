@@ -388,7 +388,7 @@ function AdminDashboardContent() {
                           <div className="space-y-3">
                             <Label className="text-white font-bold text-sm uppercase tracking-widest">Institution Registrations</Label>
                             <Select defaultValue="weekly">
-                              <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                            <SelectTrigger className="bg-neutral-900 border-white/10 text-white">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -403,7 +403,7 @@ function AdminDashboardContent() {
                           <div className="space-y-3">
                             <Label className="text-white font-bold text-sm uppercase tracking-widest">Proposal Submissions</Label>
                             <Select defaultValue="daily">
-                              <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                            <SelectTrigger className="bg-neutral-900 border-white/10 text-white">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
