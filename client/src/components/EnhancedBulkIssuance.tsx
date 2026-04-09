@@ -30,10 +30,12 @@ import {
   ShoppingCart,
   Plus,
   Eye,
+  RotateCcw,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import BulkIssuanceFailureTracker from './BulkIssuanceFailureTracker';
 
 interface BulkCertificate {
   studentName: string;
@@ -91,6 +93,7 @@ export default function EnhancedBulkIssuance() {
   const [issuanceMode, setIssuanceMode] = useState<'template' | 'legacy-pdf'>('template');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [showMarketplace, setShowMarketplace] = useState(false);
+  const [showFailureTracker, setShowFailureTracker] = useState(false);
 
   // Queries
   const { data: templatesData } = useQuery({
@@ -399,10 +402,19 @@ Bob Johnson,bob@example.com,0xAbcdefabcdefabcdefabcdefabcdefabcdefabcd,2024-01-1
               )}
 
               {/* Actions */}
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-4 flex-wrap">
+                {result.summary.failed > 0 && (
+                  <Button
+                    onClick={() => setShowFailureTracker(true)}
+                    className="flex-1 bg-red-600 hover:bg-red-700"
+                  >
+                    <AlertCircle className="w-4 h-4 mr-2" />
+                    Review & Retry Failures ({result.summary.failed})
+                  </Button>
+                )}
                 <Button
                   onClick={downloadResults}
-                  className="flex-1 bg-gradient-to-r from-primary to-purple-600"
+                  className={`${result.summary.failed > 0 ? 'flex-none' : 'flex-1'} bg-gradient-to-r from-primary to-purple-600`}
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Download Results
@@ -670,6 +682,26 @@ Bob Johnson,bob@example.com,0xAbcdefabcdefabcdefabcdefabcdefabcdefabcd,2024-01-1
             </ul>
           </CardContent>
         </Card>
+
+        {/* Failure Tracker Modal */}
+        {result && (
+          <BulkIssuanceFailureTracker
+            batchId={result.batchId}
+            isOpen={showFailureTracker}
+            onClose={() => setShowFailureTracker(false)}
+            onRetryComplete={(newBatchId) => {
+              toast({
+                title: 'Retry Started',
+                description: `Retry batch ${newBatchId} has been queued`,
+              });
+              // Optionally reset to show the new batch
+              setTimeout(() => {
+                setResult(null);
+                setCsvData([]);
+              }, 1000);
+            }}
+          />
+        )}
       </div>
     </ErrorBoundary>
   );

@@ -62,6 +62,21 @@ interface PendingIssuance {
   transactionData?: any;
 }
 
+interface CsvValidationError {
+  lineNumber: number;
+  message: string;
+}
+
+interface CsvValidationSummary {
+  rowCount: number;
+  validRowCount: number;
+  duplicateCount: number;
+  invalidRowCount: number;
+  duplicateRows: CsvValidationError[];
+  invalidRows: CsvValidationError[];
+  cleanFile: File;
+}
+
 export function BulkCSVUploader({
   templates,
   isLimitExceeded,
@@ -76,6 +91,173 @@ export function BulkCSVUploader({
   const [bulkResult, setBulkResult] = useState<BulkIssuanceResult | null>(null);
   const [pendingIssuances, setPendingIssuances] = useState<PendingIssuance[]>([]);
   const [signingAll, setSigningAll] = useState(false);
+  const [csvValidation, setCsvValidation] = useState<CsvValidationSummary | null>(null);
+
+  const parseCsvLine = (line: string): string[] => {
+    const values: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+
+      if (char === '"' && line[i + 1] === '"') {
+        current += '"';
+        i++;
+        continue;
+      }
+
+      if (char === '"') {
+        inQuotes = !inQuotes;
+        continue;
+      }
+
+      if (char === ',' && !inQuotes) {
+        values.push(current.trim());
+        current = '';
+        continue;
+      }
+
+      current += char;
+    }
+
+    values.push(current.trim());
+    return values;
+  };
+
+  const isValidWalletAddress = (address: string): boolean => {
+    return /^0x[a-fA-F0-9]{40}$/.test(address);
+  };
+
+  const normalizeDateForKey = (value?: string): string => {
+    if (!value) {
+      return '';
+    }
+    const normalized = new Date(value);
+    return Number.isNaN(normalized.getTime()) ? value.trim() : normalized.toISOString().split('T')[0];
+  };
+
+  const findColumnIndex = (headers: string[], variants: string[]): number => {
+    for (const variant of variants) {
+      const index = headers.findIndex((h) => h === variant);
+      if (index !== -1) {
+        return index;
+      }
+    }
+    return -1;
+  };
+
+  const validateCsvFile = async (file: File): Promise<CsvValidationSummary> => {
+    const csvText = await file.text();
+    const lines = csvText.split(/\r?\n/).filter((line) => line.trim());
+
+    if (lines.length < 2) {
+      throw new Error('CSV must contain headers and at least one data row');
+    }
+
+    const headers = parseCsvLine(lines[0]).map((h) => h.toLowerCase().trim());
+
+    const walletIndex = findColumnIndex(headers, ['wallet', 'studentwalletaddress', 'walletaddress', 'recipientwalletaddress', 'student_wallet']);
+    const nameIndex = findColumnIndex(headers, ['name', 'studentname', 'recipientname', 'student_name', 'full_name']);
+    const courseIndex = findColumnIndex(headers, ['course', 'coursename', 'course_name', 'courseid']);
+    const emailIndex = findColumnIndex(headers, ['email', 'studentemail', 'recipientemail', 'student_email']);
+    const gradeIndex = findColumnIndex(headers, ['grade', 'score', 'mark', 'gpa']);
+    const dateIndex = findColumnIndex(headers, ['completiondate', 'completion_date', 'date', 'issuedate', 'issue_date']);
+    const typeIndex = findColumnIndex(headers, ['certificatetype', 'certificate_type', 'type']);
+
+    if (walletIndex === -1) {
+      throw new Error('CSV must contain a wallet address column. Accepted names: wallet, walletAddress, studentWalletAddress, recipientWalletAddress.');
+    }
+
+    if (nameIndex === -1) {
+      throw new Error('CSV must contain a name column. Accepted names: name, studentName, recipientName, full_name.');
+    }
+
+    if (courseIndex === -1) {
+      throw new Error('CSV must contain a course column. Accepted names: course, courseName, course_name, courseId.');
+    }
+
+    const duplicateRows: CsvValidationError[] = [];
+    const invalidRows: CsvValidationError[] = [];
+    const seenKeys = new Set<string>();
+    const cleanedLines: string[] = [lines[0]];
+    let validRowCount = 0;
+    let rowCount = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line.trim()) {
+        continue;
+      }
+
+      rowCount++;
+      const values = parseCsvLine(line);
+      const wallet = values[walletIndex]?.trim() || '';
+      const name = values[nameIndex]?.trim() || '';
+      const course = values[courseIndex]?.trim() || '';
+      const completionDate = dateIndex >= 0 ? values[dateIndex]?.trim() : '';
+      const certificateType = typeIndex >= 0 ? values[typeIndex]?.trim() : '';
+
+      if (!wallet || !name || !course) {
+        invalidRows.push({
+          lineNumber: i + 1,
+          message: `Missing required field(s): wallet, name, and course are required`,
+        });
+        continue;
+      }
+
+      if (!isValidWalletAddress(wallet)) {
+        invalidRows.push({
+          lineNumber: i + 1,
+          message: `Invalid wallet address format: ${wallet}`,
+        });
+        continue;
+      }
+
+      if (completionDate && Number.isNaN(new Date(completionDate).getTime())) {
+        invalidRows.push({
+          lineNumber: i + 1,
+          message: `Invalid completion date: ${completionDate}`,
+        });
+        continue;
+      }
+
+      const rowKey = [
+        wallet.toLowerCase(),
+        course.trim().toLowerCase(),
+        normalizeDateForKey(completionDate),
+        (certificateType.trim() || 'Academic').toLowerCase(),
+      ].join('|');
+
+      if (seenKeys.has(rowKey)) {
+        duplicateRows.push({
+          lineNumber: i + 1,
+          message: 'Duplicate row detected in CSV file',
+        });
+        continue;
+      }
+
+      seenKeys.add(rowKey);
+      cleanedLines.push(line);
+      validRowCount++;
+    }
+
+    if (validRowCount === 0) {
+      throw new Error('No valid certificates parsed from CSV. All data rows were invalid or duplicate.');
+    }
+
+    const cleanCsvFile = new File([cleanedLines.join('\n')], file.name, { type: 'text/csv' });
+
+    return {
+      rowCount,
+      validRowCount,
+      duplicateCount: duplicateRows.length,
+      invalidRowCount: invalidRows.length,
+      duplicateRows,
+      invalidRows,
+      cleanFile: cleanCsvFile,
+    };
+  };
 
   // Poll job status function
   const pollJobStatus = async (jobId: string): Promise<any> => {
@@ -127,8 +309,13 @@ export function BulkCSVUploader({
       }, 500);
 
       try {
+        const options = {
+          batchSize: 10,
+          continueOnError: true,
+        };
+
         // Call the new bulk issuance CSV endpoint via API service
-        const result = await api.bulkIssueCertificatesFromCSV(data.file);
+        const result = await api.bulkIssueCertificatesFromCSV(data.file, options);
         clearInterval(progressInterval);
         setUploadProgress(100);
         
@@ -212,7 +399,7 @@ export function BulkCSVUploader({
     setSigningAll(false);
   }, [pendingIssuances, signPendingIssuance]);
 
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.name.endsWith('.csv')) {
@@ -223,9 +410,32 @@ export function BulkCSVUploader({
         });
         return;
       }
+
       setCSVFile(file);
       setBulkResult(null);
       setUploadProgress(0);
+      setCsvValidation(null);
+
+      try {
+        const validation = await validateCsvFile(file);
+        setCsvValidation(validation);
+
+        if (validation.duplicateCount > 0 || validation.invalidRowCount > 0) {
+          toast({
+            title: 'CSV Validation Notice',
+            description: `Detected ${validation.duplicateCount} duplicate row(s) and ${validation.invalidRowCount} invalid row(s). Only the ${validation.validRowCount} valid rows will be submitted.`,
+          });
+        }
+      } catch (error: any) {
+        setCSVFile(null);
+        setCsvValidation(null);
+
+        toast({
+          title: 'CSV Validation Failed',
+          description: error?.message || 'Unable to parse CSV file',
+          variant: 'destructive',
+        });
+      }
     }
   }, [toast]);
 
@@ -248,11 +458,27 @@ export function BulkCSVUploader({
       return;
     }
 
+    if (csvValidation && csvValidation.validRowCount === 0) {
+      toast({
+        title: 'No Valid CSV Rows',
+        description: 'Please fix the CSV file before submitting. The file contains no valid, unique certificate rows.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (csvValidation?.duplicateCount || csvValidation?.invalidRowCount) {
+      toast({
+        title: 'Submitting Cleaned CSV',
+        description: `Duplicate and invalid rows have been removed. ${csvValidation.validRowCount} valid rows will be submitted.`,
+      });
+    }
+
     bulkIssueMutation.mutate({
-      file: csvFile,
+      file: (csvValidation?.cleanFile ?? csvFile),
       templateId: selectedTemplate && selectedTemplate !== '__none__' ? selectedTemplate : undefined,
     });
-  }, [csvFile, selectedTemplate, isLimitExceeded, bulkIssueMutation, toast]);
+  }, [csvFile, selectedTemplate, isLimitExceeded, bulkIssueMutation, toast, csvValidation]);
 
   const handleDownloadTemplate = useCallback(() => {
     const csvContent = `wallet,name,email,course,grade,completionDate,certificateType
@@ -281,6 +507,7 @@ export function BulkCSVUploader({
     setCSVFile(null);
     setUploadProgress(0);
     setSelectedTemplate('');
+    setCsvValidation(null);
   }, []);
 
   return (
@@ -416,6 +643,7 @@ export function BulkCSVUploader({
                         e.stopPropagation();
                         setCSVFile(null);
                         setUploadProgress(0);
+                        setCsvValidation(null);
                       }}
                       className="flex-shrink-0 text-green-700 hover:text-green-900 hover:bg-green-100"
                     >
@@ -425,6 +653,38 @@ export function BulkCSVUploader({
                 </div>
               )}
             </label>
+
+            {csvValidation && (
+              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <p className="font-medium">CSV validation summary</p>
+                <p className="mt-2">
+                  {csvValidation.validRowCount} valid row(s) detected out of {csvValidation.rowCount} total.
+                </p>
+                {csvValidation.duplicateCount > 0 && (
+                  <p className="mt-1 text-amber-800">
+                    {csvValidation.duplicateCount} duplicate row(s) were removed before submission.
+                  </p>
+                )}
+                {csvValidation.invalidRowCount > 0 && (
+                  <p className="mt-1 text-amber-800">
+                    {csvValidation.invalidRowCount} invalid row(s) were removed before submission.
+                  </p>
+                )}
+                <div className="mt-3 space-y-2">
+                  {csvValidation.invalidRows.slice(0, 3).map((error) => (
+                    <p key={`invalid-${error.lineNumber}`}>Row {error.lineNumber}: {error.message}</p>
+                  ))}
+                  {csvValidation.duplicateRows.slice(0, 3).map((error) => (
+                    <p key={`duplicate-${error.lineNumber}`}>Row {error.lineNumber}: {error.message}</p>
+                  ))}
+                  {(csvValidation.invalidRows.length > 3 || csvValidation.duplicateRows.length > 3) && (
+                    <p className="text-xs text-amber-900/80">
+                      Showing first 3 warnings. Clean the CSV or remove duplicate rows to avoid skipped rows.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -535,6 +795,7 @@ export function BulkCSVUploader({
                 setCSVFile(null);
                 setSelectedTemplate('');
                 setUploadProgress(0);
+                setCsvValidation(null);
               }}
               disabled={bulkIssueMutation.isPending}
             >

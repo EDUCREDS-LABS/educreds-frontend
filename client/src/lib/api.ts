@@ -1174,19 +1174,24 @@ export const api = {
   },
 
   // Bulk issuance via CSV upload endpoint
-  bulkIssueCertificatesFromCSV: async (csvFile: File) => {
+  bulkIssueCertificatesFromCSV: async (
+    csvFile: File,
+    options?: {
+      batchSize?: number;
+      continueOnError?: boolean;
+    }
+  ) => {
     const authHeaders = getAuthHeaders();
     
     // Create FormData for multipart/form-data request
     const formData = new FormData();
     formData.append('csvFile', csvFile);
     
-    // Add options
-    const options = {
-      batchSize: 10,
-      continueOnError: true,
+    const payloadOptions = {
+      batchSize: options?.batchSize ?? 10,
+      continueOnError: options?.continueOnError ?? true,
     };
-    formData.append('options', JSON.stringify(options));
+    formData.append('options', JSON.stringify(payloadOptions));
     
     try {
       const response = await fetch(`${API_CONFIG.CERT}/api/certificates/bulk-issue-csv`, {
