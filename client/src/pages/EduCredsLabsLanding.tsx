@@ -33,12 +33,12 @@ export default function EduCredsLabsLanding() {
 
   return (
     <div className="min-h-screen bg-white font-sans selection:bg-primary/20 relative overflow-hidden">
-      {/* Global Background Image */}
-      <div className="absolute inset-0 -z-10 overflow-hidden bg-neutral-50">
+      {/* Global Background Image with Darker Overlay for Contrast */}
+      <div className="absolute inset-0 -z-10 overflow-hidden bg-neutral-900">
         <div 
-          className="absolute inset-0 opacity-[0.45] pointer-events-none mix-blend-normal"
+          className="absolute inset-0 opacity-[0.3] pointer-events-none mix-blend-normal"
           style={{ 
-            backgroundImage: "url('https://res.cloudinary.com/dycszahnr/image/upload/q_auto/f_auto/v1775209679/conny-schneider-xuTJZ7uD7PI-unsplash_arilhb.jpg')",
+            backgroundImage: "url('https://res.cloudinary.com/dycszahnr/image/upload/q_auto/f_auto/w_1920/v1775209679/conny-schneider-xuTJZ7uD7PI-unsplash_arilhb.jpg')",
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
@@ -62,7 +62,7 @@ export default function EduCredsLabsLanding() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <Badge variant="outline" className="mb-8 bg-white/50 backdrop-blur-md text-neutral-600 border-neutral-200 px-4 py-1.5 rounded-full text-sm font-medium shadow-sm">
+              <Badge variant="outline" className="mb-8 bg-white text-neutral-900 border-neutral-200 px-4 py-1.5 rounded-full text-sm font-bold shadow-md">
                 <span className="w-2 h-2 rounded-full bg-green-500 mr-2 inline-block animate-pulse"></span>
                 The Future of Digital Credentialing
               </Badge>
@@ -128,7 +128,7 @@ export default function EduCredsLabsLanding() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
               <Badge variant="outline" className="mb-6 border-neutral-700 text-neutral-300 px-4 py-1">Why EduCreds?</Badge>
-              <h2 className="text-3xl md:text-5xl font-bold font-heading mb-8 leading-tight">
+              <h2 className="mt-4 text-3xl font-bold leading-tight text-blue-500 md:text-5xl lg:text-5xl">
                 Eliminating Credential Fraud with Blockchain Technology
               </h2>
               <div className="space-y-10">
@@ -163,6 +163,7 @@ export default function EduCredsLabsLanding() {
                   src="https://res.cloudinary.com/dycszahnr/image/upload/q_auto/f_auto/v1775209680/robynne-o-HOrhCnQsxnQ-unsplash_xganji.jpg"
                   alt="Futuristic Grid Perspective"
                   className="w-full h-full object-cover opacity-30 scale-150"
+                  loading="lazy"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-8">

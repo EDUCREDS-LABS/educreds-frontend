@@ -451,6 +451,8 @@ export const CONTRACT_CONFIG = {
 
 // Contract interface types
 export interface CertificateData {
+  id?: string;
+  studentAddress?: string;
   studentName: string;
   institutionName: string;
   courseName: string;

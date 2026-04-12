@@ -45,6 +45,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { useSidebar } from "@/components/ui/sidebar";
 
 const data = {
   navMain: [
@@ -72,11 +73,66 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
+  const { setOpenMobile, isMobile } = useSidebar();
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const autoHideTimeoutRef = React.useRef<NodeJS.Timeout>();
+
+  const handleNavClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   const isActive = (url: string) => location === url;
 
+  // Auto-hide functionality
+  const handleMouseEnter = React.useCallback(() => {
+    if (autoHideTimeoutRef.current) {
+      clearTimeout(autoHideTimeoutRef.current);
+    }
+    setIsExpanded(true);
+  }, []);
+
+  const handleMouseLeave = React.useCallback(() => {
+    // Auto-collapse after 3 seconds of not hovering
+    autoHideTimeoutRef.current = setTimeout(() => {
+      if (!isMobile) {
+        setIsExpanded(false);
+      }
+    }, 3000);
+  }, [isMobile]);
+
+  React.useEffect(() => {
+    return () => {
+      if (autoHideTimeoutRef.current) {
+        clearTimeout(autoHideTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      if (autoHideTimeoutRef.current) {
+        clearTimeout(autoHideTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
-    <Sidebar collapsible="icon" className="border-r border-neutral-200/60 dark:border-neutral-800/60 bg-white dark:bg-neutral-900 shadow-xl" {...props}>
+    <div
+      className={cn(
+        "fixed left-0 top-0 h-full z-50 border-r border-neutral-200/60 dark:border-neutral-800/60 bg-white dark:bg-neutral-900 shadow-xl transition-all duration-300 ease-in-out",
+        isExpanded ? "w-64" : "w-16",
+        "group"
+      )}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <Sidebar
+        collapsible="none"
+        className="w-full h-full border-0"
+        {...props}
+      >
       <SidebarHeader className="p-6">
         <Link href="/institution/dashboard">
           <div className="flex items-center gap-4 cursor-pointer group">
@@ -113,7 +169,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       {item.items.map((subItem) => (
                         <SidebarMenuSubItem key={subItem.title}>
                           <SidebarMenuSubButton asChild isActive={isActive(subItem.url)} className="h-9 rounded-lg font-bold text-[10px] uppercase tracking-widest">
-                            <Link href={subItem.url}>
+                            <Link href={subItem.url} onClick={handleNavClick}>
                               <div className="flex items-center gap-2">
                                 <span>{subItem.title}</span>
                               </div>
@@ -125,7 +181,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   </>
                 ) : (
                   <SidebarMenuButton asChild tooltip={item.title} isActive={isActive(item.url)} className="h-11 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all">
-                    <Link href={item.url}>
+                    <Link href={item.url} onClick={handleNavClick}>
                       <item.icon className="size-4 text-neutral-400 group-data-[active=true]:text-primary" />
                       <span>{item.title}</span>
                     </Link>
@@ -144,7 +200,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             {data.navSecondary.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton asChild tooltip={item.title} isActive={isActive(item.url)} className="h-11 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all">
-                  <Link href={item.url}>
+                  <Link href={item.url} onClick={handleNavClick}>
                     <item.icon className="size-4 text-neutral-400 group-data-[active=true]:text-primary" />
                     <span>{item.title}</span>
                   </Link>
@@ -202,5 +258,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
+    </div>
   );
 }

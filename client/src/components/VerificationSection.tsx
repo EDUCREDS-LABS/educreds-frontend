@@ -10,7 +10,7 @@ const VerificationSection = () => {
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">
               Verification Platform
             </p>
-            <h2 className="mt-4 text-4xl font-bold leading-tight md:text-5xl lg:text-6xl">
+            <h2 className="mt-4 text-4xl font-bold leading-tight text-blue-500 md:text-5xl lg:text-6xl">
               Product-grade credential verification for modern institutions
             </h2>
             <p className="mt-6 text-lg text-slate-300 md:text-xl">
@@ -45,7 +45,7 @@ const VerificationSection = () => {
             <div className="absolute -inset-2 rounded-[32px] bg-gradient-to-br from-blue-500/30 via-transparent to-emerald-400/20 blur-2xl" />
             <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/60 shadow-2xl">
               <img
-                src="/images/bg.png"
+                src="https://res.cloudinary.com/dycszahnr/image/upload/q_auto/f_auto/v1775824626/bg_efqyw6.png"
                 alt="EduCreds product dashboard"
                 className="h-full w-full object-cover"
               />
@@ -70,7 +70,7 @@ const VerificationSection = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 12l4 4L19 6" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold">Issuance Control</h3>
+            <h3 className="text-lg font-semibold text-blue-500">Issuance Control</h3>
             <p className="mt-2 text-sm text-slate-300">
               Manage who can issue, revoke, and renew credentials with role-based workflows.
             </p>
@@ -83,7 +83,7 @@ const VerificationSection = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 15l9 4.5 9-4.5" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold">Multi-party Verification</h3>
+            <h3 className="text-lg font-semibold text-blue-500">Multi-party Verification</h3>
             <p className="mt-2 text-sm text-slate-300">
               Share verifiable proof across employers, regulators, and partner institutions.
             </p>
@@ -94,7 +94,7 @@ const VerificationSection = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h10" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold">Audit Insights</h3>
+            <h3 className="text-lg font-semibold text-blue-500">Audit Insights</h3>
             <p className="mt-2 text-sm text-slate-300">
               Track issuance and verification activity with real-time reporting.
             </p>

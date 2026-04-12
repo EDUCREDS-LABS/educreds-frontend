@@ -64,6 +64,45 @@ export function useAuditLogs() {
   });
 }
 
+export function useAdminNotificationSettings(adminEmail: string | null) {
+  return useQuery({
+    queryKey: ["/api/admin/notifications/settings", adminEmail],
+    enabled: !!adminEmail,
+    queryFn: async () => {
+      const response = await fetch(API_CONFIG.ADMIN.NOTIFICATIONS_SETTINGS(adminEmail!), {
+        headers: getAdminHeaders(),
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error("Failed to fetch notification settings");
+      return response.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useUpdateAdminNotificationSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ adminEmail, settings }: { adminEmail: string; settings: any }) => {
+      const response = await fetch(API_CONFIG.ADMIN.NOTIFICATIONS_SETTINGS(adminEmail), {
+        method: 'PUT',
+        headers: getAdminHeaders(),
+        credentials: 'include',
+        body: JSON.stringify(settings),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || 'Failed to update notification settings');
+      }
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/notifications/settings", variables.adminEmail] });
+    },
+  });
+}
+
 export function useReviewVerification() {
   const queryClient = useQueryClient();
   return useMutation({

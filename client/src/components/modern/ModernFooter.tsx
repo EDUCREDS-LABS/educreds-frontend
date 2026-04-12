@@ -21,7 +21,7 @@ export default function ModernFooter() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
             <div>
-              <h3 className="text-2xl font-bold mb-2">Stay Updated</h3>
+                <h3 className="text-2xl font-bold mb-2 text-blue-500">Stay Updated</h3>
               <p className="text-neutral-400">
                 Get the latest updates on blockchain certificates, new features, and industry insights.
               </p>
@@ -48,9 +48,9 @@ export default function ModernFooter() {
           {/* Company Info */}
           <div className="lg:col-span-2">
             <div className="flex items-center space-x-3 mb-4">
-              <img src="/logo.png" alt="EduCreds" className="h-8 w-auto brightness-0 invert" />
+              <img src="https://res.cloudinary.com/dycszahnr/image/upload/q_auto/f_auto/v1775824626/logo_sftena.png" alt="EduCreds" className="h-8 w-auto brightness-0 invert" />
               <div>
-                <h3 className="text-xl font-bold">EduCreds</h3>
+                <h3 className="text-xl font-bold text-blue-500">EduCreds</h3>
                 <p className="text-sm text-neutral-400">Blockchain Certificates</p>
               </div>
             </div>

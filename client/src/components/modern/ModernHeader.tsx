@@ -13,13 +13,15 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { useThemeStore } from "@/store/themeStore";
+
 interface ModernHeaderProps {
   onStudentPortalClick: () => void;
 }
 
 export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { theme, toggleTheme } = useThemeStore();
 
   const navigation = [
     { name: 'Labs', href: '/' },
@@ -40,7 +42,7 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
               <div className="relative">
                 <div className="h-10 w-10 rounded-2xl bg-white/90 ring-1 ring-neutral-200 shadow-sm flex items-center justify-center">
                   <img
-                    src="/logo.png"
+                    src="https://res.cloudinary.com/dycszahnr/image/upload/q_auto/f_auto/v1775824626/logo_sftena.png"
                     alt="EduCreds"
                     className="h-6 w-6 object-contain drop-shadow-sm"
                   />
@@ -77,10 +79,10 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setIsDarkMode(!isDarkMode)}
+              onClick={toggleTheme}
               className="hidden sm:flex"
             >
-              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
 
             {/* Language Selector */}
@@ -181,9 +183,9 @@ export default function ModernHeader({ onStudentPortalClick }: ModernHeaderProps
           </Badge>
           <span>📋</span>
           <span>our public registry is live track your onchain transactions.</span>
-          <Link href="/trust-registry" className="underline hover:no-underline">
+            <Link href="/trust-registry" className="underline text-yellow-400 hover:no-underline hover:text-yellow-300">
             Explore →
-          </Link>
+            </Link>
         </div>
       </div>
     </header>

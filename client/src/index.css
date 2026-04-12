@@ -1,14 +1,24 @@
-@import "./theme.css";
-
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
   --font-heading: "Space Grotesk", sans-serif;
   
+  /* Light Mode - Enterprise Blue Primary */
   --color-primary: #1560BD;
+  --color-primary-foreground: #FFFFFF;
   --color-secondary: #00416A;
+  --color-secondary-foreground: #FFFFFF;
   --color-accent: #15BCA9;
+  --color-accent-foreground: #FFFFFF;
+  
+  /* Semantic Colors */
+  --color-success: #15803D;
+  --color-warning: #EAB308;
+  --color-info: #0EA5E9;
+  --color-error: #DC2626;
+  
+  /* Light Mode - Backgrounds & Text */
   --color-card: rgb(255 255 255 / <alpha-value>);
   --color-background: rgb(248 250 252 / <alpha-value>);
   --color-foreground: rgb(15 23 42 / <alpha-value>);
@@ -18,53 +28,114 @@
   --color-popover-foreground: rgb(15 23 42 / <alpha-value>);
   --color-border: rgb(226 232 240 / <alpha-value>);
   --color-input: rgb(226 232 240 / <alpha-value>);
-  --color-destructive: hsl(0 84.2% 60.2% / <alpha-value>);
-  --color-destructive-foreground: hsl(60 9.1% 97.8% / <alpha-value>);
+  --color-destructive: #EF4444;
+  --color-destructive-foreground: #F8FAFC;
   --color-ring: rgb(21 96 189 / <alpha-value>);
   
+  /* Spacing & Radius */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
   --radius-xl: 16px;
   --radius-2xl: 24px;
   --radius-3xl: 32px;
   --radius-4xl: 40px;
 
+  /* Shadows */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-card: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   --shadow-xl-neutral: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
 }
 
 :root {
-  --background: #F8FAFC;
+  /* Light Mode - Professional Enterprise Colors */
+  --background: #FFFFFF;
   --foreground: #0F172A;
-  --muted: #F1F5F9;
-  --muted-foreground: #64748B;
+  --muted: #F3F4F6;
+  --muted-foreground: #6B7280;
   --popover: #FFFFFF;
   --popover-foreground: #0F172A;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
-  --border: #E2E8F0;
-  --input: #E2E8F0;
+  --border: #E5E7EB;
+  --input: #F3F4F6;
+  --primary: #1560BD;
   --primary-foreground: #FFFFFF;
+  --secondary: #00416A;
   --secondary-foreground: #FFFFFF;
+  --accent: #15BCA9;
   --accent-foreground: #FFFFFF;
-  --destructive: hsl(0, 84.2%, 60.2%);
-  --destructive-foreground: hsl(60, 9.1%, 97.8%);
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
   --ring: var(--primary);
   --radius: 0.75rem;
+
+  /* Neutral Colors - Enhanced Contrast */
+  --neutral-50: #f9fafb;
+  --neutral-100: #f3f4f6;
+  --neutral-200: #e5e7eb;
+  --neutral-300: #d1d5db;
+  --neutral-400: #9ca3af;
+  --neutral-500: #6b7280;
+  --neutral-600: #4b5563;
+  --neutral-700: #374151;
+  --neutral-800: #1f2937;
+  --neutral-900: #111827;
 }
 
 .dark {
-  --background: #0F172A;
-  --foreground: #F8FAFC;
-  --muted: #1E293B;
-  --muted-foreground: #94A3B8;
-  --popover: #0F172A;
-  --popover-foreground: #F8FAFC;
-  --card: #1E293B;
-  --card-foreground: #F8FAFC;
-  --border: #334155;
-  --input: #334155;
-  --destructive: hsl(0, 62.8%, 30.6%);
-  --destructive-foreground: hsl(0, 0%, 98%);
+  /* Tailwind v4 theme tokens (fix: ensure text-foreground, bg-background, etc. switch in dark mode) */
+  --color-background: rgb(15 20 25 / <alpha-value>);
+  --color-foreground: rgb(245 247 250 / <alpha-value>);
+  --color-muted: rgb(26 31 43 / <alpha-value>);
+  --color-muted-foreground: rgb(160 174 192 / <alpha-value>);
+  --color-popover: rgb(26 31 43 / <alpha-value>);
+  --color-popover-foreground: rgb(245 247 250 / <alpha-value>);
+  --color-card: rgb(22 27 39 / <alpha-value>);
+  --color-border: rgb(45 55 72 / <alpha-value>);
+  --color-input: rgb(45 55 72 / <alpha-value>);
+  --color-primary: #4B9EFF;
+  --color-primary-foreground: #0F1419;
+  --color-secondary: #6EBEFF;
+  --color-secondary-foreground: #0F1419;
+  --color-accent: #2DD4BF;
+  --color-accent-foreground: #0F1419;
+  --color-destructive: #F87171;
+  --color-destructive-foreground: #0F1419;
+  --color-ring: rgb(75 158 255 / <alpha-value>);
+
+  --background: #0F1419;
+  --foreground: #F5F7FA;
+  --muted: #1A1F2B;
+  --muted-foreground: #A0AEC0;
+  --popover: #1A1F2B;
+  --popover-foreground: #F5F7FA;
+  --card: #161B27;
+  --card-foreground: #F5F7FA;
+  --border: #2D3748;
+  --input: #2D3748;
+  --primary: #4B9EFF;
+  --secondary: #6EBEFF;
+  --accent: #2DD4BF;
+  --destructive: #F87171;
+  --destructive-foreground: #0F1419;
   --ring: var(--primary);
+
+  --neutral-50: #0f1419;
+  --neutral-100: #1a1f2b;
+  --neutral-200: #2d3748;
+  --neutral-300: #4a5568;
+  --neutral-400: #718096;
+  --neutral-500: #a0aec0;
+  --neutral-600: #cbd5e1;
+  --neutral-700: #e2e8f0;
+  --neutral-800: #f1f5f9;
+  --neutral-900: #f5f7fa;
 }
 
 @layer base {
@@ -76,24 +147,93 @@
     @apply font-sans antialiased;
     background-color: var(--background);
     color: var(--foreground);
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading;
+    color: var(--foreground);
+  }
+
+  h1 { @apply text-3xl font-bold; }
+  h2 { @apply text-2xl font-bold; }
+  h3 { @apply text-xl font-bold; }
+  h4 { @apply text-lg font-bold; }
+  h5 { @apply text-base font-bold; }
+  h6 { @apply text-sm font-bold; }
+
+  p {
+    color: var(--foreground);
+  }
+
+  a {
+    color: var(--primary);
+    transition: opacity 0.2s ease;
+  }
+
+  a:hover {
+    opacity: 0.8;
+  }
+
+  input, textarea, select {
+    background-color: var(--input);
+    color: var(--foreground);
+    border-color: var(--border);
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: var(--muted-foreground);
+  }
+
+  input:disabled, textarea:disabled, select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 }
 
 @layer components {
   .stat-card {
-    @apply bg-white rounded-3xl shadow-card border border-neutral-100 p-8 hover:shadow-xl transition-all duration-300;
+    @apply bg-white dark:bg-neutral-900 rounded-3xl shadow-card dark:shadow-none border border-neutral-100 dark:border-neutral-800 p-8 hover:shadow-xl dark:hover:bg-neutral-800 transition-all duration-300;
   }
   
   .glass-card {
-    @apply bg-card border border-border shadow-card;
+    @apply bg-card dark:bg-neutral-900 border border-border dark:border-neutral-800 shadow-card dark:shadow-none;
   }
   
   .dark .glass-card {
-    @apply bg-card border-border;
+    @apply bg-neutral-900 border-neutral-800;
+  }
+
+  /* Enterprise-grade card styling */
+  [class*="Card"] {
+    @apply bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm dark:shadow-none transition-colors duration-300;
+  }
+
+  /* Enhanced button styling for dark mode */
+  button {
+    @apply transition-all duration-200;
+  }
+
+  button:not(:disabled):hover {
+    @apply dark:brightness-110;
+  }
+
+  /* Better focus states */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 dark:ring-offset-neutral-900;
+  }
+
+  /* Improved scrollbar styling */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-neutral-100 dark:bg-neutral-800;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-neutral-300 dark:bg-neutral-600 rounded hover:bg-neutral-400 dark:hover:bg-neutral-500;
   }
 }
 
@@ -102,5 +242,70 @@
   scrollbar-width: none;
   &::-webkit-scrollbar {
     display: none;
+  }
+}
+
+@keyframes loading-progress {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(100%); }
+  100% { transform: translateX(300%); }
+}
+
+/* Enterprise-Grade Dark Mode Enhancements */
+@layer utilities {
+  /* Dark mode enhanced visibility */
+  .dark {
+    color-scheme: dark;
+  }
+
+  .light {
+    color-scheme: light;
+  }
+
+  /* Text contrast improvements */
+  .dark p, .dark span, .dark label {
+    @apply text-neutral-200;
+  }
+
+  .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+    @apply text-white;
+  }
+
+  /* Form elements in dark mode */
+  .dark input, .dark textarea, .dark select {
+    @apply bg-neutral-800 text-neutral-100 border-neutral-700;
+  }
+
+  .dark input::placeholder, .dark textarea::placeholder {
+    @apply text-neutral-500;
+  }
+
+  .dark input:focus, .dark textarea:focus, .dark select:focus {
+    @apply ring-offset-neutral-900;
+  }
+
+  /* Card enhancements for dark mode */
+  .dark [class*="Card"] {
+    @apply bg-neutral-900 border-neutral-800;
+  }
+
+  /* Badge improvements */
+  .dark [class*="Badge"] {
+    @apply border-neutral-700;
+  }
+
+  /* Modal/Dialog in dark mode */
+  .dark [role="dialog"], .dark [role="alertdialog"] {
+    @apply bg-neutral-900 border-neutral-800;
+  }
+
+  /* Dropdown improvements */
+  .dark [role="menu"], .dark [role="listbox"], .dark [role="combobox"] {
+    @apply bg-neutral-900 border-neutral-800;
+  }
+
+  /* Smooth transitions for theme switching */
+  * {
+    @apply transition-colors duration-300 ease-in-out;
   }
 }

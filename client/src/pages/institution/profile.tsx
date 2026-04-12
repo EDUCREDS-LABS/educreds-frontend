@@ -411,7 +411,11 @@ export default function InstitutionProfile() {
                   <p className="text-primary-foreground/80 text-sm leading-relaxed">
                     Your institution is anchored on the EduCreds decentralized network. All certificates issued carry cryptographic proof of your institutional authority.
                   </p>
-                  <Button variant="secondary" className="w-full rounded-xl font-bold py-6 bg-white text-primary hover:bg-neutral-100 transition-colors">
+                  <Button
+                    variant="secondary"
+                    className="w-full rounded-xl font-bold py-6 bg-white text-primary hover:bg-neutral-100 transition-colors"
+                    onClick={() => window.location.href = '/institution/verification'}
+                  >
                     View Verification Data
                   </Button>
                 </CardContent>

@@ -221,7 +221,7 @@ export default function ModernRegisterUnified() {
       });
 
       // Redirect to dashboard
-      window.location.href = '/institution/dashboard';
+      setLocation('/institution/dashboard');
     } catch (err: any) {
       setError(err.message || "Registration failed. Please try again.");
     } finally {

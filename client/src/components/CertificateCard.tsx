@@ -188,10 +188,10 @@ export function CertificateCard({ certificate, showActions = true }: Certificate
                 <strong>Token ID:</strong>
                 <div className="font-mono text-xs mt-1">#{certificate.tokenId}</div>
               </div>
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 variant="ghost"
-                onClick={() => copyToClipboard(certificate.tokenId.toString(), 'tokenId')}
+                onClick={() => copyToClipboard(certificate.tokenId?.toString() || '', 'tokenId')}
                 className="ml-2 h-6 w-6 p-0"
                 title="Copy Token ID"
               >

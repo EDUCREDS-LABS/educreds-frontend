@@ -21,9 +21,10 @@ interface SidebarProps {
     activeTab: string;
     setActiveTab: (tab: any) => void;
     onLogout: () => void;
+    adminEmail: string;
 }
 
-export function AdminSidebar({ activeTab, setActiveTab, onLogout }: SidebarProps) {
+export function AdminSidebar({ activeTab, setActiveTab, onLogout, adminEmail }: SidebarProps) {
     const menuItems = [
         { id: 'overview', label: 'Network Control', icon: LayoutDashboard },
         { id: 'notifications', label: 'Admin Notifications', icon: Bell },
@@ -101,7 +102,7 @@ export function AdminSidebar({ activeTab, setActiveTab, onLogout }: SidebarProps
                         </div>
                         <div className="min-w-0">
                             <p className="text-sm font-black text-white truncate tracking-tight">Root Authority</p>
-                            <p className="text-[10px] text-gray-500 font-bold truncate tracking-tighter uppercase">admin@educreds.xyz</p>
+                            <p className="text-[10px] text-gray-500 font-bold truncate tracking-tighter uppercase">{adminEmail}</p>
                         </div>
                     </div>
                 </div>

@@ -1,8 +1,17 @@
-import { useState } from "react";
-import { Link } from "wouter";
+import { useState, useEffect } from "react";
+import { Link, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
+
+// Ethereum provider type declaration
+declare global {
+  interface Window {
+    ethereum?: {
+      request: (args: { method: string; params?: any[] }) => Promise<any>;
+    };
+  }
+}
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -66,14 +75,16 @@ export default function ModernAuthUnified() {
   const [otpToken, setOtpToken] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [loginMethod, setLoginMethod] = useState<"wallet" | "email">("email");
+  const [rememberMe, setRememberMe] = useState(false);
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { isConnected, walletAddress, connect, disconnect, isLoading: walletLoading } = useWallet();
 
   const signMessage = async (message: string): Promise<string> => {
     if (!window.ethereum) throw new Error("MetaMask not found");
-    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+    const accounts = await (window.ethereum as any).request({ method: 'eth_accounts' });
     if (!accounts?.[0]) throw new Error("No account connected");
-    const signature = await window.ethereum.request({
+    const signature = await (window.ethereum as any).request({
       method: 'personal_sign',
       params: [message, accounts[0]],
     });
@@ -88,28 +99,46 @@ export default function ModernAuthUnified() {
     },
   });
 
+  useEffect(() => {
+    const remembered = localStorage.getItem('remembered_email');
+    if (remembered) {
+      emailForm.setValue('email', remembered);
+      setRememberMe(true);
+    }
+  }, [emailForm]);
+
   // Email/Password Login
   const handleEmailLogin = async (data: LoginCredentials) => {
     setIsLoading(true);
     setError("");
 
     try {
-      // Send OTP
+      // Send OTP (now passing password for backend validation before OTP is triggered)
       const otpResponse = await fetch(`${CERT_API_BASE}/auth/institution/send-login-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: data.email })
+        body: JSON.stringify({ 
+          email: data.email,
+          password: data.password // Added password validation before OTP trigger
+        })
       });
 
       if (!otpResponse.ok) {
         const errorData = await otpResponse.json();
-        throw new Error(errorData.message || 'Failed to send OTP');
+        throw new Error(errorData.message || 'Invalid email or password');
       }
 
       const { otpToken: token } = await otpResponse.json();
       setOtpToken(token);
       setUserEmail(data.email);
       setShowOtp(true);
+
+      // Handle "Remember Me"
+      if (rememberMe) {
+        localStorage.setItem('remembered_email', data.email);
+      } else {
+        localStorage.removeItem('remembered_email');
+      }
 
       toast({
         title: "OTP Sent",
@@ -180,7 +209,7 @@ export default function ModernAuthUnified() {
       });
 
       // Redirect to dashboard
-      window.location.href = '/institution/dashboard';
+      setLocation('/institution/dashboard');
     } catch (err: any) {
       setError(err.message || "Wallet login failed. Please try again.");
     } finally {
@@ -239,7 +268,7 @@ export default function ModernAuthUnified() {
       });
 
       // Redirect to dashboard
-      window.location.href = '/institution/dashboard';
+      setLocation('/institution/dashboard');
     } catch (err: any) {
       setError(err.message || "Login failed. Please try again.");
     } finally {
@@ -453,12 +482,17 @@ export default function ModernAuthUnified() {
                         />
 
                         <div className="flex items-center justify-between text-sm">
-                          <label className="flex items-center space-x-2">
-                            <input type="checkbox" className="rounded border-neutral-300" />
-                            <span className="text-neutral-600">Remember me</span>
+                          <label className="flex items-center space-x-2 cursor-pointer group">
+                            <input 
+                              type="checkbox" 
+                              checked={rememberMe}
+                              onChange={(e) => setRememberMe(e.target.checked)}
+                              className="rounded border-neutral-300 text-primary focus:ring-primary transition-colors" 
+                            />
+                            <span className="text-neutral-600 group-hover:text-neutral-900 transition-colors">Remember me</span>
                           </label>
                           <Link href="/forgot-password">
-                            <button type="button" className="text-primary hover:underline">
+                            <button type="button" className="text-primary hover:underline font-medium transition-all">
                               Forgot password?
                             </button>
                           </Link>

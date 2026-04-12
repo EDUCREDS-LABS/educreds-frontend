@@ -7,8 +7,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppKitProvider } from "@/lib/appkit-provider";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { AuthType } from "@/lib/dualAuth";
 import { DevProvider } from "./DevContext";
 import { ChatWidget } from "@/components/ChatWidget";
+import { PageLoader } from "@/components/PageLoader";
+import { useThemeStore } from "@/store/themeStore";
 const RegisterVerifyOtp = lazy(() => import("@/pages/auth/register-verify-otp"));
 const EduCredsLabsLanding = lazy(() => import("@/pages/EduCredsLabsLanding"));
 const Landing = lazy(() => import("@/pages/landing"));
@@ -75,13 +78,7 @@ function Router() {
   }
 
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center text-neutral-600">
-          Loading...
-        </div>
-      }
-    >
+    <Suspense fallback={<PageLoader />}>
       <Switch>
       <Route path="/" component={EduCredsLabsLanding} />
       <Route path="/infra" component={Landing} />
@@ -120,7 +117,7 @@ function Router() {
 
       {/* Developer Portal - Protected */}
       <Route path="/developer-portal">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <DeveloperPortalPage />
           </Layout>
@@ -144,7 +141,7 @@ function Router() {
 
       {/* Protected Institution Routes */}
       <Route path="/institution/dashboard">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <InstitutionDashboard />
           </Layout>
@@ -152,7 +149,7 @@ function Router() {
       </Route>
 
       <Route path="/institution/certificates">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <Certificates />
           </Layout>
@@ -160,7 +157,7 @@ function Router() {
       </Route>
 
       <Route path="/institution/verification">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <Verification />
           </Layout>
@@ -168,7 +165,7 @@ function Router() {
       </Route>
 
       <Route path="/institution/governance-verification">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <GovernanceVerification />
           </Layout>
@@ -176,7 +173,7 @@ function Router() {
       </Route>
 
       <Route path="/institution/governance-workspace">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <GovernanceWorkspace />
           </Layout>
@@ -185,7 +182,7 @@ function Router() {
 
       {/* Legacy governance route - redirects to workspace */}
       <Route path="/institution/governance">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <GovernanceDashboard />
           </Layout>
@@ -193,7 +190,7 @@ function Router() {
       </Route>
 
       <Route path="/institution/governance/proposals/:id">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <ProposalDetail />
           </Layout>
@@ -201,7 +198,7 @@ function Router() {
       </Route>
 
       <Route path="/institution/subscription">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <SubscriptionPage />
           </Layout>
@@ -209,7 +206,7 @@ function Router() {
       </Route>
 
       <Route path="/institution/profile">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <InstitutionProfile />
           </Layout>
@@ -217,7 +214,7 @@ function Router() {
       </Route>
 
       <Route path="/institution/settings">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <InstitutionSettings />
           </Layout>
@@ -225,7 +222,7 @@ function Router() {
       </Route>
 
       <Route path="/institution/analytics">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <AnalyticsPage />
           </Layout>
@@ -233,7 +230,7 @@ function Router() {
       </Route>
 
       <Route path="/institution/issue">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <InstitutionIssuePage />
           </Layout>
@@ -241,7 +238,7 @@ function Router() {
       </Route>
 
       <Route path="/institution/manage-specs">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <ManageSpecs />
           </Layout>
@@ -249,7 +246,7 @@ function Router() {
       </Route>
 
       <Route path="/institution/templates">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <TemplatesPage />
           </Layout>
@@ -257,7 +254,7 @@ function Router() {
       </Route>
 
       <Route path="/institution/templates/browse">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <BrowseTemplatesPage />
           </Layout>
@@ -265,7 +262,7 @@ function Router() {
       </Route>
 
       <Route path="/institution/templates/my-templates">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <MyTemplatesPage />
           </Layout>
@@ -273,7 +270,7 @@ function Router() {
       </Route>
 
       <Route path="/institution/templates/create">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <CreateTemplatePage />
           </Layout>
@@ -283,13 +280,13 @@ function Router() {
       {/* Designer is a full-screen workspace — no Layout wrapper to avoid
           triple-header stacking (Layout nav + outer header + TemplateDesigner header) */}
       <Route path="/institution/templates/designer">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <TemplateDesignerPage />
         </ProtectedRoute>
       </Route>
 
       <Route path="/institution/templates/smart-ai">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <SmartAIPage />
           </Layout>
@@ -297,7 +294,7 @@ function Router() {
       </Route>
 
       <Route path="/system-test">
-        <ProtectedRoute>
+        <ProtectedRoute requiredType={AuthType.INSTITUTION}>
           <Layout>
             <SystemTest />
           </Layout>
@@ -312,6 +309,14 @@ function Router() {
 }
 
 function App() {
+  const { theme } = useThemeStore();
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove("light", "dark");
+    root.classList.add(theme);
+  }, [theme]);
+
   return (
     <DevProvider>
       <AppKitProvider>

@@ -270,7 +270,7 @@ const roadmapText = `EDUCREDS PROJECT ROADMAP: A DETAILED BREAKDOWN\n\nEducreds 
                       <div className={`w-12 h-12 rounded-xl ${item.color} flex items-center justify-center text-white shadow-lg`}>
                         <item.icon className="w-6 h-6" />
                       </div>
-                      <span className="text-4xl font-black text-neutral-100 group-hover:text-neutral-200 transition-colors">
+                      <span className="text-4xl font-black text-neutral-300 group-hover:text-neutral-400 transition-colors">
                         {item.step}
                       </span>
                     </div>
@@ -296,8 +296,8 @@ const roadmapText = `EDUCREDS PROJECT ROADMAP: A DETAILED BREAKDOWN\n\nEducreds 
             <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -mr-32 -mt-32" />
             <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
               <div>
-                <h4 className="text-2xl font-bold mb-4">PoIC Score Weighting</h4>
-                <p className="text-neutral-400 text-sm mb-6">
+                <h4 className="text-2xl font-bold mb-4 text-blue-600">PoIC Score Weighting</h4>
+                <p className="text-neutral-200 text-sm mb-6">
                   Only high-PoIC institutions issue tamper-proof credentials bound to decentralized DIDs on Base.
                 </p>
                 <div className="grid grid-cols-2 gap-4">
@@ -308,7 +308,7 @@ const roadmapText = `EDUCREDS PROJECT ROADMAP: A DETAILED BREAKDOWN\n\nEducreds 
                     "15% Market Feedback",
                     "15% Governance History"
                   ].map(stat => (
-                    <div key={stat} className="flex items-center gap-2 text-xs font-medium text-neutral-300">
+                    <div key={stat} className="flex items-center gap-2 text-xs font-medium text-neutral-200">
                       <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                       {stat}
                     </div>
@@ -320,7 +320,7 @@ const roadmapText = `EDUCREDS PROJECT ROADMAP: A DETAILED BREAKDOWN\n\nEducreds 
                   <div className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400 mb-2">
                     0–100
                   </div>
-                  <p className="text-xs uppercase tracking-widest text-neutral-500 font-bold">PoIC Range</p>
+                  <p className="text-xs uppercase tracking-widest text-neutral-300 font-bold">PoIC Range</p>
                 </div>
               </div>
             </div>
@@ -331,10 +331,10 @@ const roadmapText = `EDUCREDS PROJECT ROADMAP: A DETAILED BREAKDOWN\n\nEducreds 
       {/* CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-neutral-900 text-white">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
+          <h2 className="text-3xl md:text-4xl font-bold mb-6 text-blue-500">
             Ready to Revolutionize Educational Certificates?
           </h2>
-          <p className="text-xl text-neutral-300 mb-8">
+          <p className="text-xl text-neutral-200 mb-8">
             Join thousands of institutions already using EduCreds to issue secure, verifiable certificates.
           </p>
           

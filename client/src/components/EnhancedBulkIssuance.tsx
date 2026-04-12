@@ -19,23 +19,29 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import BulkIssuanceFailureDialog from '@/components/BulkIssuanceFailureTracker';
 import {
   Upload,
   Download,
   CheckCircle,
   AlertCircle,
   Loader2,
-  FileText,
   ShoppingCart,
   Plus,
-  Eye,
-  RotateCcw,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import BulkIssuanceFailureTracker from './BulkIssuanceFailureTracker';
 
 interface BulkCertificate {
   studentName: string;
@@ -93,7 +99,9 @@ export default function EnhancedBulkIssuance() {
   const [issuanceMode, setIssuanceMode] = useState<'template' | 'legacy-pdf'>('template');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [showMarketplace, setShowMarketplace] = useState(false);
-  const [showFailureTracker, setShowFailureTracker] = useState(false);
+  const [failureModalOpen, setFailureModalOpen] = useState(false);
+  const [failedBatchHistory, setFailedBatchHistory] = useState<string[]>([]);
+  const [activeFailureBatchId, setActiveFailureBatchId] = useState<string | null>(null);
 
   // Queries
   const { data: templatesData } = useQuery({
@@ -102,6 +110,7 @@ export default function EnhancedBulkIssuance() {
   });
 
   const templates = (templatesData as any) || [];
+
 
   // Mutations
   const bulkIssueMutation = useMutation({
@@ -123,6 +132,13 @@ export default function EnhancedBulkIssuance() {
     },
     onSuccess: (response) => {
       setResult(response);
+      if (response.summary?.failed > 0) {
+        setActiveFailureBatchId(response.batchId);
+        setFailedBatchHistory((history) =>
+          history.includes(response.batchId) ? history : [...history, response.batchId]
+        );
+        setFailureModalOpen(true);
+      }
       toast({
         title: 'Bulk Processing Complete',
         description: `${response.summary.successful}/${response.summary.total} certificates issued`,
@@ -358,6 +374,42 @@ Bob Johnson,bob@example.com,0xAbcdefabcdefabcdefabcdefabcdefabcdefabcd,2024-01-1
                 </div>
               </div>
 
+              {result.summary.failed > 0 && (
+                <div className="flex flex-col gap-3 rounded-2xl border border-red-100 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-red-700">Failed Issuance</p>
+                    <p className="mt-2 text-3xl font-bold text-red-800">{result.summary.failed} rows</p>
+                    <p className="text-sm text-slate-600">Open the failure dialog to review earlier failed issuance attempts and retry selected rows.</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" onClick={() => setFailureModalOpen(true)}>
+                      Review failed issuance
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setFailureModalOpen(true)}
+                    >
+                      View earlier failures
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <BulkIssuanceFailureDialog
+                batchId={activeFailureBatchId ?? undefined}
+                batchHistory={failedBatchHistory}
+                isOpen={failureModalOpen}
+                onOpenChange={setFailureModalOpen}
+                onHistorySelect={(jobId) => setActiveFailureBatchId(jobId)}
+                onRetryComplete={(newBatchId) => {
+                  setFailedBatchHistory((history) =>
+                    history.includes(newBatchId) ? history : [...history, newBatchId]
+                  );
+                  setActiveFailureBatchId(newBatchId);
+                }}
+              />
+
               {/* Results Table */}
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -405,7 +457,10 @@ Bob Johnson,bob@example.com,0xAbcdefabcdefabcdefabcdefabcdefabcdefabcd,2024-01-1
               <div className="flex gap-3 pt-4 flex-wrap">
                 {result.summary.failed > 0 && (
                   <Button
-                    onClick={() => setShowFailureTracker(true)}
+                    onClick={() => {
+                      setActiveFailureBatchId(result.batchId);
+                      setFailureModalOpen(true);
+                    }}
                     className="flex-1 bg-red-600 hover:bg-red-700"
                   >
                     <AlertCircle className="w-4 h-4 mr-2" />
@@ -683,25 +738,6 @@ Bob Johnson,bob@example.com,0xAbcdefabcdefabcdefabcdefabcdefabcdefabcd,2024-01-1
           </CardContent>
         </Card>
 
-        {/* Failure Tracker Modal */}
-        {result && (
-          <BulkIssuanceFailureTracker
-            batchId={result.batchId}
-            isOpen={showFailureTracker}
-            onClose={() => setShowFailureTracker(false)}
-            onRetryComplete={(newBatchId) => {
-              toast({
-                title: 'Retry Started',
-                description: `Retry batch ${newBatchId} has been queued`,
-              });
-              // Optionally reset to show the new batch
-              setTimeout(() => {
-                setResult(null);
-                setCsvData([]);
-              }, 1000);
-            }}
-          />
-        )}
       </div>
     </ErrorBoundary>
   );

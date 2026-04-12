@@ -217,9 +217,47 @@ export default function ProposalDetail() {
                         />
                       </div>
                     </div>
+                    {proposal.verificationConfidence != null && (
+                      <div className="space-y-1.5 pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-neutral-500 font-bold">Evidence Confidence</span>
+                          <span className="font-black text-neutral-900 dark:text-neutral-100">{proposal.verificationConfidence}%</span>
+                        </div>
+                        <div className="h-2 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-all duration-1000",
+                              proposal.verificationConfidence >= 75 ? "bg-emerald-500" :
+                              proposal.verificationConfidence >= 50 ? "bg-amber-500" : "bg-rose-500"
+                            )}
+                            style={{ width: `${proposal.verificationConfidence}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
+              {proposal.evidenceSummary && (
+                <Card className="border-none shadow-2xl shadow-neutral-200/40 dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[32px] overflow-hidden">
+                  <CardHeader className="p-6 border-b border-neutral-100 dark:border-neutral-800">
+                    <CardTitle className="text-sm font-black uppercase tracking-widest text-neutral-400">Evidence Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6 text-sm text-neutral-600 dark:text-neutral-300">
+                    <p>{proposal.evidenceSummary}</p>
+                    {proposal.missingSignals?.length ? (
+                      <p className="mt-4 text-xs uppercase tracking-[0.18em] font-black text-neutral-500">
+                        Missing Signals: {proposal.missingSignals.join(', ')}
+                      </p>
+                    ) : null}
+                    {proposal.scoreSource ? (
+                      <p className="mt-3 text-[10px] uppercase tracking-[0.22em] font-black text-neutral-400">
+                        Scoring source: {proposal.scoreSource.toUpperCase()}
+                      </p>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              )}
             </CardContent>
           </Card>
 

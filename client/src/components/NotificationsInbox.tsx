@@ -46,9 +46,11 @@ export function NotificationsInbox() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-xl hover:bg-neutral-100 relative">
+        <Button variant="ghost" size="icon" className="rounded-xl hover:bg-neutral-100 relative" aria-label="Open notifications">
           <Bell className="h-5 w-5 text-neutral-500" />
-          <span className="absolute top-2.5 right-2.5 size-2 bg-primary rounded-full border-2 border-white shadow-sm" />
+          <span className="absolute top-2.5 right-2.5 size-2 bg-primary rounded-full border-2 border-white shadow-sm" aria-hidden="true" />
+          <span className="sr-only">New notifications available</span>
+          <span className="sr-only">3 new notifications</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0 rounded-2xl border-neutral-100 shadow-2xl" align="end">

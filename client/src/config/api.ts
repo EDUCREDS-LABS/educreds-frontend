@@ -56,7 +56,8 @@ export const API_CONFIG = {
     BLOCKCHAIN_STATUS: `${MAIN_API_BASE}/api/admin/blockchain-status`,
     CHANGE_PASSWORD: `${MAIN_API_BASE}/api/admin/change-password`,
     USERS: `${MAIN_API_BASE}/api/admin/users`,
-    AUDIT_LOGS: `${MAIN_API_BASE}/api/admin/audit-logs`
+    AUDIT_LOGS: `${MAIN_API_BASE}/api/admin/audit-logs`,
+    NOTIFICATIONS_SETTINGS: (email: string) => `${MAIN_API_BASE}/api/admin/notifications/settings/${encodeURIComponent(email)}`
   },
   
   
@@ -91,6 +92,8 @@ export const API_CONFIG = {
     LOGIN: `${CERT_API_BASE}/auth/institution/login`,
     REGISTER: `${CERT_API_BASE}/auth/institution/register`,
     PROFILE: `${CERT_API_BASE}/api/institutions/profile`,
+    PROFILE_SETTINGS: `${CERT_API_BASE}/api/institutions/profile/settings`,
+    NOTIFICATION_PREFERENCES: `${CERT_API_BASE}/api/institutions/notification-preferences`,
     VERIFICATION_STATUS: `${CERT_API_BASE}/api/institutions/verification-status`,
     VERIFICATION_DOCUMENTS: `${CERT_API_BASE}/api/institutions/verification-documents`,
     BLOCKCHAIN_STATUS: (institutionId: string) => `${CERT_API_BASE}/api/institutions/${institutionId}/blockchain-status`,

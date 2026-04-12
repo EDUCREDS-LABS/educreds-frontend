@@ -118,7 +118,7 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
 
       // Force redirect to dashboard
       console.log('Redirecting to dashboard...');
-      window.location.href = '/dashboard';
+      setLocation('/dashboard');
 
     } catch (err: any) {
       setError(err.message || "Invalid OTP. Please try again.");

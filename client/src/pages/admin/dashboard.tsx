@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { AdminGuard } from "@/components/admin/AdminGuard";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { useAdminNotificationSettings, useUpdateAdminNotificationSettings } from "@/hooks/useAdmin";
 import {
   Users,
   DollarSign,
@@ -72,12 +73,40 @@ export default function AdminDashboard() {
 function AdminDashboardContent() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [adminEmail, setAdminEmail] = useState('admin@educreds.xyz');
+  const [notificationForm, setNotificationForm] = useState({
+    adminEmail: 'admin@educreds.xyz',
+    institutionNotifications: 'WEEKLY',
+    proposalNotifications: 'DAILY',
+    enabled: true,
+  });
   
-  const [activeTab, setActiveTab] = useState<'overview' | 'governance' | 'blockchain' | 'users' | 'audit' | 'integrity'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'notifications' | 'governance' | 'blockchain' | 'users' | 'audit' | 'integrity'>('overview');
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [reviewModal, setReviewModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [diagnosticLoading, setDiagnosticLoading] = useState(false);
+
+  const { data: notificationSettings, isLoading: notificationLoading, refetch: refetchNotificationSettings } = useAdminNotificationSettings(adminEmail);
+  const updateNotificationSettings = useUpdateAdminNotificationSettings();
+
+  useEffect(() => {
+    AdminAuth.getSession().then((session) => {
+      if (session?.email) {
+        setAdminEmail(session.email);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!notificationSettings) return;
+    setNotificationForm({
+      adminEmail: notificationSettings.adminEmail || adminEmail,
+      institutionNotifications: notificationSettings.institutionNotifications || 'WEEKLY',
+      proposalNotifications: notificationSettings.proposalNotifications || 'DAILY',
+      enabled: notificationSettings.enabled ?? true,
+    });
+  }, [notificationSettings, adminEmail]);
 
   // TanStack Query Hooks
   const { data: verifData, isLoading: verifLoading, refetch: refetchVerif } = useVerificationRequests();
@@ -96,6 +125,24 @@ function AdminDashboardContent() {
   const handleRefresh = () => {
     refetchVerif();
     refetchRevenue();
+    refetchNotificationSettings();
+  };
+
+  const handleSaveNotificationSettings = async () => {
+    try {
+      await updateNotificationSettings.mutateAsync({
+        adminEmail,
+        settings: {
+          institutionNotifications: notificationForm.institutionNotifications,
+          proposalNotifications: notificationForm.proposalNotifications,
+          enabled: notificationForm.enabled,
+        },
+      });
+
+      toast({ title: 'Notification settings saved', description: 'Admin digest preferences were updated successfully.' });
+    } catch (error: any) {
+      toast({ title: 'Save Failed', description: error?.message || 'Could not update notification settings.', variant: 'destructive' });
+    }
   };
 
   const handleReview = async (data: ReviewForm) => {
@@ -137,7 +184,7 @@ function AdminDashboardContent() {
 
   return (
     <div className="flex h-screen bg-gray-950 overflow-hidden font-sans selection:bg-primary selection:text-white">
-      <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout} />
+      <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout} adminEmail={adminEmail} />
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Deep Infrastructure Background */}
@@ -387,8 +434,8 @@ function AdminDashboardContent() {
                         <div className="space-y-6">
                           <div className="space-y-3">
                             <Label className="text-white font-bold text-sm uppercase tracking-widest">Institution Registrations</Label>
-                            <Select defaultValue="weekly">
-                            <SelectTrigger className="bg-neutral-900 border-white/10 text-white">
+                            <Select value={notificationForm.institutionNotifications.toLowerCase()} onValueChange={(value) => setNotificationForm((form) => ({ ...form, institutionNotifications: value.toUpperCase() }))}>
+                              <SelectTrigger className="bg-neutral-900 border-white/10 text-white">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -402,8 +449,8 @@ function AdminDashboardContent() {
 
                           <div className="space-y-3">
                             <Label className="text-white font-bold text-sm uppercase tracking-widest">Proposal Submissions</Label>
-                            <Select defaultValue="daily">
-                            <SelectTrigger className="bg-neutral-900 border-white/10 text-white">
+                            <Select value={notificationForm.proposalNotifications.toLowerCase()} onValueChange={(value) => setNotificationForm((form) => ({ ...form, proposalNotifications: value.toUpperCase() }))}>
+                              <SelectTrigger className="bg-neutral-900 border-white/10 text-white">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -423,18 +470,29 @@ function AdminDashboardContent() {
                               type="email"
                               placeholder="admin@educreds.xyz"
                               className="bg-white/5 border-white/10 text-white placeholder:text-neutral-500"
-                              defaultValue="admin@educreds.xyz"
+                              value={adminEmail}
+                              readOnly
                             />
-                            <p className="text-xs text-neutral-500">Email address where notifications will be sent</p>
+                            <p className="text-xs text-neutral-500">Signed-in administrator email receiving digest reports</p>
                           </div>
 
                           <div className="flex items-center space-x-3">
-                            <input type="checkbox" id="notifications-enabled" className="rounded border-white/10" defaultChecked />
+                            <input
+                              type="checkbox"
+                              id="notifications-enabled"
+                              className="rounded border-white/10"
+                              checked={notificationForm.enabled}
+                              onChange={(event) => setNotificationForm((form) => ({ ...form, enabled: event.target.checked }))}
+                            />
                             <Label htmlFor="notifications-enabled" className="text-white font-bold text-sm uppercase tracking-widest">Enable Notifications</Label>
                           </div>
 
-                          <Button className="w-full bg-primary hover:bg-primary/80 text-white font-black uppercase tracking-widest">
-                            Save Settings
+                          <Button
+                            onClick={handleSaveNotificationSettings}
+                            disabled={notificationLoading || updateNotificationSettings.isLoading}
+                            className="w-full bg-primary hover:bg-primary/80 text-white font-black uppercase tracking-widest"
+                          >
+                            {updateNotificationSettings.isLoading ? 'Saving...' : 'Save Settings'}
                           </Button>
                         </div>
                       </div>

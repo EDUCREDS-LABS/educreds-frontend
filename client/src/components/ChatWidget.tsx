@@ -90,7 +90,7 @@ export function ChatWidget() {
 
 
     return (
-        <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[1000] flex flex-col items-end space-y-3 font-sans">
+        <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end space-y-3 font-sans">
             {isOpen && (
                 <div className="w-[calc(100vw-2rem)] sm:w-[440px] max-h-[85vh] sm:max-h-[650px] bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-800 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 fade-in-25 duration-300">
                     <div className="bg-white dark:bg-neutral-900 px-4 py-3 flex justify-between items-center border-b border-neutral-200 dark:border-neutral-800">

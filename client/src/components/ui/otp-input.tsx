@@ -33,15 +33,16 @@ export default function OtpInput({ email, type, onVerify, onResend, isLoading, o
     return () => clearInterval(timer);
   }, []);
 
-  const handleVerify = () => {
-    const otpCode = otp.join('');
+  const handleVerify = (currentOtp?: string[]) => {
+    const otpCode = (currentOtp || otp).join('');
     if (otpCode.length === 6 && otpToken) {
       onVerify(otpCode, otpToken);
     }
   };
 
   const handleChange = (index: number, value: string) => {
-    if (value.length > 1) return;
+    // Only allow digits
+    if (value && !/^\d$/.test(value)) return;
     
     const newOtp = [...otp];
     newOtp[index] = value;
@@ -50,6 +51,33 @@ export default function OtpInput({ email, type, onVerify, onResend, isLoading, o
     // Auto-focus next input
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
+    }
+
+    // Auto-submit if all digits are filled
+    if (newOtp.every(digit => digit !== "") && newOtp.length === 6) {
+      handleVerify(newOtp);
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').slice(0, 6).split('');
+    const newOtp = [...otp];
+    
+    pastedData.forEach((char, index) => {
+      if (index < 6 && /^\d$/.test(char)) {
+        newOtp[index] = char;
+      }
+    });
+
+    setOtp(newOtp);
+    
+    // Focus last filled input or next empty
+    const lastIndex = Math.min(pastedData.length, 5);
+    inputRefs.current[lastIndex]?.focus();
+
+    if (newOtp.every(digit => digit !== "") && newOtp.length === 6) {
+      handleVerify(newOtp);
     }
   };
 
@@ -101,6 +129,10 @@ export default function OtpInput({ email, type, onVerify, onResend, isLoading, o
             value={digit}
             onChange={(e) => handleChange(index, e.target.value)}
             onKeyDown={(e) => handleKeyDown(index, e)}
+            onPaste={handlePaste}
+            aria-label={`Digit ${index + 1} of 6`}
+            aria-setsize={6}
+            aria-posinset={index + 1}
             className="w-12 h-12 text-center text-lg font-semibold"
             disabled={isLoading}
           />

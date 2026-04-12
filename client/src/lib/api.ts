@@ -1428,6 +1428,27 @@ export const api = {
     return handleResponse(response);
   },
 
+  getBulkFailures: async (batchId: string) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/certificates/bulk/failures/${batchId}`, {
+      headers: authHeaders,
+    });
+    return handleResponse(response);
+  },
+
+  retryBulkFailures: async (batchId: string, indices?: number[]) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/certificates/bulk/retry-failed/${batchId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders,
+      },
+      body: JSON.stringify({ indices }),
+    });
+    return handleResponse(response);
+  },
+
   // Template management methods
   getTemplates: async () => {
     const response = await fetch(`${API_CONFIG.CERT}/templates`);

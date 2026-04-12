@@ -5,21 +5,27 @@ import { AuthType } from "@/lib/dualAuth";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  requiredType?: AuthType;
 }
 
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+export default function ProtectedRoute({ children, requiredType }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading, authType } = useAuth();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    // Add some debugging
-    console.log('ProtectedRoute - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading, 'authType:', authType);
-    
-    if (!isLoading && !isAuthenticated) {
-      console.log('ProtectedRoute - Redirecting to institution login');
-      setLocation("/login");
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        setLocation("/login");
+      } else if (requiredType && authType !== requiredType) {
+        // Role mismatch - redirect to relevant dashboard or home
+        if (authType === AuthType.MARKETPLACE) {
+          setLocation("/marketplace");
+        } else {
+          setLocation("/institution/dashboard");
+        }
+      }
     }
-  }, [isAuthenticated, isLoading, authType, setLocation]);
+  }, [isAuthenticated, isLoading, authType, setLocation, requiredType]);
 
   // Show loading state while checking authentication
   if (isLoading) {

@@ -17,6 +17,7 @@ import {
   Info
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthHeaders } from "@/lib/auth";
 import { API_CONFIG } from "@/config/api";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -46,16 +47,15 @@ export default function BatchSigningSettings() {
     if (!institutionId) return;
 
     try {
-      const token = localStorage.getItem('institution_token') || localStorage.getItem('token');
       const response = await fetch(
         `${API_CONFIG.CERT}/api/institutions/${institutionId}/batch-signing/status`,
         {
           headers: {
-            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
           },
         }
       );
-
       const data = await response.json();
       setStatus(data);
     } catch (error) {
@@ -84,14 +84,13 @@ export default function BatchSigningSettings() {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('institution_token') || localStorage.getItem('token');
       const response = await fetch(
         `${API_CONFIG.CERT}/api/institutions/${institutionId}/batch-signing/store-key`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            ...getAuthHeaders(),
           },
           body: JSON.stringify({ privateKey }),
         }
@@ -132,13 +131,13 @@ export default function BatchSigningSettings() {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('institution_token') || localStorage.getItem('token');
       const response = await fetch(
         `${API_CONFIG.CERT}/api/institutions/${institutionId}/batch-signing/remove-key`,
         {
           method: "DELETE",
           headers: {
-            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
           },
         }
       );
@@ -174,12 +173,12 @@ export default function BatchSigningSettings() {
     setTesting(true);
     setTestResult(null);
     try {
-      const token = localStorage.getItem('institution_token') || localStorage.getItem('token');
       const response = await fetch(
         `${API_CONFIG.CERT}/api/institutions/${institutionId}/batch-signing/test-key`,
         {
           headers: {
-            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
           },
         }
       );

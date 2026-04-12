@@ -21,6 +21,10 @@ export interface ProposalResponse {
   startBlock?: number;
   endBlock?: number;
   executionDelay?: number;
+  verificationConfidence?: number;
+  missingSignals?: string[];
+  evidenceSummary?: string;
+  scoreSource?: 'llm' | 'heuristic' | 'hybrid';
 }
 
 export interface VoteResponse {

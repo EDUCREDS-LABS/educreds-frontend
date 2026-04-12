@@ -318,7 +318,7 @@ export function EnterpriseCertificateIssuance() {
           <div className="p-8 bg-neutral-900 dark:bg-black rounded-[40px] shadow-2xl text-white space-y-6 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-6 opacity-10"><Globe className="size-24 rotate-12" /></div>
             <div className="space-y-4 relative z-10">
-              <h4 className="text-2xl font-black tracking-tight leading-tight">Global Interoperability.</h4>
+              <h4 className="text-2xl font-black tracking-tight leading-tight text-blue-500">Global Interoperability.</h4>
               <p className="text-neutral-400 text-sm font-medium leading-relaxed">Issued credentials follow the W3C Verifiable Credentials standard, ensuring they are recognized by all compliant wallets and systems.</p>
             </div>
             <Button variant="outline" className="w-full h-12 rounded-xl border-neutral-700 hover:bg-neutral-800 font-black text-[10px] uppercase tracking-widest relative z-10">View Technical Specs</Button>

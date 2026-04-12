@@ -250,7 +250,7 @@ export default function ModernRegister() {
         description: "Your institution has been registered. Welcome to EduCreds!",
       });
 
-      window.location.href = '/institution/dashboard';
+      setLocation('/institution/dashboard');
     } catch (err: any) {
       setError(err.message || "Invalid OTP. Please try again.");
     } finally {

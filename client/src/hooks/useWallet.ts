@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { blockchainService, type CertificateData } from "@/lib/blockchain";
 import { useToast } from "@/hooks/use-toast";
-import { Certificate } from "@/shared/types/template";
-import { walletService } from "@/lib/walletService";
 
 // Helper function to safely parse JSON responses
 async function safeJsonParse(response: Response) {
@@ -22,12 +20,77 @@ async function safeJsonParse(response: Response) {
 }
 
 export function useWallet() {
-  const [isConnected, setIsConnected] = useState(walletService.isConnected());
-  const [walletAddress, setWalletAddress] = useState<string | null>(walletService.getAddress());
+  const [isConnected, setIsConnected] = useState(false);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isMinting, setIsMinting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [networkId, setNetworkId] = useState<string>("");
+  const [walletService, setWalletService] = useState<any>(null);
+
+  // Lazy load wallet service
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+
+    const loadWalletService = async () => {
+      try {
+        const { walletService: ws } = await import("@/lib/walletService");
+        setWalletService(ws);
+        setIsConnected(ws.isConnected());
+        setWalletAddress(ws.getAddress());
+
+        // Set up event listeners after wallet service is loaded
+        const handleConnect = (data: { address: string; chainId: string }) => {
+          setIsConnected(true);
+          setWalletAddress(data.address);
+          setNetworkId(data.chainId);
+          setIsLoading(false);
+        };
+
+        const handleChange = (data: { address: string; chainId: string }) => {
+          setWalletAddress(data.address);
+          setNetworkId(data.chainId);
+        };
+
+        const handleDisconnect = () => {
+          setIsConnected(false);
+          setWalletAddress(null);
+          setNetworkId("");
+          setIsLoading(false);
+        };
+
+        ws.on('connect', handleConnect);
+        ws.on('change', handleChange);
+        ws.on('disconnect', handleDisconnect);
+
+        // Check initial state
+        ws.getWalletState().then((state: any) => {
+          if (state.isConnected && state.address) {
+            handleConnect({ address: state.address, chainId: state.chainId || '' });
+          }
+        });
+
+        // Store cleanup function
+        cleanup = () => {
+          ws.removeListener('connect', handleConnect);
+          ws.removeListener('change', handleChange);
+          ws.removeListener('disconnect', handleDisconnect);
+        };
+      } catch (error) {
+        console.error("Failed to load wallet service:", error);
+        setError("Failed to initialize wallet service");
+      }
+    };
+
+    loadWalletService();
+
+    // Cleanup function
+    return () => {
+      if (cleanup) {
+        cleanup();
+      }
+    };
+  }, []);
   const { toast } = useToast();
 
   // Query for certificates when wallet is connected - use API fallback
@@ -83,46 +146,14 @@ export function useWallet() {
     retryDelay: 1000,
   });
 
-  // Subscribe to walletService events
-  useEffect(() => {
-    const handleConnect = ({ address, chainId }: { address: string; chainId: string }) => {
-      setIsConnected(true);
-      setWalletAddress(address);
-      setNetworkId(chainId);
-      setIsLoading(false);
-    };
 
-    const handleChange = ({ address, chainId }: { address: string; chainId: string }) => {
-      setWalletAddress(address);
-      setNetworkId(chainId);
-    };
-
-    const handleDisconnect = () => {
-      setIsConnected(false);
-      setWalletAddress(null);
-      setNetworkId("");
-      setIsLoading(false);
-    };
-
-    walletService.on('connect', handleConnect);
-    walletService.on('change', handleChange);
-    walletService.on('disconnect', handleDisconnect);
-
-    // Check initial state
-    walletService.getWalletState().then(state => {
-      if (state.isConnected && state.address) {
-        handleConnect({ address: state.address, chainId: state.chainId || '' });
-      }
-    });
-
-    return () => {
-      walletService.removeListener('connect', handleConnect);
-      walletService.removeListener('change', handleChange);
-      walletService.removeListener('disconnect', handleDisconnect);
-    };
-  }, []);
 
   const connect = useCallback(async () => {
+    if (!walletService) {
+      setError("Wallet service not loaded");
+      return;
+    }
+
     setIsLoading(true);
     setError("");
     try {
@@ -142,15 +173,17 @@ export function useWallet() {
       // Reset loading after the modal opens so the button isn't stuck
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [walletService, toast]);
 
   const disconnect = useCallback(() => {
+    if (!walletService) return;
+
     walletService.disconnect();
     toast({
       title: "Wallet disconnected",
       description: "Your wallet has been disconnected.",
     });
-  }, [toast]);
+  }, [walletService, toast]);
 
   const verifyCertificate = async (certificateId: string) => {
     try {
@@ -179,7 +212,7 @@ export function useWallet() {
     }
   };
 
-  const mintCertificate = async (certificate: Certificate) => {
+  const mintCertificate = async (certificate: CertificateData) => {
     setIsMinting(true);
     setError("");
     
@@ -189,7 +222,7 @@ export function useWallet() {
       }
 
       const txHash = await blockchainService.mintCertificate(
-        certificate.id,
+        certificate.id || '',
         certificate.studentAddress || walletAddress,
         certificate.studentName,
         certificate.courseName,
