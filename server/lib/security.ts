@@ -47,7 +47,7 @@ export const securityHeaders = helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "data:", "https://fonts.gstatic.com", "https://fonts.reown.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://js.stripe.com", "https://consent.cookiebot.com", "https://www.googletagmanager.com", "https://static.cloudflareinsights.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://js.stripe.com", "https://consent.cookiebot.com", "https://www.googletagmanager.com", "https://static.cloudflareinsights.com", "https://unpkg.com"],
       connectSrc: ["'self'", "https:", "wss:", "ws:", "http://localhost:*", "https://api.stripe.com", "https://m.stripe.network", "https://consentcdn.cookiebot.com", "https://Educreds-backend-"],
       frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com", "https://consentcdn.cookiebot.com"],
       objectSrc: ["'none'"],
