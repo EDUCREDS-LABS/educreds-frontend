@@ -1,0 +1,36 @@
+name = "educreds-frontend"
+type = "javascript"
+compatibility_date = "2024-01-01"
+main = "dist/server/index.js"
+
+# Environment variables for production
+[env.production]
+vars = {
+  VITE_API_BASE_URL = "https://api.educreds.xyz",
+  VITE_CERT_API_BASE_URL = "https://api.educreds.xyz",
+  VITE_MARKETPLACE_API_BASE_URL = "https://api.educreds.xyz",
+  VITE_FRONTEND_URL = "https://educreds.xyz",
+  NODE_ENV = "production",
+  VITE_DEV_MODE = "false",
+  VITE_DEBUG = "false"
+}
+
+# Build configuration
+[build]
+command = "npm run build"
+cwd = "./"
+
+# Upload directory
+[build.upload]
+dir = "dist"
+
+# Custom routing rules
+routes = [
+  { pattern = "educreds.xyz/*", zone_name = "educreds.xyz" },
+  { pattern = "*.educreds.xyz/*", zone_name = "educreds.xyz" }
+]
+
+# Cache rules
+[cache]
+default_ttl = 3600
+browser_ttl = 1800
