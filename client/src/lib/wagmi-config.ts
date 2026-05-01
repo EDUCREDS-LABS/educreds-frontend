@@ -26,8 +26,8 @@ const pickProjectId = (...values: Array<string | undefined>): string => {
 export const projectId = pickProjectId(
   import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,
   import.meta.env.NEXT_PUBLIC_PROJECT_ID,
-  process.env.VITE_WALLETCONNECT_PROJECT_ID,
-  process.env.NEXT_PUBLIC_PROJECT_ID,
+  import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,
+  import.meta.env.NEXT_PUBLIC_PROJECT_ID,
 );
 
 if (!projectId || projectId === 'YOUR_PROJECT_ID') {
@@ -38,8 +38,8 @@ if (!projectId || projectId === 'YOUR_PROJECT_ID') {
 export const networks: [Chain, ...Chain[]] = [baseSepolia, base, mainnet, polygon]
 
 const configuredChainId = Number(
-  import.meta.env.VITE_CHAIN_ID ||
-  import.meta.env.VITE_BLOCKCHAIN_CHAIN_ID ||
+  import.meta.env.VITE_CHAIN_ID ??
+  import.meta.env.VITE_BLOCKCHAIN_CHAIN_ID ??
   84532
 );
 

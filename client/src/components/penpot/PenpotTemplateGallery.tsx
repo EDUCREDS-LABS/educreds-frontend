@@ -142,7 +142,7 @@ export const PenpotTemplateGallery: React.FC<PenpotTemplateGalleryProps> = ({
   };
 
   const openInPenpot = (file: PenpotFile) => {
-    const penpotUrl = `${process.env.REACT_APP_PENPOT_URL || 'http://localhost:9001'}/workspace/project/${file.projectId}/file/${file.id}`;
+    const penpotUrl = `${import.meta.env.VITE_REACT_APP_PENPOT_URL || 'http://localhost:9001'}/workspace/project/${file.projectId}/file/${file.id}`;
     window.open(penpotUrl, '_blank');
   };
 
@@ -263,7 +263,7 @@ export const PenpotTemplateGallery: React.FC<PenpotTemplateGalleryProps> = ({
             {searchTerm ? 'Try adjusting your search terms' : 'No templates available in this project'}
           </p>
           {!searchTerm && (
-            <Button onClick={() => window.open(process.env.REACT_APP_PENPOT_URL || 'http://localhost:9001', '_blank')}>
+            <Button onClick={() => window.open(import.meta.env.VITE_REACT_APP_PENPOT_URL || 'http://localhost:9001', '_blank')}>
               <ExternalLink className="w-4 h-4 mr-2" />
               Create Templates in Penpot
             </Button>
