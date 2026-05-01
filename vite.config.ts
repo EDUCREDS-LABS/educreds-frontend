@@ -56,7 +56,7 @@ export default defineConfig({
     emptyOutDir: true,
     chunkSizeWarningLimit: 1000,
     sourcemap: false,
-    minify: 'esbuild',
+    minify: false, // Disable minification to avoid variable initialization issues
     // Ensure proper module initialization order
     reportCompressedSize: false,
     rollupOptions: {
@@ -86,12 +86,12 @@ export default defineConfig({
                 id.includes('ox')) {
               return 'wallet-vendor';
             }
-            // Chart libraries
-            if (id.includes('recharts') ||
-                id.includes('chart') ||
-                id.includes('d3')) {
-              return 'charts-vendor';
-            }
+            // Chart libraries - bundle with main vendor to avoid circular dependencies
+            // if (id.includes('recharts') ||
+            //     id.includes('chart') ||
+            //     id.includes('d3')) {
+            //   return 'charts-vendor';
+            // }
             // UI libraries - temporarily disable separate chunking
             // if (id.includes('@radix-ui') ||
             //     id.includes('lucide-react') ||
