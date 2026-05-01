@@ -18,14 +18,16 @@ RUN apk add --no-cache python3 make g++ cairo-dev jpeg-dev pango-dev giflib-dev 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install --legacy-peer-deps
+# Install dependencies with npm ci for deterministic, faster builds
+RUN npm ci --legacy-peer-deps
 
 # Copy source code
 COPY . .
 
 # Build the application (frontend + server)
-RUN npm run build
+RUN npm run build && \
+    # Clean up to save space in Docker layers before copying to production
+    rm -rf node_modules .git __tests__ test coverage
 
 # Production stage
 FROM node:18-alpine AS production
@@ -42,17 +44,8 @@ RUN addgroup -g 1001 -S nodejs && \
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-
-# Install all dependencies (including dev for vite and build tools)
-RUN npm install --legacy-peer-deps && npm cache clean --force
-
-# Copy built application from builder stage
+# Copy only the pre-built dist folder from builder
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
-
-# Set proper permissions on node_modules
-RUN chmod -R 775 ./node_modules
 
 # Don't switch to nodejs user for development mode (vite needs write permissions)
 # USER nodejs

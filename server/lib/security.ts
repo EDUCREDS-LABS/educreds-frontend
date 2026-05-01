@@ -75,7 +75,7 @@ export const corsOptions = {
     // Build allowed origins from environment variables
     const allowedOrigins: string[] = [];
 
-    // Add frontend URL (required in production)
+    // Add frontend URL
     if (process.env.FRONTEND_URL) {
       allowedOrigins.push(process.env.FRONTEND_URL);
     }
@@ -85,13 +85,24 @@ export const corsOptions = {
       allowedOrigins.push(process.env.ADMIN_URL);
     }
 
-    // Add development localhost URLs only in development
-    if (process.env.NODE_ENV === 'development') {
-      allowedOrigins.push(
+    // Add development localhost URLs - always include in dev, or as fallback for misconfigured servers
+    const isDev = process.env.NODE_ENV === 'development';
+    const hasConfiguredOrigins = allowedOrigins.length > 0;
+    
+    // Include dev origins if in development mode OR if no origins are configured (safety fallback)
+    if (isDev || !hasConfiguredOrigins) {
+      const devOrigins = [
         'http://localhost:3000',
         'http://localhost:5002',
-        'http://localhost:5173'
-      );
+        'http://localhost:5173',
+        'http://127.0.0.1:5002',
+        'http://127.0.0.1:5173'
+      ];
+      devOrigins.forEach(origin => {
+        if (!allowedOrigins.includes(origin)) {
+          allowedOrigins.push(origin);
+        }
+      });
     }
 
     if (allowedOrigins.includes(origin)) {

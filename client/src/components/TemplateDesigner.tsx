@@ -7,6 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Trash2, Move, Type, Save, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { IssuancePreviewModal } from '@/components/designer/IssuancePreviewModal';
+import { DesignerAccessibilityProvider, announceToScreenReader } from '@/components/designer/DesignerAccessibility';
+import { CanvasPreview } from '@/components/designer/CanvasPreview';
 
 interface FieldMapping {
   id: string;
@@ -82,6 +85,11 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const [isResizing, setIsResizing] = useState(false);
   const resizingRef = useRef<{ id: string; corner: string } | null>(null);
+
+  // NEW: State for issuance preview and form data
+  const [issuanceFormData, setIssuanceFormData] = useState<Record<string, string>>({});
+  const [showIssuancePreview, setShowIssuancePreview] = useState(false);
+  const [highlightedLayer, setHighlightedLayer] = useState<string | null>(null);
 
   const availableFields = [
     { name: 'studentName', label: 'Student Name', required: true, locked: false },
@@ -276,6 +284,49 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
     }
   };
 
+  // NEW: Handler for opening issuance preview
+  const handleOpenIssuancePreview = () => {
+    setShowIssuancePreview(true);
+    announceToScreenReader('Issuance preview dialog opened');
+  };
+
+  // NEW: Handler for issuing certificate
+  const handleIssueCertificate = async () => {
+    try {
+      const response = await fetch('/api/issuance/single', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          templateId: 'current-template-id',
+          recipientName: issuanceFormData.studentName,
+          recipientEmail: issuanceFormData.recipientEmail,
+          recipientWalletAddress: issuanceFormData.walletAddress,
+          placeholders: issuanceFormData,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Issuance failed');
+      
+      const data = await response.json();
+      announceToScreenReader('Certificate issued successfully');
+      toast({
+        title: '✅ Success',
+        description: 'Certificate issued successfully!',
+      });
+      setShowIssuancePreview(false);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      announceToScreenReader(`Certificate issuance failed: ${errorMessage}`);
+      toast({
+        title: '❌ Error',
+        description: `Issuance failed: ${errorMessage}`,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const selectedFieldData = selectedField ? fields.find(f => f.id === selectedField) : null;
 
   return (
@@ -312,6 +363,11 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
             <Button size="sm" variant="outline" onClick={() => setShowPreview(!showPreview)}>
               <Eye className="h-4 w-4 mr-2" />
               {showPreview ? 'Edit' : 'Preview'}
+            </Button>
+            {/* NEW: Issuance Preview Button */}
+            <Button size="sm" variant="secondary" onClick={handleOpenIssuancePreview}>
+              <Eye className="h-4 w-4 mr-2" />
+              Issue Preview
             </Button>
             <Button size="sm" onClick={handleSave}>
               <Save className="h-4 w-4 mr-2" />
@@ -539,6 +595,43 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
           )}
         </CardContent>
       </Card>
+
+      {/* NEW: CanvasPreview Component - Live preview with layer highlighting */}
+      <CanvasPreview
+        fields={fields}
+        width={595}
+        height={842}
+        backgroundImage={undefined}
+        showGrid={true}
+        highlightedLayerId={highlightedLayer}
+        debounceMs={300}
+        title="Live Preview"
+      />
+
+      {/* NEW: IssuancePreviewModal Component */}
+      <IssuancePreviewModal
+        isOpen={showIssuancePreview}
+        onClose={() => setShowIssuancePreview(false)}
+        onProceed={handleIssueCertificate}
+        templateName={'Current Template'}
+        fields={fields}
+        formData={issuanceFormData}
+        templateDimensions={{
+          width: 595,
+          height: 842,
+        }}
+        backgroundImage={undefined}
+        conditionalRules={undefined}
+      />
     </div>
+  );
+};
+
+// NEW: Wrap with Accessibility Provider
+export default function TemplateDesignerWithAccessibility(props: any) {
+  return (
+    <DesignerAccessibilityProvider>
+      <TemplateDesigner {...props} />
+    </DesignerAccessibilityProvider>
   );
 };

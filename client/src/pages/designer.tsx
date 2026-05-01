@@ -64,6 +64,10 @@ import {
 } from '@/components/ui/tooltip';
 import { API_CONFIG } from '@/config/api';
 import { getAuthHeaders } from '@/lib/auth';
+import { LayerPanel } from '@/components/designer/LayerPanel';
+import { CanvasPreview } from '@/components/designer/CanvasPreview';
+import { IssuancePreviewModal } from '@/components/designer/IssuancePreviewModal';
+import { DesignerAccessibilityProvider, announceToScreenReader } from '@/components/designer/DesignerAccessibility';
 
 // ─── Safe SVG utilities ───────────────────────────────────────────────────────
 
@@ -115,6 +119,7 @@ const parseTemplateFields = (svgContent: string, fields: any[]): FieldMapping[] 
             color: normalizeHexColor(color.startsWith('url') ? '#1e40af' : color),
             required: f.required,
             locked: false,
+            visible: true,
             type: f.type || 'text',
           });
           found = true;
@@ -134,6 +139,7 @@ const parseTemplateFields = (svgContent: string, fields: any[]): FieldMapping[] 
           color: '#1a1a1a',
           required: f.required,
           locked: false,
+          visible: true,
           type: f.type || 'text',
         });
       }
@@ -187,6 +193,7 @@ interface FieldMapping {
   color: string;
   required: boolean;
   locked: boolean;
+  visible: boolean;
   type: 'text' | 'date' | 'number' | 'qr' | 'signature';
   /** When set, this is a user-placed free text element (literal content, not a variable) */
   customText?: string;
@@ -316,6 +323,12 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
     type: 'certificate',
   });
   const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
+  const [showSidePreview, setShowSidePreview] = useState(true);
+  // New state for issuance preview and layer highlighting
+  const [issuanceFormData, setIssuanceFormData] = useState<Record<string, string>>({});
+  const [showIssuancePreview, setShowIssuancePreview] = useState(false);
+  const [highlightedLayer, setHighlightedLayer] = useState<string | null>(null);
+
 
   // ── Refs ───────────────────────────────────────────────────────────────────
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -498,6 +511,7 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
       color: normalizeHexColor('#1a1a1a'),
       required: fieldInfo.required,
       locked: fieldInfo.locked,
+      visible: true,
       type: fieldInfo.type || 'text',
     };
 
@@ -1105,52 +1119,43 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
                       </div>
                     </div>
                   </motion.div>
-                ) : (
-                  <motion.div
-                    key="layers"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    className="space-y-2"
-                  >
-                    <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3 ml-1">
-                      Canvas Layers
-                    </h3>
-                    {fields.length === 0 ? (
-                      <div className="py-8 text-center text-slate-600 text-xs italic">
-                        No active layers
-                      </div>
-                    ) : (
-                      [...fields].reverse().map((field, revIdx) => {
-                        const idx = fields.length - 1 - revIdx;
-                        return (
-                          <div
-                            key={field.id}
-                            onClick={() => setSelectedField(field.id)}
-                            className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-all ${
-                              selectedField === field.id
-                                ? 'bg-indigo-500/10 border-indigo-500/50 text-indigo-400'
-                                : 'bg-transparent border-transparent text-slate-400 hover:bg-white/5'
-                            }`}
-                          >
-                            {field.type === 'qr' ? (
-                              <Grid className="w-4 h-4 shrink-0" />
-                            ) : (
-                              <Type className="w-4 h-4 shrink-0" />
-                            )}
-                            <span className="text-xs font-medium truncate flex-1">
-                              {field.customText !== undefined
-                                ? `"${field.customText || 'Custom Text'}"`
-                                : field.name}
-                            </span>
-                            <span className="text-[10px] text-slate-700">#{idx + 1}</span>
-                            {field.locked && <Lock className="w-3 h-3 text-slate-600 shrink-0" />}
-                          </div>
-                        );
-                      })
-                    )}
-                  </motion.div>
-                )}
+                 ) : (
+                   <motion.div
+                     key="layers"
+                     initial={{ opacity: 0, x: -10 }}
+                     animate={{ opacity: 1, x: 0 }}
+                     exit={{ opacity: 0, x: -10 }}
+                     className="space-y-2"
+                   >
+                     <LayerPanel
+                       layers={fields.map(field => ({
+                         id: field.id,
+                         name: field.name,
+                         customText: field.customText,
+                         type: field.type,
+                         locked: field.locked,
+                         visible: field.visible !== false, // Convert to boolean
+                       }))}
+                       selectedId={selectedField}
+                       onSelectLayer={(id) => {
+                         setSelectedField(id);
+                         announceToScreenReader(`Layer ${id} selected`);
+                       }}
+                       onReorderLayers={(newOrder) => {
+                         setFields(newOrder);
+                         addToHistory(newOrder);
+                       }}
+                       onToggleVisibility={(id, visible) => {
+                         updateField(id, { visible });
+                       }}
+                       onToggleLock={(id, locked) => {
+                         updateField(id, { locked });
+                       }}
+                       onDeleteLayer={removeField}
+                       onHighlightLayer={setHighlightedLayer} // NEW: Add this
+                     />
+                   </motion.div>
+                 )}
               </AnimatePresence>
             </ScrollArea>
           </div>

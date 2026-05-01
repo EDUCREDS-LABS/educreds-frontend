@@ -1,0 +1,46 @@
+# Dependencies - don't send to Docker build context
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build outputs - will be generated in Docker
+dist/
+build/
+.next/
+
+# Development files
+.env.development
+.env.*.local
+
+# VCS
+.git/
+.gitignore
+.github/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test files
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__/
+test/
+coverage/
+
+# Documentation
+README.md
+DEPLOYMENT_GUIDE.md
+PRODUCTION_CHECKLIST.md
+*.md
+
+# Misc
+.replit
+vercel.json
+project overview.md
