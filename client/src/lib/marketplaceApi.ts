@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { API_CONFIG } from '../config/api';
 
-const API_BASE = (typeof window !== 'undefined' && import.meta?.env?.VITE_CERT_API_BASE) || 'http://localhost:3001';
+const API_BASE = API_CONFIG.MARKETPLACE;
 
 const api = axios.create({
   baseURL: `${API_BASE}/marketplace`,

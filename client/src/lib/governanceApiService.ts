@@ -1,10 +1,11 @@
 import axios, { type AxiosInstance } from 'axios';
 import { ethers } from 'ethers';
 import { walletService } from './walletService';
+import { API_CONFIG } from '../config/api';
 
 // Note: For wallet connection in utility functions, we use window.ethereum directly.
 
-const rawApiBase = (import.meta.env.VITE_API_BASE ?? 'http://localhost:3001').replace(/\/$/, '');
+const rawApiBase = API_CONFIG.MAIN;
 const API_BASE_URL = rawApiBase.endsWith('/api') ? rawApiBase : `${rawApiBase}/api`;
 
 // Types for governance API responses

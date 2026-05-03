@@ -1,5 +1,6 @@
 import { FirebaseAuth } from './firebaseAuth';
 import { api } from './api';
+import { API_CONFIG } from '../config/api';
 
 export enum AuthType {
   INSTITUTION = 'institution',
@@ -17,7 +18,7 @@ export interface AuthUser {
 
 export class DualAuth {
   private static getCertApiBase(): string {
-    return (import.meta.env.VITE_CERT_API_BASE ?? 'http://localhost:3001').replace(/\/$/, '');
+    return API_CONFIG.CERT;
   }
 
   // Institution Authentication (Original System)

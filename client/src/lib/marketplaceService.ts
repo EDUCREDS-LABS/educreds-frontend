@@ -1,4 +1,6 @@
-const CERT_API_BASE = (import.meta.env.VITE_MARKETPLACE_API_BASE ?? import.meta.env.VITE_CERT_API_BASE ?? "http://localhost:3001").replace(/\/$/, "");
+import { API_CONFIG } from '../config/api';
+
+const CERT_API_BASE = API_CONFIG.MARKETPLACE;
 
 export interface TemplateListingItem {
   id: string;

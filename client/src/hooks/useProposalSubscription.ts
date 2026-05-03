@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useToast } from './use-toast';
+import { API_CONFIG } from '../config/api';
 
 interface ProposalUpdate {
   id: string;
@@ -36,7 +37,7 @@ export function useProposalSubscription(
   const heartbeatIntervalRef = useRef<NodeJS.Timeout>();
 
   const connect = useCallback(() => {
-    const apiBase = (import.meta.env.VITE_API_BASE || 'http://localhost:3001').replace(/\/$/, '');
+    const apiBase = API_CONFIG.MAIN;
     const backendUrl = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
     
     const newSocket = io(backendUrl, {

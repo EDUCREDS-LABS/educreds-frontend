@@ -8,6 +8,7 @@ import OtpInput from "@/components/ui/otp-input";
 import { api } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
+import { API_CONFIG } from '../../config/api';
 
 export default function RegisterVerifyOtp() {
   const [, setLocation] = useLocation();
@@ -78,7 +79,7 @@ export default function RegisterVerifyOtp() {
       throw new Error("Email not found");
     }
 
-    const response = await fetch(`${import.meta.env.VITE_CERT_API_BASE || "http://localhost:3001"}/auth/institution/send-register-otp`, {
+    const response = await fetch(`${API_CONFIG.CERT}/auth/institution/send-register-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email })

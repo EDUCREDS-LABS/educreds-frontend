@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
+import { API_CONFIG } from '../../config/api';
 
 // Ethereum provider type declaration
 declare global {
@@ -37,7 +38,7 @@ import { loginSchema, type LoginCredentials } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useWallet } from "@/hooks/useWallet";
 
-const CERT_API_BASE = (import.meta.env.VITE_CERT_API_BASE ?? "http://localhost:3001").replace(/\/$/, "");
+const CERT_API_BASE = (API_CONFIG.CERT).replace(/\/$/, "");
 
 const features = [
   {

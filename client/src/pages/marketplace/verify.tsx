@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { API_CONFIG } from '../../config/api';
 
 export default function MarketplaceVerify() {
   const [, setLocation] = useLocation();
@@ -28,7 +29,7 @@ export default function MarketplaceVerify() {
 
   const verifyMagicLink = async (token: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_CERT_API_BASE}/marketplace-auth/verify?token=${token}`);
+      const response = await fetch(`${API_CONFIG.CERT}/marketplace-auth/verify?token=${token}`);
       const data = await response.json();
 
       if (data.success) {

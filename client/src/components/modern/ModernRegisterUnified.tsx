@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
+import { API_CONFIG } from '../../config/api';
 import { Progress } from "@/components/ui/progress";
 import OtpInput from "@/components/ui/otp-input";
 import {
@@ -29,7 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useWallet } from "@/hooks/useWallet";
 import { z } from "zod";
 
-const CERT_API_BASE = (import.meta.env.VITE_CERT_API_BASE ?? "http://localhost:3001").replace(/\/$/, "");
+const CERT_API_BASE = (API_CONFIG.CERT).replace(/\/$/, "");
 
 // Custom form schema with password fields for registration
 const registrationFormSchema = z.object({

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
+import { API_CONFIG } from '../../config/api';
 import { Progress } from "@/components/ui/progress";
 import OtpInput from "@/components/ui/otp-input";
 import {
@@ -183,7 +184,7 @@ export default function ModernRegister() {
       }
 
       // Send OTP using correct endpoint
-      const otpResponse = await fetch(`${import.meta.env.VITE_CERT_API_BASE || "http://localhost:3001"}/auth/institution/send-registration-otp`, {
+      const otpResponse = await fetch(`${API_CONFIG.CERT}/auth/institution/send-registration-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: data.email })
@@ -259,7 +260,7 @@ export default function ModernRegister() {
   };
 
   const handleResendOtp = async () => {
-    const response = await fetch(`${import.meta.env.VITE_CERT_API_BASE || "http://localhost:3001"}/auth/institution/send-registration-otp`, {
+    const response = await fetch(`${API_CONFIG.CERT}/auth/institution/send-registration-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: userEmail })

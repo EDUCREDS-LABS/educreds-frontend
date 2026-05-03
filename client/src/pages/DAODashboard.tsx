@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import ProposalCard, { Proposal } from "@/components/ProposalCard";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus } from "lucide-react";
+import { API_CONFIG } from '../config/api';
 
 export default function DAODashboard() {
     const [proposals, setProposals] = useState<Proposal[]>([]);
@@ -19,7 +20,7 @@ export default function DAODashboard() {
     const createProposalMutation = useMutation({
         mutationFn: async () => {
             // Use the environment variable for the backend URL, defaulting to localhost:3001
-            const baseUrl = import.meta.env.VITE_CERT_API_BASE || 'http://localhost:3001';
+            const baseUrl = API_CONFIG.CERT;
             const res = await fetch(`${baseUrl}/governance/proposal`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

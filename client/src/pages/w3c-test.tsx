@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { API_CONFIG } from '../config/api';
 
 export default function W3CTestPage() {
   const [result, setResult] = useState<any>(null);

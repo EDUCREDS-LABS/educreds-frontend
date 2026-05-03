@@ -1,4 +1,5 @@
 import { jwtDecode } from "jwt-decode";
+import { API_CONFIG } from '../config/api';
 
 interface MarketplaceTokenPayload {
   sub: string;
@@ -70,7 +71,7 @@ export const marketplaceAuth = {
     }
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_CERT_API_BASE || "http://localhost:3001"}/auth/refresh`, {
+      const response = await fetch(`${API_CONFIG.CERT}/auth/refresh`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -121,7 +122,7 @@ export const marketplaceAuth = {
   logout: async () => {
     try {
       // Call marketplace logout endpoint to clear session
-      const response = await fetch(`${import.meta.env.VITE_CERT_API_BASE || "http://localhost:3001"}/auth/logout`, {
+      const response = await fetch(`${API_CONFIG.CERT}/auth/logout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -164,7 +165,7 @@ export const getMarketplaceAuthHeaders = (): Record<string, string> => {
 export const marketplaceApi = {
   // Marketplace auth endpoints
   login: async (credentials: { email: string; password: string }) => {
-    const response = await fetch(`${import.meta.env.VITE_CERT_API_BASE || "http://localhost:3001"}/auth/login`, {
+    const response = await fetch(`${API_CONFIG.CERT}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -180,7 +181,7 @@ export const marketplaceApi = {
   },
 
   register: async (data: any) => {
-    const response = await fetch(`${import.meta.env.VITE_CERT_API_BASE || "http://localhost:3001"}/auth/register`, {
+    const response = await fetch(`${API_CONFIG.CERT}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -196,7 +197,7 @@ export const marketplaceApi = {
   },
 
   verifySession: async () => {
-    const response = await fetch(`${import.meta.env.VITE_CERT_API_BASE || "http://localhost:3001"}/auth/verify-session`, {
+    const response = await fetch(`${API_CONFIG.CERT}/auth/verify-session`, {
       credentials: "include",
     });
     
@@ -209,7 +210,7 @@ export const marketplaceApi = {
 
   // Template marketplace endpoints
   getTemplates: async () => {
-    const response = await fetch(`${import.meta.env.VITE_CERT_API_BASE || "http://localhost:3001"}/templates`, {
+    const response = await fetch(`${API_CONFIG.CERT}/templates`, {
       credentials: "include",
     });
     
@@ -221,7 +222,7 @@ export const marketplaceApi = {
   },
 
   getTemplateById: async (id: string) => {
-    const response = await fetch(`${import.meta.env.VITE_CERT_API_BASE || "http://localhost:3001"}/templates/${id}`, {
+    const response = await fetch(`${API_CONFIG.CERT}/templates/${id}`, {
       credentials: "include",
     });
     
@@ -233,7 +234,7 @@ export const marketplaceApi = {
   },
 
   createTemplate: async (templateData: any) => {
-    const response = await fetch(`${import.meta.env.VITE_CERT_API_BASE || "http://localhost:3001"}/templates`, {
+    const response = await fetch(`${API_CONFIG.CERT}/templates`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -248,7 +249,7 @@ export const marketplaceApi = {
   },
 
   purchaseTemplate: async (templateId: string, purchaseData: any) => {
-    const response = await fetch(`${import.meta.env.VITE_CERT_API_BASE || "http://localhost:3001"}/marketplace/templates/${templateId}/purchase`, {
+    const response = await fetch(`${API_CONFIG.CERT}/marketplace/templates/${templateId}/purchase`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -263,7 +264,7 @@ export const marketplaceApi = {
   },
 
   getBuyerTemplates: async (buyerId: string) => {
-    const response = await fetch(`${import.meta.env.VITE_CERT_API_BASE || "http://localhost:3001"}/marketplace/purchases?buyerId=${buyerId}`, {
+    const response = await fetch(`${API_CONFIG.CERT}/marketplace/purchases?buyerId=${buyerId}`, {
       credentials: "include",
     });
     

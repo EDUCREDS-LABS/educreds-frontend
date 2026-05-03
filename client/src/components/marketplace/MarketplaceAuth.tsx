@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { API_CONFIG } from '../../config/api';
 import {
   Loader2,
   AlertCircle,
@@ -84,7 +85,7 @@ export default function MarketplaceAuth({ mode }: MarketplaceAuthProps) {
     setIsLoading(true);
     try {
       // Call backend magic link endpoint
-      const response = await fetch(`${import.meta.env.VITE_CERT_API_BASE}/marketplace-auth/magic-link`, {
+      const response = await fetch(`${API_CONFIG.CERT}/marketplace-auth/magic-link`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
@@ -116,7 +117,7 @@ export default function MarketplaceAuth({ mode }: MarketplaceAuthProps) {
       const result = await FirebaseAuth.signInWithGoogle();
 
       // Send the Firebase token to backend for verification
-      const response = await fetch(`${import.meta.env.VITE_CERT_API_BASE}/marketplace-auth/login`, {
+      const response = await fetch(`${API_CONFIG.CERT}/marketplace-auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken: result.token })

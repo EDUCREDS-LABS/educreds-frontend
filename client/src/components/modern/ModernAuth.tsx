@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
+import { API_CONFIG } from '../../config/api';
 import OtpInput from "@/components/ui/otp-input";
 import {
   Loader2,
@@ -26,7 +27,7 @@ import { api } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 
-const CERT_API_BASE = (import.meta.env.VITE_CERT_API_BASE ?? "http://localhost:3001").replace(/\/$/, "");
+const CERT_API_BASE = (API_CONFIG.CERT).replace(/\/$/, "");
 
 interface ModernAuthProps {
   mode: 'login' | 'register';

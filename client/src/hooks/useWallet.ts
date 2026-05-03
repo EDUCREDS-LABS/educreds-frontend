@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { blockchainService, type CertificateData } from "@/lib/blockchain";
 import { useToast } from "@/hooks/use-toast";
+import { API_CONFIG } from '../config/api';
 
 // Helper function to safely parse JSON responses
 async function safeJsonParse(response: Response) {
@@ -100,7 +101,7 @@ export function useWallet() {
       if (!walletAddress) return [];
       
       try {
-        const API_BASE = import.meta.env.VITE_CERT_API_BASE || "http://localhost:3001";
+        const API_BASE = API_CONFIG.CERT;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
         
@@ -187,7 +188,7 @@ export function useWallet() {
 
   const verifyCertificate = async (certificateId: string) => {
     try {
-      const API_BASE = import.meta.env.VITE_CERT_API_BASE || "http://localhost:3001";
+      const API_BASE = API_CONFIG.CERT;
       
       const response = await fetch(
         `${API_BASE}/api/v1/verify/${certificateId}`,
