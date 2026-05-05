@@ -3,6 +3,24 @@
  * Centralizes all backend endpoints and environment variables
  */
 
+// Helper function to safely access environment variables
+const getEnvVar = (key: string, fallback?: string): string | undefined => {
+  // Check if we're in browser environment (Vite) - import.meta exists
+  try {
+    if (import.meta?.env) {
+      return import.meta.env[key] || fallback;
+    }
+  } catch {
+    // Not in Vite environment, fall through to Node.js check
+  }
+
+  // Server environment (Node.js)
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env[key] || fallback;
+  }
+  return fallback;
+};
+
 const resolveDefaultApiBase = () => {
   if (typeof window === "undefined") {
     return "http://localhost:3001";
@@ -22,9 +40,9 @@ const resolveDefaultApiBase = () => {
 const DEFAULT_API_BASE = resolveDefaultApiBase();
 
 // Environment variables with fallbacks
-const MAIN_API_BASE = import.meta.env.VITE_API_BASE?.replace(/\/$/, "") || DEFAULT_API_BASE;
-const CERT_API_BASE = import.meta.env.VITE_CERT_API_BASE?.replace(/\/$/, "") || DEFAULT_API_BASE;
-const MARKETPLACE_API_BASE = import.meta.env.VITE_MARKETPLACE_API_BASE?.replace(/\/$/, "") || DEFAULT_API_BASE;
+const MAIN_API_BASE = getEnvVar('VITE_API_BASE', DEFAULT_API_BASE)?.replace(/\/$/, "") || DEFAULT_API_BASE;
+const CERT_API_BASE = getEnvVar('VITE_CERT_API_BASE', DEFAULT_API_BASE)?.replace(/\/$/, "") || DEFAULT_API_BASE;
+const MARKETPLACE_API_BASE = getEnvVar('VITE_MARKETPLACE_API_BASE', DEFAULT_API_BASE)?.replace(/\/$/, "") || DEFAULT_API_BASE;
 
 export const API_CONFIG = {
   // Main backend (admin, oracle, unified services)
