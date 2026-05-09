@@ -8,3 +8,4 @@ vite.config.ts.backup
 .env
 .env.local
 .env.production
+cert_backend.env.production

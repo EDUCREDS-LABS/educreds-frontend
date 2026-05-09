@@ -197,7 +197,7 @@ export default function Verification() {
           <div className="absolute bottom-0 right-0 size-[400px] bg-blue-600/10 rounded-full blur-[100px] opacity-30" />
           
           {/* Abstract Grid */}
-          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
+          <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-20 mix-blend-overlay" />
           <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }} />
         </div>
       </div>

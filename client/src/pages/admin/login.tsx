@@ -60,7 +60,7 @@ export default function AdminLogin() {
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-6 relative overflow-hidden font-sans">
       {/* Background Infrastructure */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(21,96,189,0.1),transparent_50%)] pointer-events-none" />
-      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none" />
+      <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none" />
       
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}

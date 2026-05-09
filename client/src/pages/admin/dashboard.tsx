@@ -189,7 +189,7 @@ function AdminDashboardContent() {
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Deep Infrastructure Background */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(21,96,189,0.08),transparent_50%)] pointer-events-none" />
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none" />
+        <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none" />
 
         {/* Global Control Header */}
         <header className="h-24 border-b border-white/5 flex items-center justify-between px-10 bg-gray-950/80 backdrop-blur-2xl z-20">

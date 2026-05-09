@@ -48,7 +48,7 @@ export const securityHeaders = helmet({
       fontSrc: ["'self'", "data:", "https://fonts.gstatic.com", "https://fonts.reown.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://js.stripe.com", "https://consent.cookiebot.com", "https://www.googletagmanager.com", "https://static.cloudflareinsights.com", "https://unpkg.com"],
-      connectSrc: ["'self'", "https:", "wss:", "ws:", "http://localhost:*", "https://api.stripe.com", "https://m.stripe.network", "https://consentcdn.cookiebot.com", "https://Educreds-backend-"],
+      connectSrc: ["'self'", "https:", "wss:", "ws:", "http://localhost:*", "https://api.stripe.com", "https://m.stripe.network", "https://consentcdn.cookiebot.com", "https://Educreds-backend-", "https://api.educreds.xyz"],
       frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com", "https://consentcdn.cookiebot.com"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
@@ -72,25 +72,34 @@ export const corsOptions = {
       return callback(null, true);
     }
 
-    // Build allowed origins from environment variables
-    const allowedOrigins: string[] = [];
+    // Build allowed origins - PRODUCTION FIRST
+    const allowedOrigins: string[] = [
+      // Production domains - always included
+      'https://educreds.xyz',
+      'https://www.educreds.xyz',
+      'https://*.educreds.xyz',
+      // API subdomain
+      'https://api.educreds.xyz'
+    ];
 
-    // Add frontend URL
+    // Add environment-configured origins
     if (process.env.FRONTEND_URL) {
       allowedOrigins.push(process.env.FRONTEND_URL);
     }
 
-    // Add admin URL if configured
     if (process.env.ADMIN_URL) {
       allowedOrigins.push(process.env.ADMIN_URL);
     }
-
-    // Add development localhost URLs - always include in dev, or as fallback for misconfigured servers
-    const isDev = process.env.NODE_ENV === 'development';
-    const hasConfiguredOrigins = allowedOrigins.length > 0;
     
-    // Include dev origins if in development mode OR if no origins are configured (safety fallback)
-    if (isDev || !hasConfiguredOrigins) {
+    if (process.env.CORS_ORIGINS) {
+      process.env.CORS_ORIGINS.split(',').forEach(o => allowedOrigins.push(o.trim()));
+    }
+
+    // Development fallback - only if no origins configured or in dev mode
+    const isDev = process.env.NODE_ENV === 'development';
+    const hasExternalOrigins = allowedOrigins.length > 5; // More than just production defaults
+    
+    if (isDev || !hasExternalOrigins) {
       const devOrigins = [
         'http://localhost:3000',
         'http://localhost:5002',
@@ -98,14 +107,22 @@ export const corsOptions = {
         'http://127.0.0.1:5002',
         'http://127.0.0.1:5173'
       ];
-      devOrigins.forEach(origin => {
-        if (!allowedOrigins.includes(origin)) {
-          allowedOrigins.push(origin);
+      devOrigins.forEach(devOrigin => {
+        if (!allowedOrigins.includes(devOrigin)) {
+          allowedOrigins.push(devOrigin);
         }
       });
     }
 
-    if (allowedOrigins.includes(origin)) {
+    // Check if origin matches any allowed pattern
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (origin === allowed) return true;
+      // Wildcard support for subdomains
+      if (allowed.startsWith('https://*.') && origin.endsWith(allowed.substring(11))) return true;
+      return false;
+    });
+
+    if (isAllowed) {
       callback(null, true);
     } else {
       console.warn(`CORS blocked origin: ${origin}. Allowed origins: ${allowedOrigins.join(', ')}`);
