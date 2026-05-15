@@ -70,101 +70,88 @@ export function InstitutionCredibilityCard({
   };
 
   return (
-    <Card className="hover:shadow-lg transition-shadow">
-      <CardHeader className="space-y-3">
+    <Card className="shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden border-none bg-white dark:bg-neutral-900 transition-all hover:shadow-3xl">
+      <CardHeader className="space-y-4 p-10 border-b border-neutral-50 dark:border-neutral-800">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <CardTitle className="text-lg">{profile.name}</CardTitle>
-            <CardDescription className="text-xs mt-1">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-2xl font-black tracking-tight">{profile.name}</CardTitle>
+              {profile.poicScore > 60 && (
+                <div className="size-6 flex-shrink-0">
+                  <img 
+                    src="https://res.cloudinary.com/dycszahnr/image/upload/q_auto/f_auto/v1777384457/verified_badge_mysrk6.jpg" 
+                    alt="Verified" 
+                    className="w-full h-full object-contain" 
+                  />
+                </div>
+              )}
+            </div>
+            <CardDescription className="text-[10px] mt-2 font-black uppercase tracking-widest text-neutral-400">
               Last updated: {new Date(profile.lastUpdated).toLocaleDateString()}
             </CardDescription>
           </div>
-          <div className={`h-16 w-16 rounded-full flex items-center justify-center font-bold text-white text-2xl ${profile.gradeColor}`}>
+          <div className={`size-16 rounded-3xl flex items-center justify-center font-black text-white text-2xl shadow-lg ${profile.gradeColor}`}>
             {profile.grade}
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="p-10 space-y-8">
         {/* PoIC Score Overview */}
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold">Proof of Institutional Credibility</p>
-            <div className="flex items-center gap-1">
+            <p className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Proof of Credibility</p>
+            <div className="flex items-center gap-2">
               {getTrendIcon()}
-              <span className={`text-sm font-semibold ${profile.trend === 'up' ? 'text-green-600' : profile.trend === 'down' ? 'text-red-600' : 'text-slate-400'}`}>
+              <span className={`text-sm font-black ${profile.trend === 'up' ? 'text-emerald-500' : profile.trend === 'down' ? 'text-red-500' : 'text-neutral-400'}`}>
                 {profile.trend === 'up' ? '+' : profile.trend === 'down' ? '-' : ''}{profile.trendValue}
               </span>
             </div>
           </div>
           <div className="flex items-end gap-2">
-            <span className="text-3xl font-bold">{profile.poicScore}</span>
-            <span className="text-muted-foreground text-sm">/100</span>
+            <span className="text-5xl font-black tracking-tighter">{profile.poicScore}</span>
+            <span className="text-neutral-400 font-bold mb-2">/100</span>
           </div>
-          <Progress value={profile.poicScore} className="h-2" />
+          <Progress value={profile.poicScore} className="h-3 bg-neutral-100 dark:bg-neutral-800" />
         </div>
 
         {/* Key Metrics Grid */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-lg bg-slate-50 p-3 text-center">
-            <p className="text-xs text-muted-foreground">Issued</p>
-            <p className="text-lg font-bold mt-1">{profile.issuanceCount}</p>
-          </div>
-          <div className="rounded-lg bg-red-50 p-3 text-center">
-            <p className="text-xs text-red-600">Revoked</p>
-            <p className="text-lg font-bold text-red-600 mt-1">{profile.revocationRate}%</p>
-          </div>
-          <div className="rounded-lg bg-green-50 p-3 text-center">
-            <p className="text-xs text-green-600">Feedback</p>
-            <p className="text-lg font-bold text-green-600 mt-1">{profile.employerFeedback}</p>
-          </div>
+        <div className="grid grid-cols-3 gap-4">
+          <MetricBox label="Issued" value={profile.issuanceCount} color="bg-neutral-50 dark:bg-neutral-800" />
+          <MetricBox label="Revoked" value={`${profile.revocationRate}%`} color="bg-red-50 text-red-600" />
+          <MetricBox label="Feedback" value={profile.employerFeedback} color="bg-emerald-50 text-emerald-600" />
         </div>
 
         {/* Risk Level */}
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold">Risk Assessment</p>
-          <Badge className={getRiskColor(profile.riskLevel)}>
-            {profile.riskLevel === 'high' && <AlertTriangle className="h-3 w-3 mr-1" />}
-            {profile.riskLevel === 'low' && <CheckCircle className="h-3 w-3 mr-1" />}
-            {profile.riskLevel === 'medium' && <AlertTriangle className="h-3 w-3 mr-1" />}
-            {profile.riskLevel.charAt(0).toUpperCase() + profile.riskLevel.slice(1)} Risk
+        <div className="flex items-center justify-between bg-neutral-50 dark:bg-neutral-800/50 p-6 rounded-3xl">
+          <p className="text-xs font-black uppercase tracking-widest text-neutral-900 dark:text-neutral-100">Risk Matrix</p>
+          <Badge className={cn("border-none px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-widest shadow-sm", getRiskColor(profile.riskLevel))}>
+            {profile.riskLevel.toUpperCase()} RISK
           </Badge>
         </div>
-
-        {/* Score Components Breakdown */}
-        {expandable && (
-          <div className="space-y-3 border-t pt-3">
-            <p className="text-xs font-semibold text-muted-foreground">Score Components (Simplified)</p>
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between">
-                <span>Issuance Accuracy</span>
-                <span className="font-semibold">{profile.scoreComponents.issuanceAccuracy}/100</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Revocation Rate</span>
-                <span className="font-semibold">{profile.scoreComponents.revocationRate}/100</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Employer Feedback</span>
-                <span className="font-semibold">{profile.scoreComponents.employerFeedback}/100</span>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Action Button */}
         {onViewDetails && (
           <Button
             variant="outline"
-            className="w-full"
+            className="w-full h-14 rounded-2xl font-black text-xs uppercase tracking-widest"
             onClick={onViewDetails}
           >
-            View Full Profile
+            View Full Audit
           </Button>
         )}
       </CardContent>
     </Card>
   );
+}
+
+function MetricBox({ label, value, color }: { label: string; value: string | number; color: string }) {
+    return (
+        <div className={cn("rounded-2xl p-5 text-center transition-all", color)}>
+            <p className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-1">{label}</p>
+            <p className="text-xl font-black">{value}</p>
+        </div>
+    );
 }
 
 // Example usage component showing multiple institutions

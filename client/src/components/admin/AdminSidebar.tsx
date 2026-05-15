@@ -27,6 +27,7 @@ interface SidebarProps {
 export function AdminSidebar({ activeTab, setActiveTab, onLogout, adminEmail }: SidebarProps) {
     const menuItems = [
         { id: 'overview', label: 'Network Control', icon: LayoutDashboard },
+        { id: 'security', label: 'Security Telemetry', icon: ShieldAlert },
         { id: 'notifications', label: 'Admin Notifications', icon: Bell },
         { id: 'governance', label: 'DAO Governance', icon: ShieldCheck },
         { id: 'blockchain', label: 'On-Chain Ledger', icon: Link2 },

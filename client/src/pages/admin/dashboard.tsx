@@ -47,6 +47,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import BlockchainManagement from "@/components/BlockchainManagement";
 import UserManagement from "@/components/admin/UserManagement";
+import SecurityDashboard from "@/components/admin/SecurityDashboard";
 import AdminGovernanceDashboard from "@/pages/admin/governance-dashboard";
 import { SystemIntegrity } from "@/components/admin/SystemIntegrity";
 import { useVerificationRequests, useRevenueData, useReviewVerification, useAuditLogs } from "@/hooks/useAdmin";
@@ -81,7 +82,7 @@ function AdminDashboardContent() {
     enabled: true,
   });
   
-  const [activeTab, setActiveTab] = useState<'overview' | 'notifications' | 'governance' | 'blockchain' | 'users' | 'audit' | 'integrity'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'notifications' | 'governance' | 'blockchain' | 'users' | 'audit' | 'integrity' | 'security'>('overview');
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [reviewModal, setReviewModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -548,6 +549,12 @@ function AdminDashboardContent() {
               {activeTab === 'users' && (
                 <div className="max-w-7xl mx-auto">
                   <UserManagement />
+                </div>
+              )}
+
+              {activeTab === 'security' && (
+                <div className="w-full">
+                  <SecurityDashboard />
                 </div>
               )}
 

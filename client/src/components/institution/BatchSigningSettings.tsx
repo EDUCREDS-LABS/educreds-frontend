@@ -1,91 +1,70 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Input } from "@/components/ui/input";
 import { 
   Key, 
-  Lock, 
-  Unlock, 
-  CheckCircle, 
-  XCircle, 
+  ShieldCheck, 
+  RefreshCw, 
   AlertTriangle, 
-  Zap,
-  Shield,
-  Info
+  Lock, 
+  Zap, 
+  ShieldAlert,
+  ArrowRight,
+  Fingerprint,
+  Activity,
+  CheckCircle,
+  Database,
+  Globe
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { api } from "@/lib/api";
 import { getAuthHeaders } from "@/lib/auth";
 import { API_CONFIG } from "@/config/api";
-import { useAuth } from "@/hooks/useAuth";
-
-interface BatchSigningStatus {
-  enabled: boolean;
-  message: string;
-}
+import { Skeleton } from "@/components/ui/loading-skeleton";
+import { cn } from "@/lib/utils";
 
 export default function BatchSigningSettings() {
-  const { user } = useAuth();
   const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [privateKey, setPrivateKey] = useState("");
-  const [showKey, setShowKey] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [status, setStatus] = useState<BatchSigningStatus | null>(null);
-  const [testResult, setTestResult] = useState<any>(null);
-
-  // Institution ID is stored in 'id' field for institution users
-  const institutionId = user?.id;
+  const [institutionSettings, setInstitutionSettings] = useState<any>(null);
 
   useEffect(() => {
-    fetchStatus();
-  }, [institutionId]);
+    fetchSettings();
+  }, []);
 
-  const fetchStatus = async () => {
-    if (!institutionId) return;
-
+  const fetchSettings = async () => {
     try {
-      const response = await fetch(
-        `${API_CONFIG.CERT}/api/institutions/${institutionId}/batch-signing/status`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            ...getAuthHeaders(),
-          },
-        }
-      );
+      setLoading(true);
+      const response = await fetch(`${API_CONFIG.CERT}/api/institutions/settings`, {
+        headers: getAuthHeaders(),
+      });
       const data = await response.json();
-      setStatus(data);
+      setInstitutionSettings(data);
     } catch (error) {
-      console.error("Failed to fetch batch signing status:", error);
+      console.error("Failed to fetch institution settings:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleStoreKey = async () => {
-    if (!privateKey.trim()) {
+  const handleUpdateKey = async () => {
+    if (!privateKey || privateKey.length < 64) {
       toast({
-        title: "Error",
-        description: "Please enter your private key",
+        title: "Invalid Security Key",
+        description: "Private key must be a valid 64-character hex string.",
         variant: "destructive",
       });
       return;
     }
 
-    if (!privateKey.startsWith("0x")) {
-      toast({
-        title: "Invalid Format",
-        description: "Private key must start with 0x",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
     try {
+      setIsUpdating(true);
       const response = await fetch(
-        `${API_CONFIG.CERT}/api/institutions/${institutionId}/batch-signing/store-key`,
+        `${API_CONFIG.CERT}/api/institutions/batch-signing-config`,
         {
           method: "POST",
           headers: {
@@ -98,317 +77,171 @@ export default function BatchSigningSettings() {
 
       const data = await response.json();
 
-      if (data.success) {
+      if (response.ok) {
         toast({
-          title: "Success",
-          description: data.message,
+          title: "Protocol Synchronized",
+          description: "Batch signing keys have been cryptographically updated.",
         });
         setPrivateKey("");
-        setShowKey(false);
-        fetchStatus();
+        fetchSettings();
       } else {
-        toast({
-          title: "Error",
-          description: data.message || "Failed to store private key",
-          variant: "destructive",
-        });
+        throw new Error(data.message || "Failed to update batch signing key");
       }
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to store private key",
+        title: "Key Rotation Failed",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsUpdating(false);
     }
   };
 
-  const handleRemoveKey = async () => {
-    if (!confirm("Are you sure you want to remove your stored private key? This will disable automatic batch signing.")) {
-      return;
-    }
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-32 w-full rounded-[32px]" />
+        <Skeleton className="h-64 w-full rounded-[32px]" />
+      </div>
+    );
+  }
 
-    setLoading(true);
-    try {
-      const response = await fetch(
-        `${API_CONFIG.CERT}/api/institutions/${institutionId}/batch-signing/remove-key`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            ...getAuthHeaders(),
-          },
-        }
-      );
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast({
-          title: "Success",
-          description: data.message,
-        });
-        fetchStatus();
-        setTestResult(null);
-      } else {
-        toast({
-          title: "Error",
-          description: data.message || "Failed to remove private key",
-          variant: "destructive",
-        });
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to remove private key",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleTestKey = async () => {
-    setTesting(true);
-    setTestResult(null);
-    try {
-      const response = await fetch(
-        `${API_CONFIG.CERT}/api/institutions/${institutionId}/batch-signing/test-key`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            ...getAuthHeaders(),
-          },
-        }
-      );
-
-      const data = await response.json();
-      setTestResult(data);
-
-      if (data.success) {
-        toast({
-          title: "Test Successful",
-          description: "Your stored private key is valid and ready to use",
-        });
-      } else {
-        toast({
-          title: "Test Failed",
-          description: data.message || "Private key test failed",
-          variant: "destructive",
-        });
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to test private key",
-        variant: "destructive",
-      });
-    } finally {
-      setTesting(false);
-    }
-  };
+  const isConfigured = institutionSettings?.batchSigningEnabled;
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Zap className="w-5 h-5 text-yellow-600" />
-            <CardTitle>Batch Signing (Automatic)</CardTitle>
+    <div className="space-y-10">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-primary font-black uppercase tracking-[0.2em] text-[10px]">
+            <Key className="size-4" />
+            Cryptographic Authority
           </div>
-          {status?.enabled ? (
-            <Badge className="bg-green-100 text-green-800 flex items-center gap-1">
-              <CheckCircle className="w-3 h-3" />
-              Enabled
-            </Badge>
-          ) : (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              <XCircle className="w-3 h-3" />
-              Disabled
-            </Badge>
-          )}
+          <h2 className="text-3xl font-black text-neutral-900 dark:text-neutral-100 tracking-tighter">
+            Batch <span className="text-primary">Signing</span>.
+          </h2>
+          <p className="text-neutral-500 font-medium max-w-lg">
+            Configure institutional keys for high-velocity, tamper-proof credential issuance across the decentralized network.
+          </p>
         </div>
-        <CardDescription>
-          Store your private key securely to enable automatic batch signing for bulk certificate issuance
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Info Alert */}
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertDescription>
-            <strong>What is Batch Signing?</strong>
-            <p className="mt-1 text-sm">
-              When enabled, bulk certificate issuance (100+ certificates) will be signed automatically using your stored private key. 
-              This eliminates the need for manual signatures and reduces processing time from 15-20 minutes to 2-3 minutes.
-            </p>
-          </AlertDescription>
-        </Alert>
+        <Badge className={cn(
+          "px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-widest border-none shadow-lg",
+          isConfigured ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+        )}>
+          {isConfigured ? "Protocol Synchronized" : "Manual Authorization Only"}
+        </Badge>
+      </div>
 
-        {/* Benefits */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 bg-blue-50 rounded-lg">
-            <div className="flex items-center gap-2 text-blue-700 font-medium mb-1">
-              <Zap className="w-4 h-4" />
-              6-8x Faster
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        {/* Configuration Card */}
+        <Card className="lg:col-span-7 border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900 group">
+          <CardHeader className="p-10 border-b border-neutral-50 dark:border-neutral-800 relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:rotate-12 transition-transform duration-700">
+              <Zap className="size-32" />
             </div>
-            <p className="text-sm text-blue-600">
-              Process 100 certificates in 2-3 minutes instead of 15-20 minutes
-            </p>
-          </div>
-          <div className="p-4 bg-green-50 rounded-lg">
-            <div className="flex items-center gap-2 text-green-700 font-medium mb-1">
-              <CheckCircle className="w-4 h-4" />
-              Zero Manual Signatures
+            <div className="relative z-10">
+              <CardTitle className="text-2xl font-black">Key Rotation Protocol</CardTitle>
+              <CardDescription className="font-bold text-[10px] uppercase tracking-widest text-primary">Authority Synchronization</CardDescription>
             </div>
-            <p className="text-sm text-green-600">
-              No need to sign each transaction manually - fully automated
-            </p>
-          </div>
-          <div className="p-4 bg-purple-50 rounded-lg">
-            <div className="flex items-center gap-2 text-purple-700 font-medium mb-1">
-              <Shield className="w-4 h-4" />
-              Secure Encryption
+          </CardHeader>
+          <CardContent className="p-10 space-y-8">
+            <div className="p-6 bg-neutral-50 dark:bg-neutral-800 rounded-3xl border border-neutral-100 dark:border-neutral-700 flex items-start gap-5">
+              <div className="size-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <AlertTriangle className="size-6" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-black text-neutral-900 dark:text-neutral-100 uppercase tracking-tight">Security Advisory</p>
+                <p className="text-xs text-neutral-500 font-medium leading-relaxed">
+                  Batch signing keys grant the ability to issue credentials on behalf of the institution. Keep this key strictly confidential and rotate it periodically.
+                </p>
+              </div>
             </div>
-            <p className="text-sm text-purple-600">
-              Your key is encrypted with AES-256-GCM military-grade encryption
-            </p>
-          </div>
-        </div>
 
-        {!status?.enabled ? (
-          <>
-            {/* Store Private Key */}
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="privateKey" className="flex items-center gap-2">
-                  <Key className="w-4 h-4" />
-                  Institution Private Key
-                </Label>
+                <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest ml-1">Institutional Authority Key (Hex)</label>
                 <div className="relative">
-                  <Input
-                    id="privateKey"
-                    type={showKey ? "text" : "password"}
-                    placeholder="0x..."
+                  <Input 
+                    type="password"
+                    placeholder="0x..." 
                     value={privateKey}
-                    onChange={(e) => {
-                      let value = e.target.value.trim();
-                      // Remove 0x if present, then add it back to normalize
-                      if (value.startsWith('0x') || value.startsWith('0X')) {
-                        value = value.slice(2);
-                      }
-                      // Only add 0x if there's actual content
-                      setPrivateKey(value ? `0x${value}` : '');
-                    }}
-                    className="font-mono pr-10"
+                    onChange={(e) => setPrivateKey(e.target.value)}
+                    className="h-16 rounded-[24px] bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner pl-14 font-mono text-xs"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowKey(!showKey)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700"
-                  >
-                    {showKey ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                  </button>
+                  <Lock className="absolute left-5 top-1/2 -translate-y-1/2 size-5 text-neutral-400" />
                 </div>
-                <p className="text-xs text-neutral-600">
-                  Export your private key from MetaMask: Account Details → Show Private Key
-                </p>
               </div>
-
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>Security Warning:</strong> Your private key will be encrypted and stored securely. 
-                  Never share your private key with anyone. You can remove it anytime.
-                </AlertDescription>
-              </Alert>
-
-              <Button 
-                onClick={handleStoreKey} 
-                disabled={loading || !privateKey.trim()}
-                className="w-full"
-              >
-                {loading ? "Storing..." : "Enable Batch Signing"}
-              </Button>
+              <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-widest text-center px-4">
+                Keys are encrypted using AES-256 and never stored in plain text.
+              </p>
             </div>
-          </>
-        ) : (
-          <>
-            {/* Key Stored - Show Status */}
+
+            <Button 
+              onClick={handleUpdateKey}
+              disabled={isUpdating}
+              className="w-full h-16 rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all"
+            >
+              {isUpdating ? <RefreshCw className="size-5 mr-2 animate-spin" /> : <RefreshCw className="size-5 mr-2" />}
+              Synchronize Protocol Keys
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Status Info Card */}
+        <div className="lg:col-span-5 space-y-8">
+          <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-neutral-900 text-white relative">
+            <div className="absolute top-0 right-0 p-10 opacity-10">
+              <ShieldCheck className="size-48 rotate-12" />
+            </div>
+            <CardHeader className="p-10 pb-4 relative z-10">
+              <div className="size-14 bg-white/10 rounded-2xl flex items-center justify-center text-primary mb-6 backdrop-blur-xl border border-white/5">
+                <Activity className="size-8" />
+              </div>
+              <CardTitle className="text-2xl font-black tracking-tight leading-tight">Identity Status.</CardTitle>
+            </CardHeader>
+            <CardContent className="p-10 pt-0 space-y-8 relative z-10">
+              <div className="space-y-5">
+                {[
+                  { label: "Blockchain Sync", status: isConfigured ? "Active" : "Inactive", icon: Globe },
+                  { label: "Protocol v2.4", status: "Enabled", icon: Database },
+                  { label: "Signatory Authority", status: institutionSettings?.walletAddress?.substring(0, 10) + "...", icon: Fingerprint },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 backdrop-blur-sm">
+                    <div className="flex items-center gap-3">
+                      <item.icon className="size-4 text-white/40" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-white/60">{item.label}</span>
+                    </div>
+                    <span className="text-xs font-black text-white">{item.status}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-white/40 text-[9px] font-bold uppercase tracking-[0.3em] leading-relaxed">
+                Institutional authority is validated through decentralized consensus audit before cryptographic keys are accepted by the network.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Quick Help */}
+          <div className="p-8 bg-white dark:bg-neutral-900 rounded-[40px] border border-neutral-100 dark:border-neutral-800 shadow-xl shadow-neutral-200/30">
+            <h4 className="text-sm font-black text-neutral-900 dark:text-neutral-100 uppercase tracking-widest mb-4">Protocol Integration</h4>
             <div className="space-y-4">
-              <Alert className="bg-green-50 border-green-200">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-800">
-                  {status.message}
-                </AlertDescription>
-              </Alert>
-
-              {/* Test Result */}
-              {testResult && (
-                <Alert className={testResult.success ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}>
-                  {testResult.success ? (
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <XCircle className="h-4 w-4 text-red-600" />
-                  )}
-                  <AlertDescription className={testResult.success ? "text-green-800" : "text-red-800"}>
-                    <strong>{testResult.success ? "Test Passed" : "Test Failed"}</strong>
-                    <p className="mt-1">{testResult.message}</p>
-                    {testResult.walletAddress && (
-                      <p className="mt-1 font-mono text-xs">{testResult.walletAddress}</p>
-                    )}
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Actions */}
-              <div className="flex gap-2">
-                <Button 
-                  onClick={handleTestKey} 
-                  disabled={testing}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  {testing ? "Testing..." : "Test Key"}
-                </Button>
-                <Button 
-                  onClick={handleRemoveKey} 
-                  disabled={loading}
-                  variant="destructive"
-                  className="flex-1"
-                >
-                  {loading ? "Removing..." : "Remove Key"}
-                </Button>
+              <div className="flex items-start gap-3">
+                <div className="size-5 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                  <CheckCircle className="size-3" />
+                </div>
+                <p className="text-xs text-neutral-500 font-medium">Batch signing allows for zero-interaction credential issuance via API.</p>
               </div>
-
-              {/* Usage Info */}
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-700">
-                  <strong>How to use:</strong> When you perform bulk certificate issuance, 
-                  the system will automatically use your stored key to sign all transactions. 
-                  No manual intervention required!
-                </p>
+              <div className="flex items-start gap-3">
+                <div className="size-5 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                  <CheckCircle className="size-3" />
+                </div>
+                <p className="text-xs text-neutral-500 font-medium">All signatures are verifiable on-chain by any third party.</p>
               </div>
             </div>
-          </>
-        )}
-
-        {/* Security Info */}
-        <div className="pt-4 border-t">
-          <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-            <Shield className="w-4 h-4" />
-            Security Features
-          </h4>
-          <ul className="text-xs text-neutral-600 space-y-1">
-            <li>• AES-256-GCM encryption (military-grade)</li>
-            <li>• Unique encryption key per institution</li>
-            <li>• Keys only decrypted in memory during signing</li>
-            <li>• Can be removed anytime</li>
-            <li>• Audit trail of all key operations</li>
-          </ul>
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

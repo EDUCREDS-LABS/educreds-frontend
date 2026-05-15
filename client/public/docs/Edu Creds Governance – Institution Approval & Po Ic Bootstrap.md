@@ -73,7 +73,7 @@ Voting Power = Base Weight × Credibility Score × Age Factor
 
   * On-chain behavior
   * Verified feedback
-  * Quack AI risk signals
+  * Educreds Trust Agent risk signals
 
 Example:
 
@@ -103,7 +103,7 @@ Prevents newly admitted institutions from dominating governance.
    * Domains
    * Accreditation proofs
 
-2. **Quack AI analyzes** (off-chain)
+2. **Educreds Trust Agent analyzes** (off-chain)
 
    * Consistency checks
    * Registry verification
@@ -172,7 +172,7 @@ This is safe because of **self-regulating constraints**:
 
 * Voting power caps
 * Age factor penalties
-* Collusion detection via Quack AI
+* Collusion detection via Educreds Trust Agent
 * Fraud reports trigger disputes
 * Bad approvals reduce approver PoIC
 
@@ -180,15 +180,15 @@ This is safe because of **self-regulating constraints**:
 
 ---
 
-## 6️⃣ Role of Quack AI (Precisely Defined)
+## 6️⃣ Role of Educreds Trust Agent (Precisely Defined)
 
-Quack AI **does NOT**:
+Educreds Trust Agent **does NOT**:
 
 * Vote
 * Mint NFTs
 * Override governance
 
-Quack AI **DOES**:
+Educreds Trust Agent **DOES**:
 
 * Analyze applicants
 * Score risk and legitimacy
@@ -196,7 +196,7 @@ Quack AI **DOES**:
 * Simulate governance outcomes
 * Trigger anomaly alerts
 
-> Think of Quack AI as a **super-intelligent advisor**, not a ruler.
+> Think of Educreds Trust Agent as a **super-intelligent advisor**, not a ruler.
 
 ---
 

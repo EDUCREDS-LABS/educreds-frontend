@@ -367,14 +367,14 @@ export default function ModernAuthUnified() {
 
         {/* Right Side - Auth Form */}
         <div className="flex-1 flex items-center justify-center p-8">
-          <Card className="w-full max-w-md shadow-xl border-0">
+          <Card className="w-full max-w-md shadow-2xl border-none rounded-[40px] bg-white dark:bg-neutral-900 p-8">
             <CardHeader className="text-center pb-6">
               <div className="lg:hidden flex items-center justify-center space-x-2 mb-4">
                 <img src="/logo.png" alt="EduCreds" className="h-6 w-auto" />
                 <span className="text-lg font-bold text-neutral-900">EduCreds</span>
               </div>
 
-              <CardTitle className="text-2xl font-bold text-neutral-900">
+              <CardTitle className="text-3xl font-black text-neutral-900 dark:text-white tracking-tighter">
                 Welcome Back
               </CardTitle>
               <p className="text-neutral-600">
@@ -401,7 +401,7 @@ export default function ModernAuthUnified() {
                       setError("");
                     }}
                     variant="outline"
-                    className="w-full h-11"
+                    className="w-full h-14 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg"
                     disabled={isLoading}
                   >
                     Back to Login
@@ -446,7 +446,7 @@ export default function ModernAuthUnified() {
                                   type="email"
                                   placeholder="admin@university.edu"
                                   {...field}
-                                  className="h-11"
+                                  className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner"
                                 />
                               </FormControl>
                               <FormMessage />
@@ -499,11 +499,7 @@ export default function ModernAuthUnified() {
                           </Link>
                         </div>
 
-                        <Button
-                          type="submit"
-                          className="w-full h-11 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
-                          disabled={isLoading}
-                        >
+                        <Button type="submit" className="w-full h-14 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all" disabled={isLoading}>
                           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                           Send OTP & Sign In
                         </Button>
@@ -570,7 +566,7 @@ export default function ModernAuthUnified() {
                           <Button
                             onClick={disconnect}
                             variant="outline"
-                            className="w-full h-11"
+                            className="w-full h-14 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg"
                             disabled={isLoading}
                           >
                             Disconnect Wallet

@@ -96,8 +96,12 @@ export function ChatWidget() {
                     <div className="bg-white dark:bg-neutral-900 px-4 py-3 flex justify-between items-center border-b border-neutral-200 dark:border-neutral-800">
                         <div className="flex items-center space-x-3">
                             <div className="relative">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
-                                    <Bot className="h-6 w-6 text-white" />
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center overflow-hidden">
+                                    <img 
+                                        src="https://res.cloudinary.com/dycszahnr/image/upload/q_auto/f_auto/v1777384457/5a541823-5b20-414e-a541-820ccf7d1032_n4ecdp.jpg" 
+                                        alt="EduCreds AI" 
+                                        className="w-full h-full object-cover" 
+                                    />
                                 </div>
                                 <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-white dark:border-neutral-900" />
                             </div>
@@ -115,8 +119,12 @@ export function ChatWidget() {
                         {messages.map((msg) => (
                             <div key={msg.id} className={cn("flex items-start gap-3", msg.role === "user" ? "justify-end" : "justify-start")}>
                                 {msg.role === "assistant" && (
-                                    <div className="h-8 w-8 rounded-full bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center flex-shrink-0">
-                                        <Bot className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
+                                    <div className="h-8 w-8 rounded-full bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                        <img 
+                                            src="https://res.cloudinary.com/dycszahnr/image/upload/q_auto/f_auto/v1777384457/5a541823-5b20-414e-a541-820ccf7d1032_n4ecdp.jpg" 
+                                            alt="AI" 
+                                            className="w-full h-full object-cover" 
+                                        />
                                     </div>
                                 )}
                                 <div className={cn("max-w-[85%] sm:max-w-[80%] rounded-2xl px-4 py-2.5 shadow-sm", msg.role === "user" ? "bg-primary text-primary-foreground rounded-br-lg" : "bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 rounded-bl-lg border border-neutral-200 dark:border-neutral-700")}>
@@ -148,8 +156,12 @@ export function ChatWidget() {
                         ))}
                         {isLoading && messages[messages.length-1]?.role !== 'assistant' && (
                              <div className="flex items-start gap-3 justify-start">
-                                <div className="h-8 w-8 rounded-full bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center flex-shrink-0">
-                                    <Bot className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
+                                <div className="h-8 w-8 rounded-full bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                    <img 
+                                        src="https://res.cloudinary.com/dycszahnr/image/upload/q_auto/f_auto/v1777384457/5a541823-5b20-414e-a541-820ccf7d1032_n4ecdp.jpg" 
+                                        alt="AI" 
+                                        className="w-full h-full object-cover" 
+                                    />
                                 </div>
                                 <div className="bg-white dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100 border border-neutral-200 dark:border-neutral-700 rounded-2xl rounded-bl-lg px-4 py-3 shadow-sm flex items-center space-x-2">
                                     <Loader2 className="h-4 w-4 animate-spin text-primary" />

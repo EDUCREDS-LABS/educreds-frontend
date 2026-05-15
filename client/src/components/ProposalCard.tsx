@@ -54,7 +54,7 @@ export default function ProposalCard({ proposal, onApprove, onReject }: Proposal
             <CardContent>
                 <div className="flex flex-col space-y-4">
                     <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Quack AI Verdict:</span>
+                        <span className="text-sm font-medium">Educreds Trust Agent Verdict:</span>
                         {getActionBadge(proposal.recommended_action)}
                     </div>
 

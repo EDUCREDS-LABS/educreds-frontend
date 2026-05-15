@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import {
   Card,
   CardContent,
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -21,74 +21,38 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   CheckCircle,
   Upload,
   FileSpreadsheet,
-  RefreshCcw,
+  RefreshCw,
   AlertTriangle,
   XCircle,
   Clock,
   Eye,
   FileText,
+  Database,
+  ArrowRight,
+  ShieldCheck,
+  Activity,
+  Zap,
+  ChevronRight,
+  Search,
+  Download,
+  Trash2,
+  HardDrive
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { Skeleton } from "@/components/ui/loading-skeleton";
+import { cn } from "@/lib/utils";
 
 const DATA_TYPES = [
-  { value: "STUDENTS", label: "Students" },
-  { value: "CERTIFICATES", label: "Certificates" },
-  { value: "COURSES", label: "Courses" },
-  { value: "ENROLLMENTS", label: "Enrollments" },
+  { value: "STUDENTS", label: "Student Registry", icon: Users },
+  { value: "CERTIFICATES", label: "Certificate Ledger", icon: FileText },
+  { value: "COURSES", label: "Curriculum Assets", icon: Database },
+  { value: "ENROLLMENTS", label: "Enrollment Matrix", icon: Activity },
 ];
-
-type BatchStatusTone = {
-  label: string;
-  className: string;
-};
-
-const getStatusTone = (status?: string): BatchStatusTone => {
-  const normalized = status?.toLowerCase() || "pending";
-  if (["completed"].includes(normalized)) {
-    return { label: "Completed", className: "bg-emerald-100/70 text-emerald-700 border border-emerald-300" };
-  }
-  if (["partially_completed"].includes(normalized)) {
-    return { label: "Partial", className: "bg-amber-100/70 text-amber-700 border border-amber-300" };
-  }
-  if (["processing"].includes(normalized)) {
-    return { label: "Processing", className: "bg-blue-100/70 text-blue-700 border border-blue-300" };
-  }
-  if (["failed"].includes(normalized)) {
-    return { label: "Failed", className: "bg-rose-100/70 text-rose-700 border border-rose-300" };
-  }
-  if (["cancelled"].includes(normalized)) {
-    return { label: "Cancelled", className: "bg-neutral-200 text-neutral-700 border border-neutral-300" };
-  }
-  return { label: "Pending", className: "bg-slate-100 text-slate-700 border border-slate-300" };
-};
-
-const getLogTone = (status?: string) => {
-  const normalized = status?.toLowerCase() || "";
-  if (normalized === "success") return "bg-emerald-100/70 text-emerald-700 border border-emerald-300";
-  if (normalized === "warning") return "bg-amber-100/70 text-amber-700 border border-amber-300";
-  if (normalized === "skipped") return "bg-slate-100 text-slate-700 border border-slate-300";
-  return "bg-rose-100/70 text-rose-700 border border-rose-300";
-};
-
-const formatDate = (value?: string) => {
-  if (!value) return "—";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "—";
-  return format(parsed, "MMM dd, yyyy");
-};
 
 export default function LmsMigrationPanel() {
   const { toast } = useToast();
@@ -98,526 +62,338 @@ export default function LmsMigrationPanel() {
   const [dataType, setDataType] = useState(DATA_TYPES[0].value);
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [uploadResult, setUploadResult] = useState<any>(null);
-  const [previewRows, setPreviewRows] = useState<any[]>([]);
 
-  const { data: batchesData, isLoading: batchesLoading } = useQuery({
-    queryKey: ["/api/lms-import/batches"],
-    queryFn: () => api.getLmsImportBatches({ limit: 20, offset: 0 }),
-    enabled: !!user,
+  const { data: batchesResponse, isLoading: batchesLoading } = useQuery({
+    queryKey: ["/api/lms-import/batches", user?.id],
+    queryFn: () => api.getLmsImportBatches(),
+    enabled: !!user?.id,
   });
 
-  const batches = useMemo(() => {
-    if (Array.isArray(batchesData)) return batchesData;
-    if (Array.isArray((batchesData as any)?.batches)) return (batchesData as any).batches;
-    if (Array.isArray((batchesData as any)?.data)) return (batchesData as any).data;
-    return [];
-  }, [batchesData]);
-
-  useEffect(() => {
-    if (!selectedBatchId && batches.length > 0) {
-      setSelectedBatchId(batches[0].id);
-    }
-  }, [batches, selectedBatchId]);
-
-  const selectedBatch = useMemo(
-    () => batches.find((batch: any) => batch.id === selectedBatchId),
-    [batches, selectedBatchId],
-  );
-
-  const { data: batchStatus } = useQuery({
-    queryKey: ["lms-import-batch-status", selectedBatchId],
-    queryFn: () => api.getLmsImportBatchStatus(selectedBatchId as string),
-    enabled: !!selectedBatchId,
-    refetchInterval: (data) => {
-      const status = (data as any)?.status || selectedBatch?.status;
-      return ["processing", "pending"].includes(String(status).toLowerCase()) ? 5000 : false;
-    },
-  });
-
-  const { data: logsData, isLoading: logsLoading } = useQuery({
-    queryKey: ["lms-import-batch-logs", selectedBatchId],
-    queryFn: () => api.getLmsImportLogs(selectedBatchId as string, { limit: 8, offset: 0 }),
+  const { data: logsResponse, isLoading: logsLoading } = useQuery({
+    queryKey: ["/api/lms-import/logs", selectedBatchId],
+    queryFn: () => selectedBatchId ? api.getLmsImportLogs(selectedBatchId) : Promise.resolve({ data: [] }),
     enabled: !!selectedBatchId,
   });
 
-  const logs = useMemo(() => {
-    if (Array.isArray(logsData)) return logsData;
-    if (Array.isArray((logsData as any)?.logs)) return (logsData as any).logs;
-    if (Array.isArray((logsData as any)?.data)) return (logsData as any).data;
-    return [];
-  }, [logsData]);
-
-  const { data: schemaData, isLoading: schemaLoading } = useQuery({
-    queryKey: ["lms-import-schema", dataType],
-    queryFn: () => api.getLmsImportSchema(dataType),
-    enabled: !!dataType && !!user,
-  });
-
-  const requiredFields = (schemaData as any)?.required || (schemaData as any)?.requiredFields || [];
-  const optionalFields = (schemaData as any)?.optional || (schemaData as any)?.optionalFields || [];
-
-  const createBatchMutation = useMutation({
-    mutationFn: async () => {
-      const fallbackName = `${DATA_TYPES.find((item) => item.value === dataType)?.label || "LMS"} Import ${format(new Date(), "MMM dd, yyyy")}`;
-      const payload = {
-        batchName: batchName.trim() || fallbackName,
-        dataType,
-      };
-      return api.createLmsImportBatch(payload);
-    },
-    onSuccess: (data: any) => {
-      toast({
-        title: "Import Batch Created",
-        description: `Batch ${data?.batchName || "created"} is ready for upload.`,
-      });
-      setBatchName("");
-      setSelectedBatchId(data?.id || null);
-      setCsvFile(null);
-      setUploadResult(null);
-      setPreviewRows([]);
-      queryClient.invalidateQueries({ queryKey: ["/api/lms-import/batches"] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Batch Creation Failed",
-        description: error.message || "Unable to create import batch.",
-        variant: "destructive",
-      });
-    },
-  });
+  const batches = batchesResponse?.data || [];
+  const logs = logsResponse?.data || [];
 
   const uploadMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedBatchId || !csvFile) {
-        throw new Error("Select a batch and upload a CSV file.");
-      }
-      return api.uploadLmsImportCsv(selectedBatchId, csvFile);
-    },
-    onSuccess: (data: any) => {
-      setUploadResult(data);
-      toast({
-        title: "CSV Uploaded",
-        description: `Detected ${data?.recordCount || 0} records. Import job queued.`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/lms-import/batches"] });
-      queryClient.invalidateQueries({ queryKey: ["lms-import-batch-status", selectedBatchId] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Upload Failed",
-        description: error.message || "Unable to upload CSV file.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const previewMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedBatchId) {
-        throw new Error("Select a batch to preview.");
-      }
-      return api.previewLmsImportBatch(selectedBatchId);
-    },
-    onSuccess: (data: any) => {
-      const rows = Array.isArray(data?.rows) ? data.rows : Array.isArray(data?.preview) ? data.preview : data?.data || [];
-      setPreviewRows(rows);
-      toast({
-        title: "Preview Ready",
-        description: "Review the first rows and schema validation.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Preview Failed",
-        description: error.message || "Unable to generate preview.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const cancelMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedBatchId) {
-        throw new Error("Select a batch to cancel.");
-      }
-      return api.cancelLmsImportBatch(selectedBatchId);
-    },
+    mutationFn: (data: FormData) => api.uploadLmsImport(data),
     onSuccess: () => {
-      toast({
-        title: "Batch Cancelled",
-        description: "The import was cancelled successfully.",
-      });
       queryClient.invalidateQueries({ queryKey: ["/api/lms-import/batches"] });
-      queryClient.invalidateQueries({ queryKey: ["lms-import-batch-status", selectedBatchId] });
+      toast({ title: "Protocol Initiated", description: "LMS data batch uploaded for secure ingestion." });
+      setCsvFile(null);
+      setBatchName("");
     },
     onError: (error: any) => {
-      toast({
-        title: "Cancel Failed",
-        description: error.message || "Unable to cancel this batch.",
-        variant: "destructive",
-      });
+      toast({ title: "Ingestion Failed", description: error?.message || "Verify CSV schema and retry.", variant: "destructive" });
     },
   });
 
-  const status = (batchStatus as any)?.status || selectedBatch?.status;
-  const statusTone = getStatusTone(status);
-  const totalRecords = (batchStatus as any)?.totalRecords ?? selectedBatch?.totalRecords ?? 0;
-  const processedRecords = (batchStatus as any)?.processedRecords ?? selectedBatch?.processedRecords ?? 0;
-  const progressPercentage =
-    (batchStatus as any)?.progressPercentage ??
-    (totalRecords > 0 ? Math.round((processedRecords / totalRecords) * 100) : 0);
+  const handleUpload = () => {
+    if (!csvFile || !batchName) {
+      toast({ title: "Missing Assets", description: "Batch name and CSV payload required.", variant: "destructive" });
+      return;
+    }
+    const formData = new FormData();
+    formData.append("file", csvFile);
+    formData.append("name", batchName);
+    formData.append("dataType", dataType);
+    uploadMutation.mutate(formData);
+  };
+
+  const selectedBatch = useMemo(() => 
+    batches.find((b: any) => b.id === selectedBatchId), [batches, selectedBatchId]
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-bold text-neutral-900">LMS Migration & Continuous Sync</h2>
-          <p className="text-sm text-neutral-600 mt-1">
-            Import students, courses, and certificates directly from your LMS with full audit logging.
+    <div className="space-y-10 pb-12">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-primary font-black uppercase tracking-[0.2em] text-[10px]">
+            <RefreshCw className="size-4" />
+            Strategic Migration
+          </div>
+          <h1 className="text-4xl font-black text-neutral-900 dark:text-neutral-100 tracking-tighter">
+            LMS <span className="text-primary">Bridge</span>.
+          </h1>
+          <p className="text-neutral-500 font-medium max-w-xl">
+            Synchronize legacy academic records with decentralised protocol infrastructure via secure batch ingestion.
           </p>
         </div>
-        <Badge className="bg-slate-900 text-white">Phase 1 • CSV Imports</Badge>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <Card className="xl:col-span-2 border-0 shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileSpreadsheet className="w-5 h-5 text-primary" />
-              Create Import Batch
-            </CardTitle>
-            <CardDescription>Define the dataset and prepare the batch for upload.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-700">Batch Name</label>
-                <Input
-                  value={batchName}
-                  onChange={(e) => setBatchName(e.target.value)}
-                  placeholder="Fall 2026 Students"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-700">Data Type</label>
-                <Select value={dataType} onValueChange={setDataType}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select data type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DATA_TYPES.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <Button onClick={() => createBatchMutation.mutate()} disabled={createBatchMutation.isPending}>
-                {createBatchMutation.isPending ? "Creating..." : "Create Batch"}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/lms-import/batches"] })}
-              >
-                <RefreshCcw className="w-4 h-4 mr-2" />
-                Refresh
-              </Button>
-            </div>
-
-            <div className="rounded-lg border border-dashed border-neutral-300 bg-neutral-50/70 p-4 space-y-3">
-              <div className="flex items-start gap-3">
-                <Upload className="w-5 h-5 text-neutral-500 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-neutral-800">Upload CSV File</p>
-                  <p className="text-xs text-neutral-500">Attach your LMS export once the batch is ready.</p>
-                </div>
-              </div>
-              <div className="flex flex-col md:flex-row md:items-center gap-3">
-                <input
-                  id="lms-csv-upload"
-                  type="file"
-                  accept=".csv"
-                  className="hidden"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0] || null;
-                    if (file && !file.name.endsWith(".csv")) {
-                      toast({
-                        title: "Invalid File",
-                        description: "Please upload a CSV file.",
-                        variant: "destructive",
-                      });
-                      return;
-                    }
-                    setCsvFile(file);
-                    setUploadResult(null);
-                    setPreviewRows([]);
-                  }}
-                />
-                <label
-                  htmlFor="lms-csv-upload"
-                  className="flex-1 cursor-pointer rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-600 hover:border-neutral-300"
-                >
-                  {csvFile ? csvFile.name : "Choose a CSV file"}
-                </label>
-                <Button
-                  onClick={() => uploadMutation.mutate()}
-                  disabled={!csvFile || !selectedBatchId || uploadMutation.isPending}
-                >
-                  {uploadMutation.isPending ? "Uploading..." : "Upload CSV"}
-                </Button>
-              </div>
-              {uploadResult && (
-                <Alert className="border-emerald-200 bg-emerald-50">
-                  <CheckCircle className="h-4 w-4 text-emerald-600" />
-                  <AlertDescription className="text-emerald-800">
-                    {uploadResult?.recordCount || 0} records detected. Import queued for processing.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-
-            <div className="rounded-lg border border-neutral-200 bg-white">
-              <div className="border-b border-neutral-100 p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">CSV Schema</p>
-                  <p className="text-sm text-neutral-900 mt-1">Required and optional columns for this dataset.</p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => previewMutation.mutate()}
-                  disabled={!selectedBatchId || previewMutation.isPending}
-                >
-                  <Eye className="w-4 h-4 mr-2" />
-                  Preview
-                </Button>
-              </div>
-              <div className="p-4 space-y-4">
-                {schemaLoading ? (
-                  <p className="text-sm text-neutral-500">Loading schema...</p>
-                ) : (
-                  <>
-                    <div>
-                      <p className="text-sm font-medium text-neutral-700 mb-2">Required Fields</p>
-                      <div className="flex flex-wrap gap-2">
-                        {(requiredFields.length > 0 ? requiredFields : ["email", "walletAddress"]).map((field: string) => (
-                          <Badge key={field} className="bg-slate-100 text-slate-700 border border-slate-200">
-                            {field}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-neutral-700 mb-2">Optional Fields</p>
-                      <div className="flex flex-wrap gap-2">
-                        {(optionalFields.length > 0 ? optionalFields : ["enrollDate", "courseName"]).map((field: string) => (
-                          <Badge key={field} className="bg-neutral-100 text-neutral-600 border border-neutral-200">
-                            {field}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {previewRows.length > 0 && (
-              <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <FileText className="w-4 h-4 text-blue-600" />
-                  <p className="text-sm font-medium text-blue-800">Preview Rows</p>
-                </div>
-                <pre className="text-xs text-blue-900 bg-white/70 rounded-md p-3 overflow-auto max-h-40">
-                  {JSON.stringify(previewRows.slice(0, 3), null, 2)}
-                </pre>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-primary" />
-              Recent Batches
-            </CardTitle>
-            <CardDescription>Track historical imports and active queues.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {batchesLoading && <p className="text-sm text-neutral-500">Loading batches...</p>}
-            {!batchesLoading && batches.length === 0 && (
-              <div className="text-sm text-neutral-500">No import batches yet.</div>
-            )}
-            {!batchesLoading &&
-              batches.slice(0, 6).map((batch: any) => {
-                const tone = getStatusTone(batch.status);
-                return (
-                  <button
-                    key={batch.id}
-                    onClick={() => setSelectedBatchId(batch.id)}
-                    className={`w-full text-left border rounded-lg p-3 transition-all ${
-                      selectedBatchId === batch.id
-                        ? "border-primary bg-primary/5"
-                        : "border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-semibold text-neutral-900">{batch.batchName}</p>
-                        <p className="text-xs text-neutral-500 mt-1">{formatDate(batch.createdAt)}</p>
-                      </div>
-                      <Badge className={tone.className}>{tone.label}</Badge>
-                    </div>
-                    <p className="text-xs text-neutral-500 mt-2">{batch.dataType}</p>
-                  </button>
-                );
-              })}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <Card className="border-0 shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-primary" />
-              Batch Status
-            </CardTitle>
-            <CardDescription>Operational insights for the selected batch.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!selectedBatch && (
-              <p className="text-sm text-neutral-500">Select a batch to view progress.</p>
-            )}
-            {selectedBatch && (
-              <>
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-neutral-900">{selectedBatch.batchName}</p>
-                    <p className="text-xs text-neutral-500 mt-1">
-                      Created {formatDate(selectedBatch.createdAt)} • {selectedBatch.dataType}
-                    </p>
-                  </div>
-                  <Badge className={statusTone.className}>{statusTone.label}</Badge>
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
+        {/* Upload Interface */}
+        <div className="xl:col-span-5 space-y-8">
+          <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900">
+            <CardHeader className="p-10 border-b border-neutral-50 dark:border-neutral-800">
+              <CardTitle className="text-2xl font-black">Ingestion Payload</CardTitle>
+              <CardDescription className="font-bold text-[10px] uppercase tracking-widest text-primary">New Migration Batch</CardDescription>
+            </CardHeader>
+            <CardContent className="p-10 space-y-8">
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest ml-1">Batch Identifier</label>
+                  <Input 
+                    placeholder="Q3 Academic Cycle 2024" 
+                    value={batchName}
+                    onChange={(e) => setBatchName(e.target.value)}
+                    className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner"
+                  />
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs text-neutral-500">
-                    <span>Progress</span>
-                    <span>{progressPercentage}%</span>
-                  </div>
-                  <Progress value={progressPercentage} className="h-2" />
+                  <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest ml-1">Resource Schema</label>
+                  <Select value={dataType} onValueChange={setDataType}>
+                    <SelectTrigger className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner font-bold">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-2xl p-2 border-neutral-100 dark:border-neutral-800">
+                      {DATA_TYPES.map(type => (
+                        <SelectItem key={type.value} value={type.value} className="rounded-xl font-bold py-3">
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="rounded-lg border border-neutral-200 p-3">
-                    <p className="text-xs text-neutral-500">Total</p>
-                    <p className="text-lg font-semibold text-neutral-900">{totalRecords}</p>
-                  </div>
-                  <div className="rounded-lg border border-neutral-200 p-3">
-                    <p className="text-xs text-neutral-500">Processed</p>
-                    <p className="text-lg font-semibold text-neutral-900">{processedRecords}</p>
-                  </div>
-                  <div className="rounded-lg border border-neutral-200 p-3">
-                    <p className="text-xs text-neutral-500">Success</p>
-                    <p className="text-lg font-semibold text-neutral-900">
-                      {(batchStatus as any)?.successfulRecords ?? selectedBatch.successfulRecords ?? 0}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-neutral-200 p-3">
-                    <p className="text-xs text-neutral-500">Errors</p>
-                    <p className="text-lg font-semibold text-neutral-900">
-                      {(batchStatus as any)?.failedRecords ?? selectedBatch.failedRecords ?? 0}
-                    </p>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest ml-1">CSV Source</label>
+                  <div className={cn(
+                    "border-2 border-dashed rounded-[32px] p-10 transition-all flex flex-col items-center gap-4 cursor-pointer",
+                    csvFile ? "border-primary bg-primary/5" : "border-neutral-200 dark:border-neutral-800 hover:border-primary/50"
+                  )} onClick={() => document.getElementById('lms-csv-input')?.click()}>
+                    <input 
+                      type="file" 
+                      id="lms-csv-input" 
+                      accept=".csv" 
+                      className="hidden" 
+                      onChange={(e) => setCsvFile(e.target.files?.[0] || null)} 
+                    />
+                    <div className={cn(
+                      "size-16 rounded-[24px] flex items-center justify-center transition-all",
+                      csvFile ? "bg-primary text-white scale-110" : "bg-neutral-100 dark:bg-neutral-800 text-neutral-400"
+                    )}>
+                      {csvFile ? <CheckCircle className="size-8" /> : <Upload className="size-8" />}
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-black text-neutral-900 dark:text-neutral-100">
+                        {csvFile ? csvFile.name : "Select CSV payload"}
+                      </p>
+                      <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mt-1">
+                        {csvFile ? `${(csvFile.size / 1024).toFixed(2)} KB` : "Max file size: 50MB"}
+                      </p>
+                    </div>
                   </div>
                 </div>
+              </div>
 
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => queryClient.invalidateQueries({ queryKey: ["lms-import-batch-status", selectedBatchId] })}
-                  >
-                    <RefreshCcw className="w-4 h-4 mr-2" />
-                    Refresh Status
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => previewMutation.mutate()}
-                    disabled={!selectedBatchId || previewMutation.isPending}
-                  >
-                    <Eye className="w-4 h-4 mr-2" />
-                    Preview
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => cancelMutation.mutate()}
-                    disabled={!selectedBatchId || cancelMutation.isPending}
-                  >
-                    <XCircle className="w-4 h-4 mr-2" />
-                    Cancel Batch
+              <Button 
+                onClick={handleUpload}
+                disabled={uploadMutation.isPending || !csvFile || !batchName}
+                className="w-full h-16 rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all"
+              >
+                {uploadMutation.isPending ? <RefreshCw className="size-5 mr-2 animate-spin" /> : <HardDrive className="size-5 mr-2" />}
+                Initiate Synchronisation
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Security Banner */}
+          <div className="p-8 bg-neutral-900 rounded-[40px] text-white space-y-6 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:rotate-12 transition-transform duration-700">
+              <ShieldCheck className="size-32" />
+            </div>
+            <div className="space-y-4 relative z-10">
+              <div className="size-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-xl border border-white/5">
+                <Lock className="size-6 text-primary" />
+              </div>
+              <h4 className="text-2xl font-black tracking-tight leading-tight">Integrity Guaranteed.</h4>
+              <p className="text-white/60 text-sm font-medium leading-relaxed">All LMS assets are cryptographically hashed and verified before protocol deployment. Data is encrypted at rest during the ingestion phase.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Status & Logs */}
+        <div className="xl:col-span-7 space-y-8">
+          <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900">
+            <CardHeader className="p-10 border-b border-neutral-50 dark:border-neutral-800 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-2xl font-black">Registry State</CardTitle>
+                <CardDescription className="font-bold text-[10px] uppercase tracking-widest text-primary">Active & Historic Batches</CardDescription>
+              </div>
+              <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 text-neutral-400 hover:text-primary">
+                <RefreshCw className="size-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-neutral-50/50 dark:bg-neutral-800/50 text-[10px] font-black text-neutral-400 uppercase tracking-widest text-left">
+                      <th className="px-10 py-5">Protocol Batch</th>
+                      <th className="px-10 py-5">Classification</th>
+                      <th className="px-10 py-5">Telemetry</th>
+                      <th className="px-10 py-5">Status</th>
+                      <th className="px-10 py-5">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                    {batchesLoading ? (
+                      Array.from({ length: 4 }).map((_, i) => (
+                        <tr key={i}><td colSpan={5} className="px-10 py-6"><Skeleton className="h-10 w-full rounded-xl" /></td></tr>
+                      ))
+                    ) : batches.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-10 py-24 text-center">
+                          <div className="flex flex-col items-center gap-4 text-neutral-300">
+                            <FileSpreadsheet className="size-16 opacity-20" />
+                            <p className="font-black uppercase tracking-[0.2em] text-[10px]">No active migrations detected</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      batches.map((batch: any) => (
+                        <tr key={batch.id} className={cn(
+                          "hover:bg-neutral-50/50 dark:hover:bg-neutral-800/50 transition-colors cursor-pointer group",
+                          selectedBatchId === batch.id && "bg-primary/[0.03] border-l-4 border-l-primary"
+                        )} onClick={() => setSelectedBatchId(batch.id)}>
+                          <td className="px-10 py-6">
+                            <p className="text-sm font-black text-neutral-900 dark:text-neutral-100">{batch.name}</p>
+                            <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mt-1">
+                              {batch.createdAt && isValid(new Date(batch.createdAt)) ? format(new Date(batch.createdAt), "MMM dd, yyyy") : "Pending"}
+                            </p>
+                          </td>
+                          <td className="px-10 py-6">
+                            <Badge variant="outline" className="rounded-full px-3 py-1 font-bold text-[9px] uppercase tracking-widest border-neutral-200">
+                              {batch.dataType}
+                            </Badge>
+                          </td>
+                          <td className="px-10 py-6">
+                            <div className="flex items-center gap-3">
+                              <div className="space-y-1 flex-1 min-w-[100px]">
+                                <div className="flex justify-between text-[9px] font-black uppercase tracking-widest mb-1">
+                                  <span>Load</span>
+                                  <span>{Math.round(((batch.processedCount || 0) / (batch.totalCount || 1)) * 100)}%</span>
+                                </div>
+                                <Progress value={((batch.processedCount || 0) / (batch.totalCount || 1)) * 100} className="h-1.5" />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-10 py-6">
+                            <StatusBadge status={batch.status} />
+                          </td>
+                          <td className="px-10 py-6 text-right">
+                            <ChevronRight className="size-4 text-neutral-300 group-hover:text-primary transition-all group-hover:translate-x-1" />
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Detailed Logs for selected batch */}
+          {selectedBatchId && (
+            <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900 animate-in slide-in-from-bottom-4 duration-500">
+              <CardHeader className="p-10 border-b border-neutral-50 dark:border-neutral-800 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl font-black italic tracking-tighter uppercase">Audit Trail: {selectedBatch?.name}</CardTitle>
+                  <CardDescription className="font-bold text-[10px] uppercase tracking-widest text-primary">Item-level ingestion results</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="rounded-xl font-bold text-[10px] uppercase tracking-widest h-9 px-4">
+                    <Download className="size-3.5 mr-2" /> Export
                   </Button>
                 </div>
-
-                {(batchStatus as any)?.errorSummary && (
-                  <Alert className="border-rose-200 bg-rose-50">
-                    <AlertTriangle className="h-4 w-4 text-rose-600" />
-                    <AlertDescription className="text-rose-800">
-                      {(batchStatus as any).errorSummary}
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-primary" />
-              Import Logs
-            </CardTitle>
-            <CardDescription>Latest row-level results for this batch.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {!selectedBatchId && <p className="text-sm text-neutral-500">Select a batch to view logs.</p>}
-            {selectedBatchId && logsLoading && <p className="text-sm text-neutral-500">Loading logs...</p>}
-            {selectedBatchId && !logsLoading && logs.length === 0 && (
-              <p className="text-sm text-neutral-500">No log entries yet.</p>
-            )}
-            {selectedBatchId && logs.length > 0 && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Row</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Message</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {logs.map((log: any) => (
-                    <TableRow key={log.id || `${log.rowNumber}-${log.createdAt}`}>
-                      <TableCell className="font-medium">{log.rowNumber ?? "—"}</TableCell>
-                      <TableCell>
-                        <Badge className={getLogTone(log.status)}>{log.status || "ERROR"}</Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-neutral-600">
-                        {log.message || log.errorDetails || "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+              </CardHeader>
+              <CardContent className="p-0 max-h-[500px] overflow-y-auto no-scrollbar">
+                <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                  {logsLoading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="p-6"><Skeleton className="h-12 w-full rounded-xl" /></div>
+                    ))
+                  ) : logs.length === 0 ? (
+                    <div className="p-20 text-center text-neutral-400 font-bold uppercase tracking-widest text-[10px]">
+                      No audit logs generated for this registry block.
+                    </div>
+                  ) : (
+                    logs.map((log: any, i: number) => (
+                      <div key={i} className="p-6 hover:bg-neutral-50/50 transition-colors flex items-center justify-between group">
+                        <div className="flex items-center gap-4">
+                          <div className={cn(
+                            "size-10 rounded-xl flex items-center justify-center",
+                            log.status === 'SUCCESS' ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
+                          )}>
+                            {log.status === 'SUCCESS' ? <CheckCircle className="size-5" /> : <XCircle className="size-5" />}
+                          </div>
+                          <div>
+                            <p className="text-xs font-black text-neutral-900 dark:text-neutral-100 uppercase tracking-tight">
+                              {log.entityIdentifier || `Item #${i+1}`}
+                            </p>
+                            <p className="text-[10px] font-medium text-neutral-500 max-w-md truncate">
+                              {log.message || "Processed successfully"}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge variant="ghost" className="text-[9px] font-black text-neutral-400 group-hover:text-neutral-900">
+                          {log.status}
+                        </Badge>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   );
 }
+
+function StatusBadge({ status }: { status?: string }) {
+  const normalized = status?.toLowerCase() || "pending";
+  
+  const styles: Record<string, string> = {
+    completed: "bg-emerald-50 text-emerald-600",
+    partially_completed: "bg-amber-50 text-amber-600",
+    processing: "bg-blue-50 text-blue-600",
+    failed: "bg-red-50 text-red-600",
+    cancelled: "bg-neutral-100 text-neutral-500",
+    pending: "bg-neutral-50 text-neutral-400",
+  };
+
+  return (
+    <Badge className={cn(
+      "border-none px-3 py-1 rounded-full font-black text-[9px] uppercase tracking-widest",
+      styles[normalized] || styles.pending
+    )}>
+      {normalized.replace('_', ' ')}
+    </Badge>
+  );
+}
+
+const Users = ({ className }: { className?: string }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);

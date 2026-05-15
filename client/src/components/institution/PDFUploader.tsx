@@ -1,11 +1,12 @@
-import { UseFormReturn } from 'react-hook-form';
+import { useState } from "react";
+import { UseFormReturn, useFieldArray } from "react-hook-form";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -14,20 +15,19 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
+} from "@/components/ui/form";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 import {
   FileUp,
   Loader2,
@@ -37,7 +37,10 @@ import {
   Calendar,
   X,
   FileText,
+  Plus,
+  Trash2,
 } from 'lucide-react';
+import { cn } from "@/lib/utils";
 
 interface PDFUploaderProps {
   form: UseFormReturn<any>;
@@ -57,352 +60,149 @@ export function PDFUploader({
   setUploadProgress,
 }: PDFUploaderProps) {
   const pdfFile = form.watch('pdfFile');
+  
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "certificates",
+  });
 
   return (
-    <Card className="border-0 shadow-sm">
-      <CardHeader className="pb-4">
-        <CardTitle>PDF Certificate Upload</CardTitle>
-        <CardDescription>
-          Upload your pre-designed PDF certificate and add recipient details
-        </CardDescription>
+    <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900">
+      <CardHeader className="p-10 border-b border-neutral-50 dark:border-neutral-800">
+        <CardTitle className="text-2xl font-black">PDF Asset Issuance</CardTitle>
+        <CardDescription className="font-bold text-[10px] uppercase tracking-widest text-primary">Upload PDF and add recipients (1-10)</CardDescription>
       </CardHeader>
-      <CardContent>
-        <Alert className="mb-6 border-amber-200 bg-amber-50">
-          <FileUp className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-amber-800">
-            Upload a completed PDF certificate. Recipient information will be
-            embedded as metadata and the certificate will be anchored on the
-            blockchain for verification.
-          </AlertDescription>
-        </Alert>
-
+      <CardContent className="p-10">
         <Form {...form}>
-          <form onSubmit={onSubmit} className="space-y-8">
+          <form onSubmit={onSubmit} className="space-y-10">
             {/* PDF Upload Section */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-neutral-900 flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold">
-                  1
-                </span>
-                Upload Certificate PDF
-              </h3>
-
-              <FormField
-                control={form.control}
-                name="pdfFile"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="sr-only">PDF File</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <input
-                          type="file"
-                          accept=".pdf,application/pdf"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              field.onChange(file);
-                              setUploadProgress(0);
-                            }
-                          }}
-                          className="hidden"
-                          id="pdf-upload-input"
-                        />
-                        <label
-                          htmlFor="pdf-upload-input"
-                          className="flex flex-col items-center justify-center w-full px-6 py-12 border-2 border-dashed border-neutral-300 rounded-lg cursor-pointer hover:border-primary hover:bg-primary/5 transition-all group"
-                        >
-                          {!pdfFile ? (
-                            <div className="text-center">
-                              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-neutral-100 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                                <Upload className="w-8 h-8 text-neutral-400 group-hover:text-primary transition-colors" />
-                              </div>
-                              <p className="text-base font-medium text-neutral-900 mb-1">
-                                Click to upload or drag and drop
-                              </p>
-                              <p className="text-sm text-neutral-600">
-                                PDF files only, maximum 10MB
-                              </p>
-                            </div>
-                          ) : (
-                            <div className="w-full">
-                              <div className="flex items-center justify-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-                                <FileText className="w-8 h-8 text-green-600 flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-green-900 truncate">
-                                    {pdfFile.name}
-                                  </p>
-                                  <p className="text-xs text-green-700 mt-0.5">
-                                    {(pdfFile.size / 1024).toFixed(2)} KB
-                                  </p>
+            <div className="space-y-6">
+                <h3 className="text-lg font-black tracking-tight">1. Upload Certificate PDF</h3>
+                <FormField
+                    control={form.control}
+                    name="pdfFile"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormControl>
+                        <div className="relative">
+                            <input
+                            type="file"
+                            accept=".pdf,application/pdf"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                field.onChange(file);
+                                setUploadProgress(0);
+                                }
+                            }}
+                            className="hidden"
+                            id="pdf-upload-input"
+                            />
+                            <label
+                            htmlFor="pdf-upload-input"
+                            className="flex flex-col items-center justify-center w-full px-6 py-12 border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-3xl cursor-pointer hover:border-primary hover:bg-primary/5 transition-all group"
+                            >
+                            {!pdfFile ? (
+                                <div className="text-center">
+                                <div className="size-16 mx-auto mb-4 rounded-full bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center">
+                                    <Upload className="size-8 text-neutral-400 group-hover:text-primary transition-colors" />
                                 </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    field.onChange(null);
-                                    setUploadProgress(0);
-                                  }}
-                                  className="flex-shrink-0 text-green-700 hover:text-green-900 hover:bg-green-100"
-                                >
-                                  <X className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </label>
-                      </div>
-                    </FormControl>
-                    <FormDescription className="text-xs mt-2">
-                      Supported format: PDF • Max size: 10MB • Ensure all content is
-                      visible and properly formatted
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                                <p className="text-sm font-black text-neutral-900 dark:text-neutral-100">Click to upload or drag and drop</p>
+                                <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mt-1">PDF files only, maximum 10MB</p>
+                                </div>
+                            ) : (
+                                <div className="w-full flex items-center gap-4 p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-2xl">
+                                    <FileText className="size-8 text-emerald-600" />
+                                    <div className="flex-1">
+                                        <p className="text-sm font-black text-emerald-900 dark:text-emerald-100">{pdfFile.name}</p>
+                                        <p className="text-[10px] text-emerald-700 font-bold uppercase">{(pdfFile.size / 1024).toFixed(2)} KB</p>
+                                    </div>
+                                    <Button type="button" variant="ghost" size="sm" onClick={(e) => { e.preventDefault(); e.stopPropagation(); field.onChange(null); }}>
+                                        <X className="size-4" />
+                                    </Button>
+                                </div>
+                            )}
+                            </label>
+                        </div>
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
             </div>
 
             <Separator />
 
             {/* Recipient Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-neutral-900 flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold">
-                  2
-                </span>
-                Recipient Information
-              </h3>
-
-              <FormField
-                control={form.control}
-                name="recipientWallet"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm font-medium">
-                      Blockchain Address *
-                    </FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Wallet className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                        <Input
-                          {...field}
-                          placeholder="0x..."
-                          className="pl-10 h-11 font-mono text-sm"
-                        />
-                      </div>
-                    </FormControl>
-                    <FormDescription className="text-xs">
-                      Ethereum address for certificate issuance
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="recipientName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm font-medium">
-                      Recipient Name *
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="John Doe"
-                        className="h-11"
-                      />
-                    </FormControl>
-                    <FormDescription className="text-xs">
-                      As it appears on the certificate
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="completionDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm font-medium">
-                        Completion Date *
-                      </FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                          <Input
-                            {...field}
-                            type="date"
-                            className="pl-10 h-11"
-                          />
+            <div className="space-y-6">
+              <h3 className="text-lg font-black tracking-tight">2. Recipient Information</h3>
+              
+                {fields.map((item, index) => (
+                    <div key={item.id} className="p-6 bg-neutral-50 dark:bg-neutral-800 rounded-3xl border border-neutral-100 dark:border-neutral-800 space-y-6">
+                        <div className="flex items-center justify-between">
+                            <span className="font-black text-xs text-primary uppercase tracking-widest">Asset {index + 1}</span>
+                            {fields.length > 1 && (
+                                <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)} className="text-red-500 hover:text-red-600">
+                                    <Trash2 className="size-4" />
+                                </Button>
+                            )}
                         </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="certificateType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm font-medium">
-                        Certificate Type *
-                      </FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger className="h-11">
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Course Completion">
-                            Course Completion
-                          </SelectItem>
-                          <SelectItem value="Degree">Degree</SelectItem>
-                          <SelectItem value="Diploma">Diploma</SelectItem>
-                          <SelectItem value="Certification">
-                            Certification
-                          </SelectItem>
-                          <SelectItem value="Achievement">Achievement</SelectItem>
-                          <SelectItem value="Participation">
-                            Participation
-                          </SelectItem>
-                          <SelectItem value="Training">Training</SelectItem>
-                          <SelectItem value="Workshop">Workshop</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <FormField control={form.control} name={`certificates.${index}.recipientName`} render={({ field }) => (
+                                <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Student Name</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl></FormItem>
+                            )}/>
+                            <FormField control={form.control} name={`certificates.${index}.recipientWallet`} render={({ field }) => (
+                                <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Wallet Address</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl font-mono" /></FormControl></FormItem>
+                            )}/>
+                            <FormField control={form.control} name={`certificates.${index}.completionDate`} render={({ field }) => (
+                                <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Completion Date</FormLabel><FormControl><Input type="date" {...field} className="h-12 rounded-xl" /></FormControl></FormItem>
+                            )}/>
+                            <FormField control={form.control} name={`certificates.${index}.courseName`} render={({ field }) => (
+                                <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Course Name</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl></FormItem>
+                            )}/>
+                            <FormField control={form.control} name={`certificates.${index}.grade`} render={({ field }) => (
+                                <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Grade</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl></FormItem>
+                            )}/>
+                            <FormField control={form.control} name={`certificates.${index}.certificateType`} render={({ field }) => (
+                                <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Type</FormLabel><FormControl>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="certificate">Certificate</SelectItem>
+                                            <SelectItem value="diploma">Diploma</SelectItem>
+                                            <SelectItem value="degree">Degree</SelectItem>
+                                            <SelectItem value="transcript">Transcript</SelectItem>
+                                            <SelectItem value="achievement">Achievement</SelectItem>
+                                            <SelectItem value="badge">Badge</SelectItem>
+                                            <SelectItem value="license">License</SelectItem>
+                                            <SelectItem value="membership">Membership</SelectItem>
+                                            <SelectItem value="award">Award</SelectItem>
+                                        </SelectContent>                                    </Select>
+                                </FormControl></FormItem>
+                            )}/>
+                            <FormField control={form.control} name={`certificates.${index}.description`} render={({ field }) => (
+                                <FormItem className="md:col-span-2"><FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Description</FormLabel><FormControl><Textarea {...field} className="rounded-xl" /></FormControl></FormItem>
+                            )}/>
+                        </div>
+                    </div>
+                ))}
+                
+              {fields.length < 10 && (
+                  <Button type="button" variant="outline" onClick={() => append({ recipientName: "", recipientWallet: "", completionDate: new Date().toISOString().split('T')[0], certificateType: 'Course Completion' })} className="h-14 rounded-2xl font-black text-xs uppercase tracking-widest w-full">
+                      <Plus className="size-4 mr-2" /> Add Another Recipient
+                  </Button>
+              )}
             </div>
-
-            <Separator />
-
-            {/* Optional Details */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-neutral-900">
-                3. Additional Details (Optional)
-              </h3>
-
-              <FormField
-                control={form.control}
-                name="courseName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm font-medium">
-                      Course Name
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="e.g., Advanced Web Development"
-                        className="h-11"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="grade"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm font-medium">
-                      Grade / Score
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="A, 4.0 GPA, 95%, Distinction"
-                        className="h-11"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm font-medium">
-                      Description / Notes
-                    </FormLabel>
-                    <FormControl>
-                      <Textarea
-                        {...field}
-                        placeholder="Additional information about the certificate..."
-                        className="min-h-[100px] resize-none"
-                        rows={4}
-                      />
-                    </FormControl>
-                    <FormDescription className="text-xs">
-                      Optional details or special notes about this certificate
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Upload Progress */}
-            {uploadProgress > 0 && uploadProgress < 100 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-neutral-900">
-                    Uploading certificate...
-                  </span>
-                  <span className="text-neutral-600">{uploadProgress}%</span>
-                </div>
-                <Progress value={uploadProgress} className="h-2" />
-              </div>
-            )}
 
             {/* Submit Actions */}
-            <div className="flex gap-3 pt-6 border-t">
+            <div className="flex gap-3 pt-6 border-t border-neutral-100 dark:border-neutral-800">
               <Button
                 type="submit"
                 disabled={isLoading || isLimitExceeded || !pdfFile}
-                className="flex-1 h-12 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-base font-medium"
+                className="flex-1 h-14 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all"
               >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Issuing Certificate...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-5 h-5 mr-2" />
-                    Issue Certificate
-                  </>
-                )}
-              </Button>
-              <Button
-                type="reset"
-                variant="outline"
-                className="h-12 px-8"
-                onClick={() => {
-                  form.reset();
-                  setUploadProgress(0);
-                }}
-              >
-                Clear
+                {isLoading ? <Loader2 className="size-5 mr-2 animate-spin" /> : <CheckCircle className="size-5 mr-2" />}
+                Issue {fields.length} Certificates
               </Button>
             </div>
           </form>

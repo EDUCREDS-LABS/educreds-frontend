@@ -1,11 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Upload, Search, FileDown, Printer, Zap } from 'lucide-react';
+import { 
+  CheckCircle, 
+  XCircle, 
+  Upload, 
+  Search, 
+  FileDown, 
+  Printer, 
+  Zap, 
+  ShieldCheck, 
+  ShieldAlert,
+  FileText,
+  Database,
+  Globe,
+  RefreshCw,
+  ArrowRight,
+  Fingerprint,
+  Link2,
+  Lock,
+  Cpu
+} from 'lucide-react';
+import { Skeleton } from "@/components/ui/loading-skeleton";
+import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function CertificateVerification() {
   const [verificationMethod, setVerificationMethod] = useState<'w3c' | 'legacy'>('w3c');
@@ -16,611 +38,302 @@ export function CertificateVerification() {
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [disclaimerChecked, setDisclaimerChecked] = useState(false);
-  const [quickMode, setQuickMode] = useState(false);
-  const [autoRan, setAutoRan] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
-    const certificateIdParam = params.get('certificateId') || params.get('certId');
-    const ipfsParam = params.get('ipfs') || params.get('ipfsHash');
-    const tokenParam = params.get('tokenId') || params.get('token');
-    const quickParam = params.get('mode') === 'quick';
+    const certId = params.get('certificateId') || params.get('certId');
+    const ipfs = params.get('ipfs') || params.get('ipfsHash');
+    const token = params.get('tokenId') || params.get('token');
 
-    if (certificateIdParam || ipfsParam || tokenParam) {
+    if (certId || ipfs || token) {
       setVerificationMethod('legacy');
-      if (certificateIdParam) {
-        setCertificateId(certificateIdParam);
-      } else if (ipfsParam) {
-        setIpfsHash(ipfsParam);
-      } else if (tokenParam) {
-        setTokenId(tokenParam);
-      }
-    }
-    if (quickParam) {
-      setQuickMode(true);
+      if (certId) setCertificateId(certId);
+      else if (ipfs) setIpfsHash(ipfs);
+      else if (token) setTokenId(token);
     }
   }, []);
 
-  const clearResult = () => setResult(null);
   const parseTokenId = (value: string): number | null => {
     const normalized = String(value || '').trim().replace(/^#/, '');
-    if (!normalized) return null;
-    if (!/^\d+$/.test(normalized)) return null;
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : null;
+    if (!normalized || !/^\d+$/.test(normalized)) return null;
+    return Number(normalized);
   };
 
-  const verifyW3CCredential = async () => {
+  const handleVerify = async () => {
     if (!disclaimerChecked) {
-      alert("Please agree to the verification disclaimer before proceeding.");
+      alert("Please acknowledge the protocol verification terms.");
       return;
     }
     setLoading(true);
     try {
-      const credential = JSON.parse(w3cCredential);
-      const tokenIdNum = parseTokenId(tokenId) ?? undefined;
-
-      const result = await api.verifyHybridCredential({
-        w3cCredential: credential,
-        tokenId: tokenIdNum
-      });
-
-      setResult(result);
-    } catch (error) {
-      setResult({
-        valid: false,
-        error: error instanceof Error ? error.message : 'Verification failed'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const verifyLegacyCredential = async () => {
-    if (!disclaimerChecked) {
-      alert("Please agree to the verification disclaimer before proceeding.");
-      return;
-    }
-    setLoading(true);
-    try {
-      let result;
-
-      if (ipfsHash) {
-        result = await api.verifyCertificateByIPFS(ipfsHash);
-      } else if (tokenId) {
-        const parsedTokenId = parseTokenId(tokenId);
-        if (parsedTokenId === null) {
-          throw new Error('Invalid token ID format. Use digits only (e.g., 5)');
-        }
-        result = await api.verifyCertificateByToken(parsedTokenId);
-      } else if (certificateId) {
-        result = await api.verifyCertificate(certificateId);
+      let res;
+      if (verificationMethod === 'w3c') {
+        const credential = JSON.parse(w3cCredential);
+        res = await api.verifyHybridCredential({
+          w3cCredential: credential,
+          tokenId: parseTokenId(tokenId) ?? undefined
+        });
       } else {
-        throw new Error('Please provide at least one verification method');
+        if (ipfsHash) res = await api.verifyCertificateByIPFS(ipfsHash);
+        else if (tokenId) res = await api.verifyCertificateByToken(parseTokenId(tokenId)!);
+        else if (certificateId) res = await api.verifyCertificate(certificateId);
+        else throw new Error('Specify at least one network identifier');
       }
-
-      setResult(result);
+      setResult(res);
     } catch (error) {
-      setResult({
-        valid: false,
-        error: error instanceof Error ? error.message : 'Verification failed'
-      });
+      setResult({ valid: false, error: error instanceof Error ? error.message : 'Consensus failed' });
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    if (autoRan) return;
-    if (!disclaimerChecked) return;
-    const hasLegacy = certificateId || ipfsHash || tokenId;
-    const hasW3C = Boolean(w3cCredential && w3cCredential.trim().length > 0);
-    if (!hasLegacy && !hasW3C) return;
-
-    setAutoRan(true);
-    if (verificationMethod === 'w3c' && hasW3C) {
-      verifyW3CCredential();
-    } else if (verificationMethod === 'legacy' && hasLegacy) {
-      verifyLegacyCredential();
-    }
-  }, [autoRan, disclaimerChecked, verificationMethod, certificateId, ipfsHash, tokenId, w3cCredential]);
-
-  const buildVerificationReport = () => {
-    return {
-      generatedAt: new Date().toISOString(),
-      method: verificationMethod,
-      inputs: {
-        certificateId: certificateId || null,
-        ipfsHash: ipfsHash || null,
-        tokenId: tokenId || null,
-      },
-      result,
-    };
-  };
-
-  const downloadReport = () => {
-    const payload = buildVerificationReport();
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `verification-report-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const printReport = () => {
-    const payload = buildVerificationReport();
-    const win = window.open('', '_blank');
-    if (!win) return;
-    win.document.write(`<pre style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; white-space: pre-wrap;">${JSON.stringify(payload, null, 2)}</pre>`);
-    win.document.close();
-    win.focus();
-    win.print();
-  };
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setW3cCredential(e.target?.result as string);
-        clearResult();
-      };
-      reader.readAsText(file);
-    }
-  };
-
-  const loadSampleW3C = () => {
-    const sample = {
-      "@context": [
-        "https://www.w3.org/2018/credentials/v1",
-        "https://educreds.xyz/contexts/v1"
-      ],
-      "id": "http://educreds.xyz/credentials/3732",
-      "type": ["VerifiableCredential", "UniversityDegreeCredential"],
-      "issuer": "did:educreds:inst_001",
-      "issuanceDate": new Date().toISOString(),
-      "credentialSubject": {
-        "id": "did:educreds:student_123",
-        "degree": {
-          "type": "BachelorDegree",
-          "name": "Bachelor of Science in Computer Science"
-        }
-      },
-      "proof": {
-        "type": "Ed25519Signature2018",
-        "created": new Date().toISOString(),
-        "proofPurpose": "assertionMethod",
-        "verificationMethod": "did:educreds:inst_001#key-1",
-        "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..truncated"
-      }
-    };
-    setW3cCredential(JSON.stringify(sample, null, 2));
-    clearResult();
   };
 
   return (
-    <div className="verification-shell min-h-screen" style={{ fontFamily: 'var(--vp-sans)' }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
-        .verification-shell {
-          --vp-bg: #0f172a;
-          --vp-accent: #f59e0b;
-          --vp-ink: #0f172a;
-          --vp-surface: #ffffff;
-          --vp-mute: #94a3b8;
-          --vp-border: rgba(15, 23, 42, 0.08);
-          --vp-display: 'Space Grotesk', sans-serif;
-          --vp-sans: 'IBM Plex Sans', sans-serif;
-          background:
-            radial-gradient(circle at top left, rgba(245, 158, 11, 0.18), transparent 55%),
-            radial-gradient(circle at 30% 20%, rgba(59, 130, 246, 0.15), transparent 50%),
-            linear-gradient(120deg, #0f172a 0%, #111827 45%, #0b1120 100%);
-          color: #e2e8f0;
-        }
-        .vp-card {
-          background: rgba(15, 23, 42, 0.7);
-          border: 1px solid rgba(255,255,255,0.08);
-          border-radius: 20px;
-          box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35);
-          color: #e2e8f0;
-        }
-        .vp-card-light {
-          background: #ffffff;
-          border: 1px solid var(--vp-border);
-          border-radius: 20px;
-          box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
-          color: #0f172a;
-        }
-        .vp-title {
-          font-family: var(--vp-display);
-          letter-spacing: -0.02em;
-        }
-        .vp-animate {
-          animation: vpRise 500ms ease-out forwards;
-        }
-        @keyframes vpRise {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .vp-tab {
-          border: 1px solid rgba(255,255,255,0.12);
-          color: #e2e8f0;
-        }
-        .vp-tab.active {
-          background: rgba(245, 158, 11, 0.18);
-          border-color: rgba(245, 158, 11, 0.5);
-          color: #fff7ed;
-        }
-      `}</style>
+    <div className="max-w-4xl mx-auto space-y-10 py-12 px-4">
+      {/* Header */}
+      <div className="text-center space-y-4">
+        <div className="size-20 bg-primary/10 rounded-[32px] flex items-center justify-center text-primary mx-auto shadow-2xl shadow-primary/20">
+          <ShieldCheck className="size-10" />
+        </div>
+        <h1 className="text-5xl font-black text-neutral-900 dark:text-neutral-100 tracking-tighter leading-none">
+          Protocol <span className="text-primary">Verifier</span>.
+        </h1>
+        <p className="text-neutral-500 font-medium max-w-xl mx-auto text-lg">
+          Validate the cryptographic integrity and authenticity of academic credentials across the EduCreds decentralized network.
+        </p>
+      </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-14">
-        <div className={`grid grid-cols-1 ${quickMode ? '' : 'lg:grid-cols-[1.1fr_1.4fr]'} gap-8`}>
-          {!quickMode && (
-          <div className="space-y-6 vp-animate">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.2em] text-white/80">
-              Enterprise Verification Suite
-              <span className="h-2 w-2 rounded-full bg-emerald-400" />
-            </div>
-            <h1 className="vp-title text-4xl lg:text-5xl font-semibold">
-              Credential Verification Portal
-            </h1>
-            <p className="text-slate-200 text-base lg:text-lg max-w-xl">
-              Validate W3C credentials, IPFS proofs, and blockchain records with a single workflow.
-              Designed for compliance teams, admissions offices, and enterprise verifiers.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="vp-card p-5">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Integrity</p>
-                <p className="text-lg font-semibold mt-2 text-white">Tamper-evident audit trail</p>
-                <p className="text-sm text-slate-300 mt-2">
-                  Signatures, IPFS immutability, and optional on-chain checks.
-                </p>
+      {!result ? (
+        <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900">
+          <CardHeader className="p-10 border-b border-neutral-50 dark:border-neutral-800">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-1">
+                <CardTitle className="text-2xl font-black tracking-tight">Audit Parameters</CardTitle>
+                <CardDescription className="font-bold text-[10px] uppercase tracking-widest text-primary">Credential Entry Point</CardDescription>
               </div>
-              <div className="vp-card p-5">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Compliance</p>
-                <p className="text-lg font-semibold mt-2 text-white">GDPR-aware verification</p>
-                <p className="text-sm text-slate-300 mt-2">
-                  Verification only, no sensitive data stored in the portal.
-                </p>
-              </div>
-            </div>
-
-            <div className="vp-card p-6">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Workflow</p>
-              <div className="mt-4 space-y-3 text-sm text-slate-200">
-                <div className="flex items-center gap-3">
-                  <span className="h-7 w-7 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-semibold">1</span>
-                  Provide a W3C JSON or legacy identifier.
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="h-7 w-7 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-semibold">2</span>
-                  Run cryptographic and on-chain checks.
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="h-7 w-7 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-semibold">3</span>
-                  Export the verification result for audit.
-                </div>
-              </div>
-            </div>
-          </div>
-          )}
-
-          <div className="space-y-6 vp-animate">
-            <div className="flex flex-wrap gap-3">
-              <button
-                className={`vp-tab px-4 py-2 rounded-full text-sm ${quickMode ? 'active' : ''}`}
-                onClick={() => setQuickMode(!quickMode)}
-              >
-                <span className="inline-flex items-center gap-2">
-                  <Zap className="h-4 w-4" /> Quick Scan
-                </span>
-              </button>
-              <button
-                className={`vp-tab px-4 py-2 rounded-full text-sm ${verificationMethod === 'w3c' ? 'active' : ''}`}
-                onClick={() => {
-                  setVerificationMethod('w3c');
-                  clearResult();
-                }}
-              >
-                W3C JSON
-              </button>
-              <button
-                className={`vp-tab px-4 py-2 rounded-full text-sm ${verificationMethod === 'legacy' ? 'active' : ''}`}
-                onClick={() => {
-                  setVerificationMethod('legacy');
-                  clearResult();
-                }}
-              >
-                Certificate ID / IPFS / Token
-              </button>
-            </div>
-
-            <Card className="vp-card-light overflow-hidden">
-              <CardHeader className="border-b border-slate-100">
-                <CardTitle className="vp-title text-2xl">
-                  {verificationMethod === 'w3c'
-                    ? 'Verify W3C Credential'
-                    : 'Verify by Identifier'}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                {verificationMethod === 'w3c' && (
-                  <>
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">
-                        Upload or Paste W3C Credential JSON
-                      </label>
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        <Input
-                          type="file"
-                          accept=".json"
-                          onChange={handleFileUpload}
-                          className="flex-1"
-                        />
-                        <Button variant="outline" size="icon">
-                          <Upload className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="text-sm font-medium">Paste credential JSON</label>
-                        <Button variant="link" size="sm" onClick={loadSampleW3C} className="h-auto p-0">
-                          Load Sample JSON
-                        </Button>
-                      </div>
-                      <Textarea
-                        placeholder='{ "@context": [...], "id": "...", "type": [...], ... }'
-                        value={w3cCredential}
-                        onChange={(e) => {
-                          setW3cCredential(e.target.value);
-                          clearResult();
-                        }}
-                        rows={10}
-                        className="font-mono text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">
-                        Blockchain Token ID (Optional)
-                      </label>
-                      <Input
-                        placeholder="e.g., 12345 (optional cross-check)"
-                        value={tokenId}
-                        onChange={(e) => {
-                          setTokenId(e.target.value);
-                          clearResult();
-                        }}
-                      />
-                      <p className="text-[11px] text-slate-500 mt-1">
-                        If provided, we compare the W3C credential against the on-chain record.
-                      </p>
-                    </div>
-
-                    <Button
-                      onClick={verifyW3CCredential}
-                      disabled={!w3cCredential || loading || !disclaimerChecked}
-                      className="w-full"
-                    >
-                      <Search className="h-4 w-4 mr-2" />
-                      {loading ? 'Verifying...' : 'Verify W3C Credential'}
-                    </Button>
-                  </>
-                )}
-
-                {verificationMethod === 'legacy' && (
-                  <>
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Certificate ID</label>
-                      <Input
-                        placeholder="e.g., CERT-2024-001"
-                        value={certificateId}
-                        onChange={(e) => {
-                          setCertificateId(e.target.value);
-                          clearResult();
-                        }}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">IPFS Hash</label>
-                      <Input
-                        placeholder="e.g., QmX7Y8Z9..."
-                        value={ipfsHash}
-                        onChange={(e) => {
-                          setIpfsHash(e.target.value);
-                          clearResult();
-                        }}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Token ID</label>
-                      <Input
-                        placeholder="e.g., 12345"
-                        value={tokenId}
-                        onChange={(e) => {
-                          setTokenId(e.target.value);
-                          clearResult();
-                        }}
-                      />
-                    </div>
-
-                    <Button
-                      onClick={verifyLegacyCredential}
-                      disabled={(!certificateId && !ipfsHash && !tokenId) || loading || !disclaimerChecked}
-                      className="w-full"
-                    >
-                      <Search className="h-4 w-4 mr-2" />
-                      {loading ? 'Verifying...' : 'Verify Certificate'}
-                    </Button>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-
-            {result && (
-              <Card className="vp-card-light">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 vp-title">
-                    {result.valid ? (
-                      <CheckCircle className="h-5 w-5 text-emerald-500" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-rose-500" />
-                    )}
-                    Verification Outcome
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {result.valid ? (
-                    <div className="space-y-4">
-                      <Badge variant="default" className="bg-emerald-500">
-                        ✓ Credential Verified
-                      </Badge>
-
-                      {/* Enhanced Verification Tiers Display */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* W3C Verification Tier */}
-                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                          <div className="flex items-center gap-2 mb-2">
-                            {result.checks?.w3cValid !== false ? (
-                              <CheckCircle className="h-5 w-5 text-blue-600" />
-                            ) : (
-                              <XCircle className="h-5 w-5 text-red-500" />
-                            )}
-                            <span className="font-medium text-blue-900">W3C Standard</span>
-                          </div>
-                          <div className="text-sm text-blue-700 space-y-1">
-                            <div>• Credential structure valid</div>
-                            <div>• Digital signature verified</div>
-                            <div>• Issuer DID authenticated</div>
-                          </div>
-                          {result.checks?.w3cValid === false && result.checks?.w3cReasons && (
-                            <div className="text-xs text-red-600 mt-2">
-                              Issues: {result.checks.w3cReasons.join(', ')}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* IPFS Verification Tier */}
-                        <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                          <div className="flex items-center gap-2 mb-2">
-                            {result.checks?.ipfsValid !== false ? (
-                              <CheckCircle className="h-5 w-5 text-purple-600" />
-                            ) : (
-                              <XCircle className="h-5 w-5 text-red-500" />
-                            )}
-                            <span className="font-medium text-purple-900">IPFS Storage</span>
-                          </div>
-                          <div className="text-sm text-purple-700 space-y-1">
-                            <div>• Data immutability confirmed</div>
-                            <div>• Content hash verified</div>
-                            <div>• Decentralized access</div>
-                          </div>
-                          {result.checks?.ipfsValid === false && (
-                            <div className="text-xs text-red-600 mt-2">
-                              IPFS data temporarily unavailable
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Blockchain Verification Tier */}
-                        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                          <div className="flex items-center gap-2 mb-2">
-                            {result.checks?.blockchainValid !== false ? (
-                              <CheckCircle className="h-5 w-5 text-green-600" />
-                            ) : (
-                              <XCircle className="h-5 w-5 text-red-500" />
-                            )}
-                            <span className="font-medium text-green-900">Blockchain</span>
-                          </div>
-                          <div className="text-sm text-green-700 space-y-1">
-                            <div>• On-chain record verified</div>
-                            <div>• Token ownership confirmed</div>
-                            <div>• Transaction integrity</div>
-                          </div>
-                          {result.checks?.blockchainValid === false && (
-                            <div className="text-xs text-red-600 mt-2">
-                              Blockchain verification failed
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {result.certificate && (
-                        <div className="bg-slate-50 p-4 rounded-xl">
-                          <h4 className="font-medium mb-2">Credential Summary</h4>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                            <div><strong>Student:</strong> {result.certificate.studentName}</div>
-                            <div><strong>Course:</strong> {result.certificate.courseName}</div>
-                            <div><strong>Grade:</strong> {result.certificate.grade}</div>
-                            <div><strong>Institution:</strong> {result.certificate.institutionName}</div>
-                            {result.certificate.tokenId && (
-                              <div><strong>Token ID:</strong> {result.certificate.tokenId}</div>
-                            )}
-                            {result.certificate.ipfsHash && (
-                              <div><strong>IPFS Hash:</strong> {result.certificate.ipfsHash}</div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="flex flex-wrap gap-3 pt-2">
-                        <Button variant="outline" onClick={downloadReport}>
-                          <FileDown className="h-4 w-4 mr-2" />
-                          Export Report
-                        </Button>
-                        <Button variant="outline" onClick={printReport}>
-                          <Printer className="h-4 w-4 mr-2" />
-                          Print Report
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Badge variant="destructive">
-                        ✗ Verification Failed
-                      </Badge>
-                      {Array.isArray(result.reasons) && result.reasons.length > 0 && (
-                        <div className="text-sm text-rose-600 space-y-1">
-                          {result.reasons.map((reason: string, index: number) => (
-                            <div key={`${reason}-${index}`}>{reason}</div>
-                          ))}
-                        </div>
-                      )}
-                      {result.error && (
-                        <p className="text-sm text-rose-600">{result.error}</p>
-                      )}
-                    </div>
+              <div className="flex p-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-2xl">
+                <button 
+                  onClick={() => setVerificationMethod('w3c')}
+                  className={cn(
+                    "px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all",
+                    verificationMethod === 'w3c' ? "bg-white dark:bg-neutral-900 text-primary shadow-sm" : "text-neutral-400 hover:text-neutral-600"
                   )}
-                </CardContent>
-              </Card>
+                >
+                  W3C Payload
+                </button>
+                <button 
+                  onClick={() => setVerificationMethod('legacy')}
+                  className={cn(
+                    "px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all",
+                    verificationMethod === 'legacy' ? "bg-white dark:bg-neutral-900 text-primary shadow-sm" : "text-neutral-400 hover:text-neutral-600"
+                  )}
+                >
+                  Network ID
+                </button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-10 space-y-10">
+            {verificationMethod === 'w3c' ? (
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest ml-1">W3C Credential (JSON Payload)</label>
+                  <div className="relative group">
+                    <Textarea 
+                      rows={8}
+                      placeholder='{ "type": ["VerifiableCredential", "UniversityDegree"], ... }'
+                      value={w3cCredential}
+                      onChange={(e) => setW3cCredential(e.target.value)}
+                      className="rounded-[32px] bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner p-8 font-mono text-xs focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+                    />
+                    <div className="absolute top-8 right-8 size-12 bg-white dark:bg-neutral-900 rounded-2xl flex items-center justify-center text-neutral-300 group-focus-within:text-primary transition-colors">
+                      <Cpu className="size-6" />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest ml-1">Token ID (Optional)</label>
+                  <Input 
+                    placeholder="#12485" 
+                    value={tokenId}
+                    onChange={(e) => setTokenId(e.target.value)}
+                    className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner pl-6 font-bold"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                   <div className="space-y-2">
+                    <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest ml-1">IPFS CID Hash</label>
+                    <Input 
+                      placeholder="Qm..." 
+                      value={ipfsHash}
+                      onChange={(e) => setIpfsHash(e.target.value)}
+                      className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner pl-6 font-mono text-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest ml-1">On-Chain Token ID</label>
+                    <Input 
+                      placeholder="e.g. 5" 
+                      value={tokenId}
+                      onChange={(e) => setTokenId(e.target.value)}
+                      className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner pl-6 font-bold"
+                    />
+                  </div>
+                </div>
+                <div className="relative py-4">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-neutral-100 dark:border-neutral-800" /></div>
+                  <div className="relative flex justify-center"><span className="bg-white dark:bg-neutral-900 px-4 text-[10px] font-black text-neutral-300 uppercase tracking-[0.3em]">OR</span></div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest ml-1">EduCreds Global ID</label>
+                  <Input 
+                    placeholder="CERT-XXXX-XXXX" 
+                    value={certificateId}
+                    onChange={(e) => setCertificateId(e.target.value)}
+                    className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner pl-6 font-black tracking-widest"
+                  />
+                </div>
+              </div>
             )}
 
-            <div className="vp-card p-4">
-              <div className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  id="disclaimer"
-                  checked={disclaimerChecked}
-                  onChange={(e) => {
-                    setDisclaimerChecked(e.target.checked);
-                    clearResult();
-                  }}
-                  className="mt-1 h-4 w-4 text-amber-600 focus:ring-amber-500 border-slate-300 rounded"
-                />
-                <label htmlFor="disclaimer" className="text-sm text-slate-200">
-                  <strong>GDPR & Verification Disclaimer:</strong> I confirm I am authorized to verify this credential.
-                  EduCreds provides the verification infrastructure and does not control underlying data accuracy.
-                </label>
-              </div>
+            <div className="flex items-center space-x-3 p-6 bg-neutral-50 dark:bg-neutral-800/50 rounded-3xl border border-neutral-100 dark:border-neutral-800">
+              <input 
+                type="checkbox" 
+                id="disclaimer" 
+                className="rounded-lg size-5 text-primary focus:ring-primary/20 border-neutral-200" 
+                checked={disclaimerChecked}
+                onChange={(e) => setDisclaimerChecked(e.target.checked)}
+              />
+              <label htmlFor="disclaimer" className="text-xs font-bold text-neutral-500 uppercase tracking-tight">
+                I acknowledge that this audit is processed by the EduCreds decentralized consensus engine.
+              </label>
             </div>
-          </div>
-        </div>
+
+            <Button 
+              onClick={handleVerify}
+              disabled={loading}
+              className="w-full h-16 rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all"
+            >
+              {loading ? <RefreshCw className="size-5 mr-2 animate-spin" /> : <Zap className="size-5 mr-2" />}
+              Initiate Consensus Audit
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <AnimatePresence mode="wait">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="space-y-8"
+          >
+            <Card className={cn(
+              "border-none shadow-2xl rounded-[40px] overflow-hidden",
+              result.valid ? "bg-white dark:bg-neutral-900" : "bg-red-50 dark:bg-red-950/20"
+            )}>
+              <div className={cn(
+                "p-12 flex flex-col md:flex-row items-center gap-10",
+                result.valid ? "bg-emerald-500 text-white" : "bg-red-600 text-white"
+              )}>
+                <div className="size-24 rounded-[32px] bg-white/20 flex items-center justify-center backdrop-blur-xl border border-white/10 shadow-2xl">
+                  {result.valid ? <ShieldCheck className="size-12" /> : <ShieldAlert className="size-12" />}
+                </div>
+                <div className="text-center md:text-left space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-70">Protocol Verification Status</p>
+                  <h2 className="text-5xl font-black tracking-tighter leading-none italic uppercase">
+                    {result.valid ? "Authentic." : "Audit Failed."}
+                  </h2>
+                  <p className="text-white/80 font-bold uppercase tracking-widest text-xs">
+                    {result.valid ? "Cryptographically signed & verified on-chain" : result.error || "Integrity check returned invalid signatures"}
+                  </p>
+                </div>
+              </div>
+
+              {result.valid && (
+                <CardContent className="p-12 space-y-12">
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                      <div className="space-y-8">
+                        <h3 className="text-sm font-black uppercase tracking-[0.2em] text-primary flex items-center gap-3">
+                           <div className="size-1.5 rounded-full bg-primary" />
+                           Identity Metadata
+                        </h3>
+                        <div className="space-y-6">
+                           <ResultItem label="Recipient" value={result.certificate?.studentName || "N/A"} icon={Users} />
+                           <ResultItem label="Credential" value={result.certificate?.courseName || "N/A"} icon={FileText} />
+                           <ResultItem label="Authority" value={result.certificate?.institutionName || "N/A"} icon={Globe} />
+                        </div>
+                      </div>
+                      <div className="space-y-8">
+                        <h3 className="text-sm font-black uppercase tracking-[0.2em] text-primary flex items-center gap-3">
+                           <div className="size-1.5 rounded-full bg-primary" />
+                           Network Telemetry
+                        </h3>
+                        <div className="space-y-6">
+                           <ResultItem label="Blockchain ID" value={`Token #${result.certificate?.tokenId || "N/A"}`} icon={Database} mono />
+                           <ResultItem label="Consensus Point" value={result.certificate?.isMinted ? "Verified On-Chain" : "Stored Off-Chain"} icon={Zap} />
+                           <ResultItem label="Audit Date" value={new Date().toLocaleString()} icon={RefreshCw} />
+                        </div>
+                      </div>
+                   </div>
+
+                   <div className="pt-10 border-t border-neutral-100 dark:border-neutral-800 flex flex-wrap gap-4">
+                      <Button onClick={clearResult} variant="outline" className="h-14 px-8 rounded-2xl border-neutral-200 font-black text-xs uppercase tracking-widest">Perform New Audit</Button>
+                      <Button className="h-14 px-10 rounded-2xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 font-black text-xs uppercase tracking-widest shadow-xl">Download Official Report</Button>
+                   </div>
+                </CardContent>
+              )}
+              {!result.valid && (
+                 <CardContent className="p-12">
+                    <div className="p-8 bg-red-500/10 rounded-[32px] border border-red-500/20 space-y-4">
+                       <p className="text-red-600 font-black uppercase tracking-widest text-xs">Technical Failure Analysis</p>
+                       <p className="text-red-500/80 font-medium text-lg leading-relaxed">
+                         {result.error || "The provided payload did not match any cryptographically signed records on the EduCreds network. This credential may be fraudulent or have been revoked."}
+                       </p>
+                       <Button onClick={clearResult} className="bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold mt-4">Reset Audit</Button>
+                    </div>
+                 </CardContent>
+              )}
+            </Card>
+          </motion.div>
+        </AnimatePresence>
+      )}
+    </div>
+  );
+}
+
+function ResultItem({ label, value, icon: Icon, mono }: any) {
+  return (
+    <div className="flex items-center gap-5 group">
+      <div className="size-12 rounded-2xl bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center text-neutral-400 group-hover:text-primary transition-colors">
+        <Icon className="size-6" />
+      </div>
+      <div>
+        <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1">{label}</p>
+        <p className={cn(
+          "text-lg font-black text-neutral-900 dark:text-neutral-100 tracking-tight leading-none",
+          mono && "font-mono text-sm"
+        )}>{value}</p>
       </div>
     </div>
   );
 }
+
+const Users = ({ className }: { className?: string }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);

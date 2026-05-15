@@ -42,14 +42,15 @@ export const institutions = pgTable("institutions", {
 // API Keys Table
 export const apiKeys = pgTable("api_keys", {
   id: uuid("id").primaryKey().defaultRandom(),
-  institutionId: uuid("institutionId").references(() => institutions.id).notNull(),
-  keyHash: text("keyHash").notNull().unique(),
-  prefix: text("prefix").notNull(),
+  clientId: text("clientId").notNull().unique(),
+  clientSecret: text("clientSecret").notNull(),
   name: text("name").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  expiresAt: timestamp("expiresAt"),
-  lastUsedAt: timestamp("lastUsedAt"),
+  email: text("email").notNull(),
+  organization: text("organization").notNull(),
+  allowedApis: text("allowedApis").notNull(),
   isActive: boolean("isActive").default(true).notNull(),
+  rateLimit: integer("rateLimit").default(1000).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 // Subscriptions Table

@@ -36,6 +36,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import FileUpload from "@/components/FileUpload";
+import { Skeleton } from "@/components/ui/loading-skeleton";
 import { cn } from "@/lib/utils";
 
 const verificationSchema = z.object({
@@ -405,7 +406,7 @@ export default function GovernanceVerification() {
             <div className="space-y-4 relative z-10">
               <div className="size-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md"><Shield className="size-6" /></div>
               <h4 className="text-2xl font-black tracking-tight leading-tight">Data Sovereignty Guaranteed.</h4>
-              <p className="text-primary-foreground/70 text-sm font-medium leading-relaxed">Your information is processed by Quack AI for consensus scoring only. All sensitive documents are encrypted at rest.</p>
+              <p className="text-primary-foreground/70 text-sm font-medium leading-relaxed">Your information is processed by Educreds Trust Agent for consensus scoring only. All sensitive documents are encrypted at rest.</p>
             </div>
             <Button className="w-full h-12 bg-white text-primary hover:bg-neutral-100 rounded-xl font-black text-[10px] uppercase tracking-widest relative z-10">Read Privacy Protocol</Button>
           </div>

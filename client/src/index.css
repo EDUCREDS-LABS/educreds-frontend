@@ -89,53 +89,53 @@
 }
 
 .dark {
-  /* Tailwind v4 theme tokens (fix: ensure text-foreground, bg-background, etc. switch in dark mode) */
-  --color-background: rgb(15 20 25 / <alpha-value>);
-  --color-foreground: rgb(245 247 250 / <alpha-value>);
-  --color-muted: rgb(26 31 43 / <alpha-value>);
-  --color-muted-foreground: rgb(160 174 192 / <alpha-value>);
-  --color-popover: rgb(26 31 43 / <alpha-value>);
-  --color-popover-foreground: rgb(245 247 250 / <alpha-value>);
-  --color-card: rgb(22 27 39 / <alpha-value>);
-  --color-border: rgb(45 55 72 / <alpha-value>);
-  --color-input: rgb(45 55 72 / <alpha-value>);
-  --color-primary: #4B9EFF;
-  --color-primary-foreground: #0F1419;
-  --color-secondary: #6EBEFF;
-  --color-secondary-foreground: #0F1419;
-  --color-accent: #2DD4BF;
-  --color-accent-foreground: #0F1419;
-  --color-destructive: #F87171;
-  --color-destructive-foreground: #0F1419;
-  --color-ring: rgb(75 158 255 / <alpha-value>);
+  /* Tailwind v4 theme tokens - Midnight Professional Aesthetic */
+  --color-background: #020617;
+  --color-foreground: #f8fafc;
+  --color-muted: #1e293b;
+  --color-muted-foreground: #94a3b8;
+  --color-popover: #0f172a;
+  --color-popover-foreground: #f8fafc;
+  --color-card: #0f172a;
+  --color-border: #1e293b;
+  --color-input: #1e293b;
+  --color-primary: #3b82f6;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #1e293b;
+  --color-secondary-foreground: #ffffff;
+  --color-accent: #14b8a6;
+  --color-accent-foreground: #ffffff;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+  --color-ring: #3b82f6;
 
-  --background: #0F1419;
-  --foreground: #F5F7FA;
-  --muted: #1A1F2B;
-  --muted-foreground: #A0AEC0;
-  --popover: #1A1F2B;
-  --popover-foreground: #F5F7FA;
-  --card: #161B27;
-  --card-foreground: #F5F7FA;
-  --border: #2D3748;
-  --input: #2D3748;
-  --primary: #4B9EFF;
-  --secondary: #6EBEFF;
-  --accent: #2DD4BF;
-  --destructive: #F87171;
-  --destructive-foreground: #0F1419;
+  --background: #020617;
+  --foreground: #f8fafc;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --popover: #0f172a;
+  --popover-foreground: #f8fafc;
+  --card: #0f172a;
+  --card-foreground: #f8fafc;
+  --border: #1e293b;
+  --input: #1e293b;
+  --primary: #3b82f6;
+  --secondary: #1e293b;
+  --accent: #14b8a6;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
   --ring: var(--primary);
 
-  --neutral-50: #0f1419;
-  --neutral-100: #1a1f2b;
-  --neutral-200: #2d3748;
-  --neutral-300: #4a5568;
-  --neutral-400: #718096;
-  --neutral-500: #a0aec0;
-  --neutral-600: #cbd5e1;
-  --neutral-700: #e2e8f0;
-  --neutral-800: #f1f5f9;
-  --neutral-900: #f5f7fa;
+  --neutral-50: #020617;
+  --neutral-100: #0f172a;
+  --neutral-200: #1e293b;
+  --neutral-300: #334155;
+  --neutral-400: #475569;
+  --neutral-500: #64748b;
+  --neutral-600: #94a3b8;
+  --neutral-700: #cbd5e1;
+  --neutral-800: #e2e8f0;
+  --neutral-900: #f8fafc;
 }
 
 @layer base {
@@ -206,21 +206,25 @@
 
   /* Enterprise-grade card styling */
   [class*="Card"] {
-    @apply bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm dark:shadow-none transition-colors duration-300;
+    @apply bg-white dark:bg-neutral-100 border border-neutral-200 dark:border-neutral-200 rounded-2xl shadow-sm dark:shadow-none transition-all duration-300;
+  }
+  
+  .dark [class*="Card"] {
+    @apply border-neutral-200/10 shadow-lg shadow-black/20;
   }
 
   /* Enhanced button styling for dark mode */
   button {
-    @apply transition-all duration-200;
+    @apply transition-all duration-300;
   }
 
   button:not(:disabled):hover {
-    @apply dark:brightness-110;
+    @apply dark:brightness-110 active:scale-[0.98];
   }
 
   /* Better focus states */
   :focus-visible {
-    @apply outline-none ring-2 ring-primary ring-offset-2 dark:ring-offset-neutral-900;
+    @apply outline-none ring-2 ring-primary ring-offset-2 dark:ring-offset-neutral-50;
   }
 
   /* Improved scrollbar styling */

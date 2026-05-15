@@ -45,14 +45,14 @@ Result: **Trustless verification with governed issuance authority.**
 1. Identity Layer (DIDs)
 2. Credential Layer (W3C VC + NFT status)
 3. Governance Layer (DAO + PoIC)
-4. Intelligence Layer (Quack AI)
+4. Intelligence Layer (Educreds Trust Agent)
 
 ---
 
 ### 1.5 Institution Onboarding Flow
 
 1. Institution registers (off‑chain)
-2. Quack AI evaluates legitimacy
+2. Educreds Trust Agent evaluates legitimacy
 3. PoIC score submitted on‑chain
 4. DAO approves or vetoes
 5. Institution Identity NFT minted

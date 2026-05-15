@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthHeaders } from "@/lib/auth";
 import { API_CONFIG } from "@/config/api";
+import { api } from "@/lib/api";
 import { developerPortalApi } from "@/lib/developerPortalApi";
 import BatchSigningSettings from "./BatchSigningSettings";
 
@@ -29,34 +30,28 @@ const NotificationItem = ({
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) => (
-  <div className="flex items-center justify-between p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50 hover:bg-neutral-100 dark:hover:bg-neutral-800/60 transition-colors">
-    <div className="flex items-center gap-3 flex-1">
-      <div className="w-10 h-10 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center text-primary">
+  <div className="flex items-center justify-between p-6 rounded-3xl border border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50 transition-colors">
+    <div className="flex items-center gap-5 flex-1">
+      <div className="w-14 h-14 rounded-2xl bg-white dark:bg-neutral-800 flex items-center justify-center text-primary shadow-sm">
         {Icon}
       </div>
       <div className="flex-1">
-        <Label className="text-sm font-bold text-neutral-900 dark:text-neutral-100">{label}</Label>
-        <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5">{description}</p>
+        <Label className="text-sm font-black text-neutral-900 dark:text-neutral-100 uppercase tracking-widest">{label}</Label>
+        <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium mt-1">{description}</p>
       </div>
     </div>
-    <div className="flex items-center gap-3">
-      <div className="flex flex-col items-center">
-        {checked ? (
-          <Badge className="bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-200 font-bold text-xs px-3 py-1">
-            <Check className="w-3 h-3 mr-1" />
-            Enabled
-          </Badge>
-        ) : (
-          <Badge variant="secondary" className="bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-200 font-bold text-xs px-3 py-1">
-            <X className="w-3 h-3 mr-1" />
-            Disabled
-          </Badge>
-        )}
-      </div>
+    <div className="flex items-center gap-4">
+      <Badge className={cn(
+        "border-none px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-widest shadow-sm",
+        checked 
+            ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400" 
+            : "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"
+      )}>
+        {checked ? "Enabled" : "Disabled"}
+      </Badge>
       <Switch
         checked={checked}
         onCheckedChange={onChange}
-        className="ml-2"
       />
     </div>
   </div>
@@ -82,6 +77,12 @@ export default function InstitutionSettings() {
   const [apiKeyId, setApiKeyId] = useState<string | null>(null);
   const [isKeyLoading, setIsKeyLoading] = useState(false);
   const [isKeyAction, setIsKeyAction] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [isPasswordUpdating, setIsPasswordUpdating] = useState(false);
 
   useEffect(() => {
     if (!institutionId) {
@@ -306,6 +307,50 @@ export default function InstitutionSettings() {
     }
   };
 
+  const handlePasswordInputChange = (field: keyof typeof passwordForm, value: string) => {
+    setPasswordForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      toast({
+        title: "Incomplete information",
+        description: "Please fill in all password fields.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast({
+        title: "Password mismatch",
+        description: "New password and confirmation must match.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsPasswordUpdating(true);
+    try {
+      await api.changeInstitutionPassword(passwordForm.currentPassword, passwordForm.newPassword);
+      toast({
+        title: "Password updated",
+        description: "Your institution password has been changed successfully.",
+        variant: "default"
+      });
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Update failed",
+        description: error instanceof Error ? error.message : "Could not update your password.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsPasswordUpdating(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -322,37 +367,37 @@ export default function InstitutionSettings() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="pb-4 border-b border-neutral-200 dark:border-neutral-800">
-        <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-100">Institution Settings</h1>
-        <p className="text-neutral-600 dark:text-neutral-400 mt-2">Manage your account preferences and security settings</p>
+    <div className="space-y-10 p-2 sm:p-4">
+      <div className="pb-6 border-b border-neutral-200 dark:border-neutral-800">
+        <h1 className="text-4xl font-black text-neutral-900 dark:text-neutral-100 tracking-tighter">Institution Settings</h1>
+        <p className="text-neutral-500 dark:text-neutral-400 mt-3 text-lg font-medium">Manage your account preferences and security parameters.</p>
       </div>
 
-      {/* Batch Signing Settings - NEW */}
+      {/* Batch Signing Settings */}
       <BatchSigningSettings />
 
       {/* Security Settings */}
-      <Card className="border-neutral-200 dark:border-neutral-800">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-neutral-900 dark:text-neutral-100">
-            <Shield className="w-5 h-5 text-primary" />
+      <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900">
+        <CardHeader className="p-10 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+          <CardTitle className="flex items-center gap-3 text-2xl font-black text-neutral-900 dark:text-neutral-100">
+            <Shield className="w-6 h-6 text-primary" />
             Security & Authentication
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+        <CardContent className="p-10 space-y-10">
+          <div className="flex items-center justify-between p-6 rounded-3xl border border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
             <div className="space-y-1">
-              <Label className="text-sm font-bold text-neutral-900 dark:text-neutral-100">Two-Factor Authentication</Label>
-              <p className="text-xs text-neutral-600 dark:text-neutral-400">Add an extra layer of security to your account</p>
+              <Label className="text-sm font-black text-neutral-900 dark:text-neutral-100 uppercase tracking-widest">Two-Factor Authentication</Label>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">Add an extra layer of security to your account.</p>
             </div>
             <div className="flex items-center gap-3">
               {settings.twoFactorAuth ? (
-                <Badge className="bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-200 font-bold text-xs">
+                <Badge className="bg-emerald-50 text-emerald-600 border-none px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-widest">
                   <Check className="w-3 h-3 mr-1" />
                   Enabled
                 </Badge>
               ) : (
-                <Badge variant="secondary" className="bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-200 font-bold text-xs">
+                <Badge variant="secondary" className="bg-neutral-100 text-neutral-600 border-none px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-widest">
                   <X className="w-3 h-3 mr-1" />
                   Disabled
                 </Badge>
@@ -364,32 +409,52 @@ export default function InstitutionSettings() {
             </div>
           </div>
           
-          <Separator />
-          
-          <div className="space-y-2">
-            <Label>Change Password</Label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input type="password" placeholder="Current password" disabled />
-              <Input type="password" placeholder="New password" disabled />
+          <div className="space-y-6 pt-6 border-t border-neutral-100 dark:border-neutral-800">
+            <h3 className="text-lg font-black tracking-tight">Change Password</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Input
+                type="password"
+                placeholder="Current password"
+                className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner"
+                value={passwordForm.currentPassword}
+                onChange={(event) => handlePasswordInputChange('currentPassword', event.target.value)}
+              />
+              <Input
+                type="password"
+                placeholder="New password"
+                className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner"
+                value={passwordForm.newPassword}
+                onChange={(event) => handlePasswordInputChange('newPassword', event.target.value)}
+              />
+              <Input
+                type="password"
+                placeholder="Confirm new password"
+                className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner"
+                value={passwordForm.confirmPassword}
+                onChange={(event) => handlePasswordInputChange('confirmPassword', event.target.value)}
+              />
             </div>
-            <Button size="sm" disabled>Update Password</Button>
+            <Button size="lg" onClick={handleUpdatePassword} disabled={isPasswordUpdating} className="h-14 px-10 rounded-2xl font-black text-xs uppercase tracking-widest bg-primary text-white shadow-2xl">
+              {isPasswordUpdating ? "Updating..." : "Update Password"}
+            </Button>
           </div>
         </CardContent>
       </Card>
+...
 
       {/* API Access */}
-      <Card className="border-neutral-200 dark:border-neutral-800">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-neutral-900 dark:text-neutral-100">
-            <Key className="w-5 h-5 text-primary" />
+      <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900">
+        <CardHeader className="p-10 border-b border-neutral-50 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+          <CardTitle className="flex items-center gap-3 text-2xl font-black text-neutral-900 dark:text-neutral-100">
+            <Key className="w-6 h-6 text-primary" />
             API Access
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+        <CardContent className="p-10 space-y-8">
+          <div className="flex items-center justify-between p-6 rounded-3xl border border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
             <div className="space-y-1">
-              <Label className="text-sm font-bold text-neutral-900 dark:text-neutral-100">Enable API Access</Label>
-              <p className="text-xs text-neutral-600 dark:text-neutral-400">Allow programmatic access to your institution data</p>
+              <Label className="text-sm font-black text-neutral-900 dark:text-neutral-100 uppercase tracking-widest">Enable API Access</Label>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">Allow programmatic access to your institution data</p>
             </div>
             <Switch
               checked={settings.apiAccess}
@@ -399,11 +464,9 @@ export default function InstitutionSettings() {
           </div>
           
           {settings.apiAccess && (
-            <>
-              <Separator />
-              <div className="space-y-2 mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800">
-                <Label className="text-sm font-bold text-neutral-900 dark:text-neutral-100">API Key</Label>
-                <div className="flex gap-2">
+            <div className="space-y-4 pt-6 border-t border-neutral-100 dark:border-neutral-800">
+                <Label className="text-xs font-black uppercase tracking-widest text-neutral-400">API Key</Label>
+                <div className="flex gap-4">
                   <Input
                     value={
                       apiKeyValue
@@ -414,39 +477,34 @@ export default function InstitutionSettings() {
                     }
                     placeholder={isKeyLoading ? "Loading API key..." : "No API key generated yet"}
                     readOnly
-                    className="font-mono text-sm bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
+                    className="h-14 rounded-2xl font-mono text-sm bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner"
                   />
                   <Button
                     variant="outline"
-                    size="sm"
                     onClick={handleRegenerateKey}
                     disabled={isKeyLoading || isKeyAction}
-                    className="border-neutral-200 dark:border-neutral-700"
+                    className="h-14 rounded-2xl font-black text-xs uppercase tracking-widest"
                   >
                     {isKeyAction ? "Working..." : "Regenerate"}
                   </Button>
                 </div>
-                <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                  Keep your API key secure and never share it publicly. Full keys are only shown once after creation.
-                </p>
               </div>
-            </>
           )}
         </CardContent>
       </Card>
 
       {/* Notification Preferences */}
-      <Card className="border-neutral-200 dark:border-neutral-800">
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-neutral-900 dark:text-neutral-100">
-            <Bell className="w-5 h-5 text-primary" />
+      <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900">
+        <CardHeader className="p-10 border-b border-neutral-50 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+          <CardTitle className="flex items-center gap-3 text-2xl font-black text-neutral-900 dark:text-neutral-100">
+            <Bell className="w-6 h-6 text-primary" />
             Notification Preferences
           </CardTitle>
-          <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-2">Manage how and when you receive notifications from EduCreds</p>
+          <CardDescription className="font-bold text-[10px] uppercase tracking-widest text-neutral-400">Manage how you receive alerts</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="p-10 space-y-6">
           <NotificationItem
-            icon={<Mail className="w-4 h-4" />}
+            icon={<Mail className="w-5 h-5" />}
             label="Email Notifications"
             description="Receive updates about certificates and activities"
             checked={settings.emailNotifications}
@@ -454,7 +512,7 @@ export default function InstitutionSettings() {
           />
           
           <NotificationItem
-            icon={<Smartphone className="w-4 h-4" />}
+            icon={<Smartphone className="w-5 h-5" />}
             label="SMS Notifications"
             description="Get important alerts via text message"
             checked={settings.smsNotifications}
@@ -462,7 +520,7 @@ export default function InstitutionSettings() {
           />
           
           <NotificationItem
-            icon={<AlertTriangle className="w-4 h-4" />}
+            icon={<AlertTriangle className="w-5 h-5" />}
             label="Security Alerts"
             description="Notifications about security events and suspicious activity"
             checked={settings.securityAlerts}
@@ -470,7 +528,7 @@ export default function InstitutionSettings() {
           />
           
           <NotificationItem
-            icon={<Mail className="w-4 h-4" />}
+            icon={<Mail className="w-5 h-5" />}
             label="Marketing Emails"
             description="Product updates and educational content"
             checked={settings.marketingEmails}
@@ -480,18 +538,18 @@ export default function InstitutionSettings() {
       </Card>
 
       {/* Privacy Settings */}
-      <Card className="border-neutral-200 dark:border-neutral-800">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-neutral-900 dark:text-neutral-100">
-            <Globe className="w-5 h-5 text-primary" />
+      <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900">
+        <CardHeader className="p-10 border-b border-neutral-50 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+          <CardTitle className="flex items-center gap-3 text-2xl font-black text-neutral-900 dark:text-neutral-100">
+            <Globe className="w-6 h-6 text-primary" />
             Privacy & Visibility
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+        <CardContent className="p-10">
+          <div className="flex items-center justify-between p-6 rounded-3xl border border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
             <div className="space-y-1">
-              <Label className="text-sm font-bold text-neutral-900 dark:text-neutral-100">Public Profile</Label>
-              <p className="text-xs text-neutral-600 dark:text-neutral-400">Make your institution discoverable in public directories</p>
+              <Label className="text-sm font-black text-neutral-900 dark:text-neutral-100 uppercase tracking-widest">Public Profile</Label>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium mt-1">Make your institution discoverable in public directories</p>
             </div>
             <Switch
               checked={settings.publicProfile}
@@ -502,13 +560,13 @@ export default function InstitutionSettings() {
       </Card>
 
       {/* Save Changes */}
-      <div className="flex justify-end pt-6 border-t border-neutral-200 dark:border-neutral-800">
+      <div className="flex justify-end pt-10 border-t border-neutral-100 dark:border-neutral-800">
         <Button 
           onClick={handleSave} 
           disabled={isSaving}
-          className="bg-primary hover:bg-primary/90 text-white font-bold px-8 py-2.5 rounded-lg transition-all shadow-lg"
+          className="h-16 px-12 rounded-2xl font-black text-xs uppercase tracking-[0.2em] bg-primary text-white shadow-2xl transition-all hover:scale-[1.02]"
         >
-          {isSaving ? "Saving..." : "Save Changes"}
+          {isSaving ? "Synchronizing..." : "Synchronize Settings"}
         </Button>
       </div>
     </div>

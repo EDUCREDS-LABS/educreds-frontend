@@ -114,6 +114,7 @@ export const API_CONFIG = {
     NOTIFICATION_PREFERENCES: `${CERT_API_BASE}/api/institutions/notification-preferences`,
     VERIFICATION_STATUS: `${CERT_API_BASE}/api/institutions/verification-status`,
     VERIFICATION_DOCUMENTS: `${CERT_API_BASE}/api/institutions/verification-documents`,
+    CHANGE_PASSWORD: `${CERT_API_BASE}/auth/institution/change-password`,
     BLOCKCHAIN_STATUS: (institutionId: string) => `${CERT_API_BASE}/api/institutions/${institutionId}/blockchain-status`,
     VARIANTS: (institutionId: string) => `${MAIN_API_BASE}/api/institutions/${institutionId}/variants`
   },

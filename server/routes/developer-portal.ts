@@ -18,21 +18,21 @@ const generateKeySchema = z.object({
  */
 router.get('/keys', verifyToken, requireRole(['institution', 'admin']), async (req: AuthenticatedRequest, res) => {
     try {
-        const institutionId = req.user!.institutionId;
-        if (!institutionId) {
-            return res.status(400).json({ error: 'User not associated with an institution' });
+        const userEmail = req.user!.email;
+        if (!userEmail) {
+            return res.status(400).json({ error: 'User email is required' });
         }
 
-        const keys = await storage.getApiKeys(institutionId);
+        const keys = await storage.getApiKeys(userEmail);
 
-        // Return keys without the sensitive hash
+        // Return keys without the sensitive secret
         const safeKeys = keys.map(key => ({
             id: key.id,
             name: key.name,
-            prefix: key.prefix,
+            prefix: key.clientId,
             createdAt: key.createdAt,
-            expiresAt: key.expiresAt,
-            lastUsedAt: key.lastUsedAt,
+            expiresAt: null,
+            lastUsedAt: null,
             isActive: key.isActive
         }));
 
@@ -48,16 +48,16 @@ router.get('/keys', verifyToken, requireRole(['institution', 'admin']), async (r
  */
 router.post('/keys', verifyToken, requireRole(['institution', 'admin']), async (req: AuthenticatedRequest, res) => {
     try {
-        const institutionId = req.user!.institutionId;
-        if (!institutionId) {
-            return res.status(400).json({ error: 'User not associated with an institution' });
+        const userEmail = req.user!.email;
+        if (!userEmail) {
+            return res.status(400).json({ error: 'User email is required' });
         }
 
         // 1. Validate Input
         const validatedData = generateKeySchema.parse(req.body);
 
         // 2. Check Limits (Max 3 active keys)
-        const existingKeys = await storage.getApiKeys(institutionId);
+        const existingKeys = await storage.getApiKeys(userEmail);
         if (existingKeys.length >= 3) {
             return res.status(400).json({
                 error: 'Key limit reached',
@@ -67,7 +67,6 @@ router.post('/keys', verifyToken, requireRole(['institution', 'admin']), async (
 
         // 3. Generate Key
         const { apiKey, prefix } = generateApiKey();
-        const keyHash = await hashApiKey(apiKey);
 
         // 4. Calculate Expiry
         let expiresAt: Date | undefined;
@@ -81,23 +80,25 @@ router.post('/keys', verifyToken, requireRole(['institution', 'admin']), async (
 
         // 5. Store Key
         const newKey = await storage.createApiKey({
-            institutionId,
+            clientId: prefix,
+            clientSecret: apiKey,
             name: validatedData.name,
-            keyHash,
-            prefix,
+            email: userEmail,
+            organization: req.user!.institutionId || userEmail,
+            allowedApis: 'api_access',
+            rateLimit: 1000,
             isActive: true,
             createdAt: new Date(),
-            expiresAt: expiresAt ? expiresAt.toISOString() : undefined
-        } as any); // Type assertion needed due to Zod schema differences in insert vs storage
+        } as any);
 
         // 6. Return Key (Secret is returned ONLY here)
         res.status(201).json({
             id: newKey.id,
             name: newKey.name,
-            apiKey: apiKey, // The full secret key
-            prefix: newKey.prefix,
+            apiKey,
+            prefix: newKey.clientId,
             createdAt: newKey.createdAt,
-            expiresAt: newKey.expiresAt
+            expiresAt: null
         });
 
     } catch (error) {

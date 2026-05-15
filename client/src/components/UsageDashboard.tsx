@@ -1,12 +1,25 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, TrendingUp, Calendar, CreditCard, Activity } from 'lucide-react';
+import { 
+  AlertTriangle, 
+  TrendingUp, 
+  Calendar, 
+  CreditCard, 
+  Activity, 
+  Zap, 
+  ShieldCheck,
+  FileText,
+  Globe,
+  ArrowUpRight,
+  Database
+} from 'lucide-react';
 import { api } from '@/lib/api';
 import { Skeleton } from '@/components/ui/loading-skeleton';
+import { cn } from '@/lib/utils';
 
 interface UsageData {
   current: {
@@ -33,12 +46,7 @@ export const UsageDashboard: React.FC<UsageDashboardProps> = ({ compact = false 
   const { data: usageData, isLoading: usageLoading } = useQuery({
     queryKey: ['/api/subscription/usage'],
     queryFn: async () => {
-      // Use raw fetch for usage if not in api helper yet, but I should check if I can add it to api helper
-      // For now, I'll use the existing logic but wrapped in useQuery
-      const authHeaders = (await import('@/lib/auth')).getAuthHeaders();
-      const { API_CONFIG } = await import('@/config/api');
-      const res = await fetch(`${API_CONFIG.CERT}/api/subscription/usage`, { headers: authHeaders });
-      const data = await res.json();
+      const data = await api.getSubscriptionUsage();
       return normalizeUsage(data?.usage ?? data);
     }
   });
@@ -75,16 +83,22 @@ export const UsageDashboard: React.FC<UsageDashboardProps> = ({ compact = false 
   };
 
   const getStatusColor = (percentage: number) => {
-    if (percentage >= 90) return 'text-red-600';
-    if (percentage >= 75) return 'text-amber-600';
-    return 'text-emerald-600';
+    if (percentage >= 90) return 'text-red-500';
+    if (percentage >= 75) return 'text-amber-500';
+    return 'text-emerald-500';
+  };
+
+  const getProgressColor = (percentage: number) => {
+    if (percentage >= 90) return 'bg-red-500';
+    if (percentage >= 75) return 'bg-amber-500';
+    return 'bg-primary';
   };
 
   if (usageLoading || subLoading) {
     return (
-      <div className="p-4 space-y-4">
-        <Skeleton className="h-20 w-full rounded-xl" />
-        <Skeleton className="h-20 w-full rounded-xl" />
+      <div className={cn("grid gap-6", compact ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2")}>
+        <Skeleton className="h-32 w-full rounded-[32px]" />
+        <Skeleton className="h-32 w-full rounded-[32px]" />
       </div>
     );
   }
@@ -93,122 +107,189 @@ export const UsageDashboard: React.FC<UsageDashboardProps> = ({ compact = false 
   const subscription = (subData as any)?.subscription;
 
   if (!usage || !subscription) {
-    return <div className="p-4 text-center text-sm text-neutral-500">Failed to load usage data</div>;
+    return (
+      <div className="p-8 text-center border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-[32px]">
+        <Database className="size-10 mx-auto mb-4 text-neutral-300" />
+        <p className="font-bold text-neutral-500 uppercase tracking-widest text-xs">Infrastructure Telemetry Offline</p>
+      </div>
+    );
   }
+
+  const currentPlan = subscription.planId?.toUpperCase() || "FREE";
 
   if (compact) {
     return (
-      <div className="p-4 space-y-4">
-        <div className="space-y-1.5">
-          <div className="flex justify-between items-center text-[10px] font-black text-neutral-400 uppercase tracking-widest">
-            <span>Certificates</span>
-            <span className={getStatusColor(usage.percentageUsed.certificates)}>
-              {usage.current.certificates}/{usage.limits.certificates === -1 ? '∞' : usage.limits.certificates}
-            </span>
-          </div>
-          <Progress value={usage.percentageUsed.certificates} className="h-1.5" />
-        </div>
-
-        <div className="space-y-1.5">
-          <div className="flex justify-between items-center text-[10px] font-black text-neutral-400 uppercase tracking-widest">
-            <span>API Queries</span>
-            <span className={getStatusColor(usage.percentageUsed.apiCalls)}>
-              {usage.current.apiCalls}/{usage.limits.apiCalls === -1 ? '∞' : usage.limits.apiCalls}
-            </span>
-          </div>
-          <Progress value={usage.percentageUsed.apiCalls} className="h-1.5" />
-        </div>
+      <div className="space-y-4">
+        <UsageItem 
+          label="Certificates" 
+          current={usage.current.certificates} 
+          limit={usage.limits.certificates} 
+          percentage={usage.percentageUsed.certificates}
+          statusColor={getStatusColor(usage.percentageUsed.certificates)}
+          progressColor={getProgressColor(usage.percentageUsed.certificates)}
+          icon={FileText}
+        />
+        <UsageItem 
+          label="API Requests" 
+          current={usage.current.apiCalls} 
+          limit={usage.limits.apiCalls} 
+          percentage={usage.percentageUsed.apiCalls}
+          statusColor={getStatusColor(usage.percentageUsed.apiCalls)}
+          progressColor={getProgressColor(usage.percentageUsed.apiCalls)}
+          icon={Zap}
+        />
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-8">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-black tracking-tight text-neutral-900 uppercase">Usage & Billing</h2>
-        <Badge className={subscription.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold' : 'bg-red-50 text-red-700 border-red-200 font-bold'}>
-          {subscription.planId.toUpperCase()} • {subscription.status.toUpperCase()}
-        </Badge>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <UsageCard 
-          title="Certificates"
-          current={usage.current.certificates}
-          limit={usage.limits.certificates}
-          percentage={usage.percentageUsed.certificates}
-          icon={Award}
-          color="blue"
-        />
-        <UsageCard 
-          title="API Calls"
-          current={usage.current.apiCalls}
-          limit={usage.limits.apiCalls}
-          percentage={usage.percentageUsed.apiCalls}
-          icon={Activity}
-          color="purple"
-        />
-        <UsageCard 
-          title="Billing Period"
-          current={usage.current.billingPeriod}
-          icon={Calendar}
-          color="amber"
-          subtitle={`Resets: ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}`}
-        />
-      </div>
-
-      {(usage.percentageUsed.certificates >= 75 || usage.percentageUsed.apiCalls >= 75) && (
-        <Alert className="border-amber-200 bg-amber-50 rounded-xl">
-          <AlertTriangle className="h-5 w-5 text-amber-600" />
-          <div className="ml-3">
-            <h3 className="font-bold text-amber-800">Usage Warning</h3>
-            <p className="text-sm text-amber-700 mt-1 font-medium">
-              You're approaching your monthly limits. Consider upgrading your plan to avoid service interruption.
-            </p>
-            <Button className="mt-4 font-bold shadow-sm" size="sm" variant="outline">
-              Upgrade Plan
-            </Button>
+    <div className="space-y-8">
+      {/* Plan Summary Card */}
+      <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900 group">
+        <div className="p-10 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:opacity-10 transition-opacity">
+            <ShieldCheck className="size-48 rotate-12" />
           </div>
-        </Alert>
-      )}
+          
+          <div className="flex items-center gap-8 relative z-10">
+            <div className="size-20 bg-primary/10 rounded-[32px] flex items-center justify-center text-primary shadow-inner">
+              <Zap className="size-10" />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <Badge className="bg-primary/10 text-primary border-none font-black text-[10px] uppercase px-3 py-1">
+                  Active Subscription
+                </Badge>
+                {usage.percentageUsed.certificates > 80 && (
+                  <Badge variant="destructive" className="font-black text-[10px] uppercase px-3 py-1">
+                    Near Limit
+                  </Badge>
+                )}
+              </div>
+              <h3 className="text-4xl font-black text-neutral-900 dark:text-neutral-100 tracking-tighter">
+                {currentPlan} <span className="text-primary">Infrastucture</span>.
+              </h3>
+              <p className="text-neutral-500 font-bold uppercase tracking-widest text-[10px]">
+                Renewal Date: {usage.current.billingPeriod || "N/A"}
+              </p>
+            </div>
+          </div>
+
+          <Button 
+            variant="outline"
+            className="h-14 px-8 rounded-2xl border-neutral-200 dark:border-neutral-800 font-black text-xs uppercase tracking-widest relative z-10 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all"
+            onClick={() => window.location.href = '/institution/subscription'}
+          >
+            Upgrade Resources
+            <ArrowUpRight className="ml-2 size-4" />
+          </Button>
+        </div>
+      </Card>
+
+      {/* Usage Detail Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <UsageCard 
+          title="Protocol Issuance" 
+          description="Total certificates deployed to blockchain"
+          current={usage.current.certificates} 
+          limit={usage.limits.certificates} 
+          percentage={usage.percentageUsed.certificates}
+          statusColor={getStatusColor(usage.percentageUsed.certificates)}
+          progressColor={getProgressColor(usage.percentageUsed.certificates)}
+          icon={FileText}
+          unit="Credentials"
+        />
+        <UsageCard 
+          title="Infrastructure Access" 
+          description="High-performance API requests processed"
+          current={usage.current.apiCalls} 
+          limit={usage.limits.apiCalls} 
+          percentage={usage.percentageUsed.apiCalls}
+          statusColor={getStatusColor(usage.percentageUsed.apiCalls)}
+          progressColor={getProgressColor(usage.percentageUsed.apiCalls)}
+          icon={Zap}
+          unit="Requests"
+        />
+      </div>
     </div>
   );
 };
 
-function UsageCard({ title, current, limit, percentage, icon: Icon, color, subtitle }: any) {
-  const statusColor = (p: number) => {
-    if (p >= 90) return 'text-red-600';
-    if (p >= 75) return 'text-amber-600';
-    return 'text-emerald-600';
-  };
+function UsageCard({ title, description, current, limit, percentage, statusColor, progressColor, icon: Icon, unit }: any) {
+  const isUnlimited = limit === -1;
+  const displayLimit = isUnlimited ? "∞" : limit.toLocaleString();
 
   return (
-    <Card className="border-0 shadow-sm bg-white rounded-xl">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-xs font-black text-neutral-400 uppercase tracking-widest">{title}</CardTitle>
-        <div className="p-2 rounded-lg bg-neutral-50">
-          <Icon className="h-4 w-4 text-neutral-400" />
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-black text-neutral-900 tracking-tighter">
-          {current}
-          {limit !== undefined && (
-            <span className="text-sm font-bold text-neutral-400 ml-1">
-              /{limit === -1 ? '∞' : limit}
-            </span>
-          )}
-        </div>
-        {percentage !== undefined && (
-          <div className="mt-4 space-y-2">
-            <Progress value={percentage} className="h-1.5" />
-            <p className={`text-[10px] font-black uppercase tracking-wider ${statusColor(percentage)}`}>
-              {percentage}% used
-            </p>
+    <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900">
+      <CardContent className="p-10 space-y-8">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-4">
+            <div className="size-12 rounded-2xl bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center text-neutral-400">
+              <Icon className="size-6" />
+            </div>
+            <div>
+              <h4 className="text-lg font-black text-neutral-900 dark:text-neutral-100 tracking-tight">{title}</h4>
+              <p className="text-xs text-neutral-500 font-medium uppercase tracking-widest">{description}</p>
+            </div>
           </div>
-        )}
-        {subtitle && <p className="text-xs font-bold text-neutral-400 mt-2 uppercase">{subtitle}</p>}
+          <div className="text-right">
+             <span className={cn("text-3xl font-black tracking-tighter", statusColor)}>
+              {percentage}%
+             </span>
+             <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Utilized</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex justify-between items-end">
+            <div className="space-y-1">
+              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.2em]">Live Registry</p>
+              <p className="text-xl font-black text-neutral-900 dark:text-neutral-100">
+                {current.toLocaleString()} <span className="text-neutral-400 text-sm font-bold">/ {displayLimit} {unit}</span>
+              </p>
+            </div>
+            {!isUnlimited && percentage > 75 && (
+              <div className="flex items-center gap-2 text-[10px] font-black text-amber-500 uppercase tracking-widest bg-amber-50 dark:bg-amber-950/30 px-3 py-1 rounded-full">
+                <AlertTriangle className="size-3" />
+                Resource Exhaustion
+              </div>
+            )}
+          </div>
+          <div className="h-4 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden p-1">
+            <div 
+              className={cn("h-full rounded-full transition-all duration-1000 ease-out shadow-lg", progressColor)}
+              style={{ width: `${Math.min(percentage, 100)}%` }}
+            />
+          </div>
+        </div>
       </CardContent>
     </Card>
+  );
+}
+
+function UsageItem({ label, current, limit, percentage, statusColor, progressColor, icon: Icon }: any) {
+  const isUnlimited = limit === -1;
+  const displayLimit = isUnlimited ? "∞" : limit.toLocaleString();
+
+  return (
+    <div className="space-y-2 p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-2xl border border-neutral-100 dark:border-neutral-800">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <Icon className="size-4 text-neutral-400" />
+          <span className="text-xs font-black text-neutral-700 dark:text-neutral-300 uppercase tracking-widest">{label}</span>
+        </div>
+        <span className={cn("text-xs font-black", statusColor)}>{percentage}%</span>
+      </div>
+      <div className="h-2 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+        <div 
+          className={cn("h-full rounded-full", progressColor)}
+          style={{ width: `${Math.min(percentage, 100)}%` }}
+        />
+      </div>
+      <div className="flex justify-between text-[10px] font-bold text-neutral-500">
+        <span>{current.toLocaleString()} Used</span>
+        <span>Limit: {displayLimit}</span>
+      </div>
+    </div>
   );
 }

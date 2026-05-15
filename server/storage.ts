@@ -12,8 +12,8 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
 
   // API Keys
-  createApiKey(key: InsertApiKey & { institutionId: string, keyHash: string, prefix: string, isActive: boolean, createdAt: Date }): Promise<ApiKey>;
-  getApiKeys(institutionId: string): Promise<ApiKey[]>;
+  createApiKey(key: InsertApiKey & { clientId: string, clientSecret: string, email: string, organization: string, allowedApis: string, rateLimit: number, isActive: boolean, createdAt: Date }): Promise<ApiKey>;
+  getApiKeys(email: string): Promise<ApiKey[]>;
   getApiKey(id: string): Promise<ApiKey | undefined>;
   revokeApiKey(id: string): Promise<void>;
 
@@ -43,26 +43,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   // API Key Implementation
-  async createApiKey(keyData: InsertApiKey & { institutionId: string, keyHash: string, prefix: string, isActive: boolean, createdAt: Date }): Promise<ApiKey> {
+  async createApiKey(keyData: InsertApiKey & { clientId: string, clientSecret: string, email: string, organization: string, allowedApis: string, rateLimit: number, isActive: boolean, createdAt: Date }): Promise<ApiKey> {
     const [apiKey] = await db.insert(apiKeys).values({
       ...keyData,
-      expiresAt: keyData.expiresAt ? new Date(keyData.expiresAt) : null,
     }).returning();
     return apiKey;
   }
 
-  async getApiKeys(institutionId: string): Promise<ApiKey[]> {
-    const now = new Date();
+  async getApiKeys(email: string): Promise<ApiKey[]> {
     return db.select()
       .from(apiKeys)
       .where(
         and(
-          eq(apiKeys.institutionId, institutionId),
+          eq(apiKeys.email, email),
           eq(apiKeys.isActive, true),
-          or(
-            isNull(apiKeys.expiresAt),
-            gt(apiKeys.expiresAt, now)
-          )
         )
       );
   }

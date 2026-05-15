@@ -147,13 +147,10 @@ export default function ModernDashboard() {
 
   const getUsagePercentage = () => {
     const usage = (subscription as any)?.usage?.certificatesThisMonth || 0;
-    const limit =
-      (subscription as any)?.subscription?.planId === 'pro'
-        ? 1000
-        : (subscription as any)?.subscription?.planId === 'enterprise'
-        ? 2000
-        : 200;
-    return Math.min((usage / limit) * 100, 100);
+    const limit = (subscription as any)?.subscription?.monthlyLimit || 
+      ((subscription as any)?.subscription?.planId === 'pro' ? 1000 : 
+       (subscription as any)?.subscription?.planId === 'enterprise' ? 2000 : 200);
+    return Math.min((usage / Math.max(limit, 1)) * 100, 100);
   };
 
   const trendChartData = Array.isArray(issuanceTrendData) ? issuanceTrendData : [];
@@ -209,28 +206,41 @@ export default function ModernDashboard() {
     return acc;
   }, {} as ChartConfig);
 
-  const certificateLimit = (subscription as any)?.subscription?.monthlyLimit || 50;
+  const certificateLimit = (subscription as any)?.subscription?.monthlyLimit || 
+    ((subscription as any)?.subscription?.planId === 'pro' ? 1000 : 
+     (subscription as any)?.subscription?.planId === 'enterprise' ? 2000 : 200);
   const certificatesUsed = (subscription as any)?.usage?.certificatesThisMonth || 0;
   const certificatesRemaining = Math.max(0, certificateLimit - certificatesUsed);
   const isNearLimit = getUsagePercentage() >= 80;
 
   return (
-    <div className="min-h-screen bg-neutral-50/50">
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-50/50">
       <div className="max-w-7xl mx-auto space-y-8 px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold tracking-tight text-neutral-900">
-                Welcome back, {user?.name?.split(' ')[0] || 'Admin'}
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-3xl font-bold tracking-tight text-neutral-900 dark:text-white">
+                  Welcome back, {user?.name?.split(' ')[0] || 'Admin'}
+                </h1>
+                {stats.poicScore > 60 && (
+                  <div className="size-6 flex-shrink-0 animate-in fade-in zoom-in duration-500">
+                    <img 
+                      src="https://res.cloudinary.com/dycszahnr/image/upload/q_auto/f_auto/v1777384457/verified_badge_mysrk6.jpg" 
+                      alt="Verified" 
+                      className="w-full h-full object-contain" 
+                    />
+                  </div>
+                )}
+              </div>
               {user?.isVerified ? (
-                <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
+                <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800">
                   <CheckCircle className="w-3 h-3 mr-1" />
                   Verified
                 </Badge>
               ) : (
-                <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-200">
+                <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
                   <Clock className="w-3 h-3 mr-1" />
                   Verification Pending
                 </Badge>
@@ -249,7 +259,7 @@ export default function ModernDashboard() {
               <Plus className="w-4 h-4 mr-2" />
               Issue Certificate
             </Button>
-            <Button variant="outline" onClick={() => setLocation("/institution/certificates")} className="bg-white">
+            <Button variant="outline" onClick={() => setLocation("/institution/certificates")} className="bg-white dark:bg-neutral-100">
               <Eye className="w-4 h-4 mr-2" />
               View All
             </Button>
@@ -260,7 +270,7 @@ export default function ModernDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statsLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i} className="border-0 shadow-sm bg-white animate-pulse">
+            <Card key={i} className="border-0 shadow-sm bg-white dark:bg-neutral-100 animate-pulse">
               <CardContent className="p-6">
                 <Skeleton className="h-12 w-12 rounded-lg mb-4" />
                 <Skeleton className="h-4 w-24 mb-2" />
@@ -320,13 +330,13 @@ export default function ModernDashboard() {
                  className={`group relative p-5 rounded-xl border transition-all duration-300 text-left flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
                    action.primary
                      ? "bg-gradient-to-br from-primary via-blue-500 to-purple-600 border-transparent text-white shadow-lg hover:shadow-xl hover:-translate-y-1 focus-visible:ring-primary"
-                     : "bg-white border-neutral-200 hover:border-primary/30 hover:shadow-md hover:bg-neutral-50 focus-visible:ring-primary"
+                     : "bg-white dark:bg-neutral-100 border-neutral-200 hover:border-primary/30 hover:shadow-md hover:bg-neutral-50 dark:bg-neutral-50 focus-visible:ring-primary"
                  }`}
                >
                 <div className="relative z-10 space-y-3">
                   <div className={`w-fit p-3 rounded-lg transition-all ${
                     action.primary 
-                      ? "bg-white/20 group-hover:bg-white/30" 
+                      ? "bg-white dark:bg-neutral-100/20 group-hover:bg-white dark:bg-neutral-100/30" 
                       : `${action.bg} group-hover:shadow-sm`
                   }`}>
                     <action.icon className={`w-6 h-6 ${action.primary ? "text-white" : action.color}`} />
@@ -449,7 +459,7 @@ export default function ModernDashboard() {
         {/* Charts Grid */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Issuance Trend - Modern Area Chart */}
-          <Card className="xl:col-span-2 border-0 shadow-xl bg-white overflow-hidden">
+          <Card className="xl:col-span-2 border-0 shadow-xl bg-white dark:bg-neutral-100 overflow-hidden">
             <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
               <div className="flex items-center justify-between">
                 <div>
@@ -536,7 +546,7 @@ export default function ModernDashboard() {
           </Card>
 
           {/* Certificate Distribution - Modern Donut Chart */}
-          <Card className="border-0 shadow-xl bg-white overflow-hidden">
+          <Card className="border-0 shadow-xl bg-white dark:bg-neutral-100 overflow-hidden">
             <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
               <div className="flex items-center justify-between">
                 <div>
@@ -620,7 +630,7 @@ export default function ModernDashboard() {
         </div>
 
         {/* Performance Metrics Bar Chart */}
-        <Card className="border-0 shadow-xl bg-white overflow-hidden">
+        <Card className="border-0 shadow-xl bg-white dark:bg-neutral-100 overflow-hidden">
           <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
             <div>
               <CardTitle className="text-xl font-black text-slate-900 flex items-center gap-3">
@@ -724,9 +734,9 @@ export default function ModernDashboard() {
             <KeyRound className="w-5 h-5 text-primary" />
             Plan & Usage
           </h2>
-          <Card className="border border-neutral-200 shadow-sm bg-white overflow-hidden rounded-xl">
+          <Card className="border border-neutral-200 shadow-sm bg-white dark:bg-neutral-100 overflow-hidden rounded-xl">
             <CardContent className="p-0">
-              <div className="p-5 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+              <div className="p-5 border-b border-neutral-100 flex items-center justify-between bg-neutral-50 dark:bg-neutral-50/50">
                 <div>
                   <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">
                     Current Subscription
@@ -765,11 +775,11 @@ export default function ModernDashboard() {
             <ArrowUpRight className="w-4 h-4 ml-1" />
           </Button>
         </div>
-        <Card className="border-0 shadow-sm rounded-xl bg-white overflow-hidden">
+        <Card className="border-0 shadow-sm rounded-xl bg-white dark:bg-neutral-100 overflow-hidden">
           <CardContent className="p-0">
             {recentCertificates.length === 0 ? (
               <div className="text-center py-16">
-                <div className="w-16 h-16 bg-neutral-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-neutral-100">
+                <div className="w-16 h-16 bg-neutral-50 dark:bg-neutral-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-neutral-100">
                   <Award className="w-8 h-8 text-neutral-300" />
                 </div>
                 <h3 className="text-lg font-bold text-neutral-900 mb-1">No certificates yet</h3>
@@ -782,7 +792,7 @@ export default function ModernDashboard() {
             ) : (
               <div className="divide-y divide-neutral-100">
                 {recentCertificates.map((cert: any, index: number) => (
-                  <div key={index} className="flex items-center justify-between p-5 hover:bg-neutral-50 transition-colors group cursor-pointer" onClick={() => setLocation(`/institution/certificates/${cert.id}`)}>
+                  <div key={index} className="flex items-center justify-between p-5 hover:bg-neutral-50 dark:bg-neutral-50 transition-colors group cursor-pointer" onClick={() => setLocation(`/institution/certificates/${cert.id}`)}>
                     <div className="flex items-center space-x-4 min-w-0">
                       <div className="p-3 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform">
                         <Award className="w-5 h-5" />
@@ -825,7 +835,7 @@ function StatCard({ title, value, icon: Icon, color, trend, progress, subtitle }
   };
 
   return (
-    <Card className="border-0 shadow-sm hover:shadow-md transition-all group rounded-xl bg-white overflow-hidden">
+    <Card className="border-0 shadow-sm hover:shadow-md transition-all group rounded-xl bg-white dark:bg-neutral-100 overflow-hidden">
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-4 flex-1">

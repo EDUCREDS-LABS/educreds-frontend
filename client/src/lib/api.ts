@@ -386,6 +386,40 @@ export const api = {
     return handleResponse(response);
   },
 
+  getAuditLogs: async (params?: { limit?: number; offset?: number; type?: string; severity?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set("limit", String(params.limit));
+    if (params?.offset) query.set("offset", String(params.offset));
+    if (params?.type) query.set("type", params.type);
+    if (params?.severity) query.set("severity", params.severity);
+    
+    const response = await fetch(`${API_CONFIG.ADMIN.AUDIT_LOGS}?${query.toString()}`, {
+      credentials: "include",
+    });
+    return handleResponse(response);
+  },
+
+  getSystemHealth: async () => {
+    const [main, cert, marketplace] = await Promise.allSettled([
+      fetch(API_CONFIG.HEALTH.MAIN, { credentials: "include" }).then(handleResponse),
+      fetch(API_CONFIG.HEALTH.CERT, { credentials: "include" }).then(handleResponse),
+      fetch(API_CONFIG.HEALTH.MARKETPLACE, { credentials: "include" }).then(handleResponse),
+    ]);
+    
+    return {
+      main: main.status === 'fulfilled' ? main.value : { status: 'down', error: main.reason },
+      cert: cert.status === 'fulfilled' ? cert.value : { status: 'down', error: cert.reason },
+      marketplace: marketplace.status === 'fulfilled' ? marketplace.value : { status: 'down', error: marketplace.reason },
+    };
+  },
+
+  getIndexerStatus: async () => {
+    const response = await fetch(API_CONFIG.INDEXER.SYNC_STATUS, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
   // Auth endpoints - Platform authentication (uses unified API)
   login: async (credentials: { email: string; password: string; otp?: string; otpToken?: string }) => {
     const response = await fetch(API_CONFIG.INSTITUTIONS.LOGIN, {
@@ -447,6 +481,18 @@ export const api = {
         "Content-Type": "application/json",
         ...getAuthHeaders(),
       },
+    });
+    return handleResponse(response);
+  },
+
+  changeInstitutionPassword: async (oldPassword: string, newPassword: string) => {
+    const response = await fetch(API_CONFIG.INSTITUTIONS.CHANGE_PASSWORD, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({ oldPassword, newPassword }),
     });
     return handleResponse(response);
   },
@@ -1548,6 +1594,14 @@ export const api = {
     const authHeaders = getAuthHeaders();
     const response = await fetch(`${API_CONFIG.CERT}/api/subscription/cancel`, {
       method: "POST",
+      headers: authHeaders,
+    });
+    return handleResponse(response);
+  },
+
+  getSubscriptionUsage: async () => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/subscription/usage`, {
       headers: authHeaders,
     });
     return handleResponse(response);

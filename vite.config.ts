@@ -65,7 +65,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    port: 5002,
     proxy: {
       '/api/trust-agent': {
         target: 'http://localhost:3010',
@@ -73,7 +73,7 @@ export default defineConfig({
         secure: false
       },
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:5050',
         changeOrigin: true,
         secure: false
       },
