@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -31,6 +31,8 @@ import {
   Landmark,
   Database,
   Trash2,
+  Plus,
+  Wallet,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
@@ -51,7 +53,7 @@ const verificationSchema = z.object({
   contactEmail: z.string().email("Must be a valid email"),
   contactPhone: z.string().optional(),
   address: z.string().min(10, "Address must be at least 10 characters"),
-  representativeWallets: z.array(z.string().regex(/^0x[a-fA-F0-9]{40}$/, "Must be a valid Ethereum address")),
+  representativeWallets: z.array(z.string().regex(/^0x[a-fA-F0-9]{40}$/, "Must be a valid Ethereum address")).min(1, "At least one representative wallet is required"),
   description: z.string().min(50, "Description must be at least 50 characters"),
 });
 
@@ -63,6 +65,9 @@ export default function GovernanceVerification() {
   const queryClient = useQueryClient();
   const [uploadedDocuments, setUploadedDocuments] = useState<Array<{ type: string; url: string; name: string }>>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Ensure wallet address matches regex or is empty
+  const defaultWallet = user?.walletAddress?.match(/^0x[a-fA-F0-9]{40}$/) ? user.walletAddress : "";
 
   const form = useForm<VerificationFormData>({
     resolver: zodResolver(verificationSchema),
@@ -78,9 +83,14 @@ export default function GovernanceVerification() {
       contactEmail: user?.email || "",
       contactPhone: "",
       address: "",
-      representativeWallets: [user?.walletAddress || ""],
+      representativeWallets: defaultWallet ? [defaultWallet] : [],
       description: "",
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "representativeWallets",
   });
 
   const { data: existingProposal, isLoading: proposalLoading } = useQuery({
@@ -127,17 +137,40 @@ export default function GovernanceVerification() {
   });
 
   const onSubmit = async (data: VerificationFormData) => {
+    console.log("Submitting verification data:", data);
     if (uploadedDocuments.length === 0) {
       toast({ title: "Missing Assets", description: "Upload verification documents to continue.", variant: "destructive" });
       return;
     }
+    
     setIsSubmitting(true);
-    try { await submitProposalMutation.mutateAsync(data); } finally { setIsSubmitting(false); }
+    try { 
+      await submitProposalMutation.mutateAsync(data); 
+    } catch (error: any) {
+      console.error("Submission error:", error);
+      toast({ 
+        title: "Submission Failed", 
+        description: error.message || "Protocol rejection. Check network status.", 
+        variant: "destructive" 
+      });
+    } finally { 
+      setIsSubmitting(false); 
+    }
   };
 
   const completionValue = () => {
-    const fields = [form.watch("institutionName"), form.watch("country"), form.watch("domain"), form.watch("registrationNumber"), form.watch("contactEmail"), form.watch("address"), form.watch("description"), uploadedDocuments.length > 0];
-    return Math.round((fields.filter(Boolean).length / fields.length) * 100);
+    const watchedFields = [
+      form.watch("institutionName"), 
+      form.watch("country"), 
+      form.watch("domain"), 
+      form.watch("registrationNumber"), 
+      form.watch("contactEmail"), 
+      form.watch("address"), 
+      form.watch("description"), 
+      uploadedDocuments.length > 0,
+      form.watch("representativeWallets")?.length > 0
+    ];
+    return Math.round((watchedFields.filter(Boolean).length / watchedFields.length) * 100);
   };
 
   if (proposalLoading) {
@@ -217,7 +250,19 @@ export default function GovernanceVerification() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
         <div className="lg:col-span-8 space-y-10">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-12">
+            <form onSubmit={(e) => {
+              console.log("Form submit triggered");
+              form.handleSubmit(onSubmit)(e);
+              const errors = form.formState.errors;
+              if (Object.keys(errors).length > 0) {
+                console.log("Validation errors:", errors);
+                toast({
+                  title: "Validation Error",
+                  description: "Please check the form for missing or invalid fields.",
+                  variant: "destructive"
+                });
+              }
+            }} className="space-y-12">
               {/* Basic Information Section */}
               <section className="space-y-8">
                 <div className="flex items-center gap-4">
@@ -271,25 +316,14 @@ export default function GovernanceVerification() {
                 </div>
               </section>
 
-              {/* Registration & Accreditation */}
+              {/* Digital Presence */}
               <section className="space-y-8">
                 <div className="flex items-center gap-4">
                   <div className="size-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black">02</div>
-                  <h3 className="text-2xl font-black tracking-tight dark:text-neutral-100">Authority & Compliance</h3>
+                  <h3 className="text-2xl font-black tracking-tight dark:text-neutral-100">Digital Presence</h3>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="registrationNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Registration ID</FormLabel>
-                        <FormControl><Input placeholder="RC-9922881" className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-900 border-none shadow-inner" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                   <FormField
                     control={form.control}
                     name="domain"
@@ -303,12 +337,11 @@ export default function GovernanceVerification() {
                   />
                   <FormField
                     control={form.control}
-                    name="description"
+                    name="website"
                     render={({ field }) => (
-                      <FormItem className="col-span-full">
-                        <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Operational Summary</FormLabel>
-                        <FormControl><Textarea rows={5} placeholder="Describe your institutional mission and accreditation status..." className="rounded-[24px] bg-neutral-50 dark:bg-neutral-900 border-none shadow-inner p-6 resize-none" {...field} /></FormControl>
-                        <FormDescription className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 mt-2">Minimum 50 characters for AI analysis</FormDescription>
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Official Website (Optional)</FormLabel>
+                        <FormControl><Input placeholder="https://excellence.edu.ng" className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-900 border-none shadow-inner" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -316,10 +349,152 @@ export default function GovernanceVerification() {
                 </div>
               </section>
 
-              {/* Asset Verification */}
+              {/* Contact Information */}
               <section className="space-y-8">
                 <div className="flex items-center gap-4">
                   <div className="size-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black">03</div>
+                  <h3 className="text-2xl font-black tracking-tight dark:text-neutral-100">Contact & Logistics</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control}
+                    name="contactEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Verification Email</FormLabel>
+                        <FormControl><Input placeholder="admin@excellence.edu.ng" className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-900 border-none shadow-inner" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contactPhone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Contact Phone (Optional)</FormLabel>
+                        <FormControl><Input placeholder="+234 800 123 4567" className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-900 border-none shadow-inner" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem className="col-span-full">
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Physical Head Office Address</FormLabel>
+                        <FormControl><Input placeholder="123 Excellence Way, Victoria Island, Lagos" className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-900 border-none shadow-inner" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </section>
+
+              {/* Trust & Authority */}
+              <section className="space-y-8">
+                <div className="flex items-center gap-4">
+                  <div className="size-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black">04</div>
+                  <h3 className="text-2xl font-black tracking-tight dark:text-neutral-100">Trust & Authority</h3>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Representative Wallets</FormLabel>
+                    <div className="space-y-3">
+                      {fields.map((field, index) => (
+                        <div key={field.id} className="flex gap-2">
+                          <FormField
+                            control={form.control}
+                            name={`representativeWallets.${index}`}
+                            render={({ field }) => (
+                              <FormItem className="flex-1">
+                                <FormControl>
+                                  <div className="relative">
+                                    <Wallet className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-neutral-400" />
+                                    <Input placeholder="0x..." className="h-14 pl-12 rounded-2xl bg-neutral-50 dark:bg-neutral-900 border-none shadow-inner" {...field} />
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <Button variant="ghost" size="icon" className="h-14 w-14 rounded-2xl text-neutral-400 hover:text-red-500" onClick={() => remove(index)}>
+                            <Trash2 className="size-5" />
+                          </Button>
+                        </div>
+                      ))}
+                      <Button type="button" variant="outline" className="w-full h-14 rounded-2xl border-dashed border-2 font-bold text-neutral-500" onClick={() => append("")}>
+                        <Plus className="size-4 mr-2" /> Add Representative Wallet
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="registrationNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Registration ID</FormLabel>
+                          <FormControl><Input placeholder="RC-9922881" className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-900 border-none shadow-inner" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="accreditationBody"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Accreditation Body</FormLabel>
+                          <FormControl><Input placeholder="Ministry of Education" className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-900 border-none shadow-inner" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="accreditationNumber"
+                      render={({ field }) => (
+                        <FormItem className="col-span-full">
+                          <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Accreditation ID (Optional)</FormLabel>
+                          <FormControl><Input placeholder="ACC-123456" className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-900 border-none shadow-inner" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              {/* Operational Summary */}
+              <section className="space-y-8">
+                <div className="flex items-center gap-4">
+                  <div className="size-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black">05</div>
+                  <h3 className="text-2xl font-black tracking-tight dark:text-neutral-100">Operational Summary</h3>
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Institutional Mission</FormLabel>
+                      <FormControl><Textarea rows={5} placeholder="Describe your institutional mission and accreditation status..." className="rounded-[24px] bg-neutral-50 dark:bg-neutral-900 border-none shadow-inner p-6 resize-none" {...field} /></FormControl>
+                      <FormDescription className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 mt-2">Minimum 50 characters for AI analysis</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </section>
+
+              {/* Asset Verification */}
+              <section className="space-y-8">
+                <div className="flex items-center gap-4">
+                  <div className="size-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black">06</div>
                   <h3 className="text-2xl font-black tracking-tight dark:text-neutral-100">Verification Assets</h3>
                 </div>
 
@@ -390,6 +565,7 @@ export default function GovernanceVerification() {
                   { label: "Authority Proof", met: uploadedDocuments.length > 0 },
                   { label: "Domain Verification", met: !!form.watch("domain") },
                   { label: "Compliance Summary", met: (form.watch("description")?.length || 0) >= 50 },
+                  { label: "Network Identity", met: (form.watch("representativeWallets")?.length || 0) > 0 },
                 ].map((step, i) => (
                   <div key={i} className="flex items-center justify-between text-xs font-bold">
                     <span className={step.met ? "text-neutral-900 dark:text-neutral-100" : "text-neutral-400"}>{step.label}</span>
