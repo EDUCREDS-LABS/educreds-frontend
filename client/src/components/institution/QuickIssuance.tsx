@@ -189,6 +189,10 @@ export default function QuickIssuance() {
   });
 
   // Mutations
+import { blockchainService } from '@/lib/blockchain';
+
+// ... (existing code)
+
   const legacyIssueMutation = useMutation({
     mutationFn: async (data: LegacyPdfFormData) => {
       const formData = new FormData();
@@ -200,7 +204,21 @@ export default function QuickIssuance() {
       formData.append('courseName', data.courseName || '');
       formData.append('grade', data.grade || '');
 
-      return api.issueCertificate(formData);
+      const response = await api.issueCertificate(formData);
+
+      // Trigger wallet issuance if backend returned a transaction request
+      if (response.onChainStatus === 'pending_wallet_signature' && response.mintingData) {
+        const tokenId = await blockchainService.mintCertificate(
+          response.mintingData.certificateId,
+          data.recipientWallet,
+          data.recipientName,
+          data.courseName || '',
+          response.mintingData.ipfsHash
+        );
+        return { ...response, tokenId, onChainStatus: 'minted' };
+      }
+      
+      return response;
     },
     onSuccess: (data) => {
       const fallbackNote = data?.issuanceMode === 'backend_fallback' && data?.walletDirectFailureReason
@@ -229,7 +247,7 @@ export default function QuickIssuance() {
 
   const templateIssueMutation = useMutation({
     mutationFn: async (data: TemplateBasedFormData) => {
-      return api.issueFromTemplate({
+      const response = await api.issueFromTemplate({
         templateId: data.templateId,
         recipientWallet: data.recipientWallet,
         recipientName: data.recipientName,
@@ -239,6 +257,20 @@ export default function QuickIssuance() {
         grade: data.grade,
         additionalData: data.additionalData,
       });
+
+      // Trigger wallet issuance if backend returned a transaction request
+      if (response.onChainStatus === 'pending_wallet_signature' && response.mintingData) {
+        const tokenId = await blockchainService.mintCertificate(
+          response.mintingData.certificateId,
+          data.recipientWallet,
+          data.recipientName,
+          data.additionalData?.courseName || 'Certificate',
+          response.mintingData.ipfsHash
+        );
+        return { ...response, tokenId, onChainStatus: 'minted' };
+      }
+
+      return response;
     },
     onSuccess: (data) => {
       const pending = data?.onChainStatus === 'pending_wallet_signature';
@@ -261,6 +293,7 @@ export default function QuickIssuance() {
       });
     },
   });
+
 
   const handleLegacySubmit = legacyForm.handleSubmit((data) => {
     if (isLimitExceeded) {

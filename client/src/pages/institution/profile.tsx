@@ -371,8 +371,8 @@ export default function InstitutionProfile() {
                       <div className="flex items-center gap-3 text-sm text-neutral-700 font-medium">
                         <Globe className="size-4 text-primary" />
                         {profile.website || contactInfo.website ? (
-                          <a href={profile.website || contactInfo.website} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline inline-flex items-center gap-1">
-                            {new URL(profile.website || contactInfo.website || "").hostname}
+                          <a href={(profile.website || contactInfo.website).startsWith('http') ? (profile.website || contactInfo.website) : `https://${profile.website || contactInfo.website}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline inline-flex items-center gap-1">
+                            {new URL((profile.website || contactInfo.website).startsWith('http') ? (profile.website || contactInfo.website) : `https://${profile.website || contactInfo.website}`).hostname}
                             <ExternalLink className="size-3" />
                           </a>
                         ) : "No website listed"}

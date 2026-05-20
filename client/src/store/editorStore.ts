@@ -136,6 +136,7 @@ export const useEditorStore = create<EditorState & EditorActions>()(
       
       saveTemplate: async () => {
         const { editor, currentTemplate } = get();
+        console.log('SaveTemplate triggered, editor exists:', !!editor, 'currentTemplate:', currentTemplate);
         if (!editor) return;
 
         try {
@@ -160,6 +161,8 @@ export const useEditorStore = create<EditorState & EditorActions>()(
             }
           };
 
+          console.log('Sending updatedTemplateData to backend:', updatedTemplateData);
+
           let savedTemplate;
           if (updatedTemplateData.id) {
             savedTemplate = await updateTemplate(updatedTemplateData.id, updatedTemplateData);
@@ -169,9 +172,10 @@ export const useEditorStore = create<EditorState & EditorActions>()(
 
           set({ currentTemplate: savedTemplate, isDirty: false });
           
-          console.log('Template saved:', savedTemplate);
+          console.log('Template successfully saved:', savedTemplate);
         } catch (error) {
           console.error('Error saving template:', error);
+          throw error; // Re-throw to be caught by the component
         } finally {
           set({ isLoading: false });
         }
