@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,8 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Search, 
   Award, 
-  Crown, 
-  Star, 
   Download, 
   Eye, 
   Play,
@@ -17,19 +15,15 @@ import {
   Filter,
   Grid3X3,
   List,
-  Calendar,
-  Users,
   TrendingUp,
   Zap,
-  Edit,
-  Copy,
-  Trash2,
   ExternalLink,
   BarChart3,
   FileText,
   CheckCircle
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { IssueTemplateModal } from './IssueTemplateModal';
 
 interface PurchasedTemplate {
   id: string;
@@ -132,12 +126,13 @@ const mockIssuedCertificates: CertificateIssued[] = [
 ];
 
 export const InstitutionTemplateLibrary: React.FC = () => {
-  const [purchasedTemplates, setPurchasedTemplates] = useState<PurchasedTemplate[]>(mockPurchasedTemplates);
-  const [issuedCertificates, setIssuedCertificates] = useState<CertificateIssued[]>(mockIssuedCertificates);
+  const [purchasedTemplates] = useState<PurchasedTemplate[]>(mockPurchasedTemplates);
+  const [issuedCertificates] = useState<CertificateIssued[]>(mockIssuedCertificates);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [activeTab, setActiveTab] = useState('templates');
+  const [issuingTemplate, setIssuingTemplate] = useState<{ id: string; name: string } | null>(null);
 
   const filteredTemplates = purchasedTemplates.filter(template => {
     const matchesSearch = template.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -146,13 +141,11 @@ export const InstitutionTemplateLibrary: React.FC = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const handleIssueCertificate = (templateId: string) => {
-    // Navigate to certificate issuance flow
-    console.log('Issue certificate with template:', templateId);
+  const handleIssueCertificate = (template: PurchasedTemplate) => {
+    setIssuingTemplate({ id: template.templateId, name: template.title });
   };
 
   const handleViewAnalytics = (templateId: string) => {
-    // Show template usage analytics
     console.log('View analytics for template:', templateId);
   };
 
@@ -161,6 +154,15 @@ export const InstitutionTemplateLibrary: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {issuingTemplate && (
+        <IssueTemplateModal 
+          open={!!issuingTemplate} 
+          onOpenChange={(open) => !open && setIssuingTemplate(null)}
+          templateId={issuingTemplate.id}
+          templateName={issuingTemplate.name}
+        />
+      )}
+
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b">
         <div className="container mx-auto px-4 py-6">
@@ -306,14 +308,12 @@ export const InstitutionTemplateLibrary: React.FC = () => {
                         </div>
                       </div>
                       
-                      {/* Status Badge */}
                       <div className="absolute top-2 right-2">
                         <Badge className={template.status === 'active' ? 'bg-green-500' : 'bg-gray-500'}>
                           {template.status}
                         </Badge>
                       </div>
 
-                      {/* EduCreds Integration Badge */}
                       <div className="absolute top-2 left-2">
                         <Badge className="bg-blue-500 text-white">
                           <Zap className="w-3 h-3 mr-1" />
@@ -331,7 +331,6 @@ export const InstitutionTemplateLibrary: React.FC = () => {
                         by {template.designer} • {template.category}
                       </div>
 
-                      {/* Usage Stats */}
                       <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg mb-4">
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
@@ -345,11 +344,10 @@ export const InstitutionTemplateLibrary: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Actions */}
                       <div className="flex space-x-2">
                         <Button 
                           size="sm" 
-                          onClick={() => handleIssueCertificate(template.id)}
+                          onClick={() => handleIssueCertificate(template)}
                           className="flex-1"
                         >
                           <Play className="w-4 h-4 mr-1" />
@@ -358,12 +356,8 @@ export const InstitutionTemplateLibrary: React.FC = () => {
                         <Button size="sm" variant="outline" onClick={() => handleViewAnalytics(template.id)}>
                           <BarChart3 className="w-4 h-4" />
                         </Button>
-                        <Button size="sm" variant="outline">
-                          <Settings className="w-4 h-4" />
-                        </Button>
                       </div>
 
-                      {/* EduCreds Integration Info */}
                       <div className="mt-3 text-xs text-gray-500">
                         <div className="flex items-center justify-between">
                           <span>Version: {template.educredsIntegration.version}</span>
@@ -409,7 +403,7 @@ export const InstitutionTemplateLibrary: React.FC = () => {
 
                           <div className="flex items-center justify-between mt-4">
                             <div className="flex items-center space-x-2">
-                              <Button size="sm" onClick={() => handleIssueCertificate(template.id)}>
+                              <Button size="sm" onClick={() => handleIssueCertificate(template)}>
                                 <Play className="w-4 h-4 mr-2" />
                                 Issue Certificate
                               </Button>

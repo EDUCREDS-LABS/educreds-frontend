@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { DualAuth } from './dualAuth';
+import { API_CONFIG } from '@/config/api';
 
-const API_BASE = (typeof window !== 'undefined' && import.meta?.env?.VITE_API_URL) || 'http://localhost:5002'; // Default to 5002 for dev
+const API_BASE = API_CONFIG.MAIN;
 
 const api = axios.create({
     baseURL: `${API_BASE}/api/developer-portal`, // Note: Backend routes are mounted at /api/developer-portal

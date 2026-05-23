@@ -307,7 +307,7 @@ export default function BulkIssuanceFailureTracker({
               <Button 
                 onClick={handleRetrySelected} 
                 disabled={retryMutation.isLoading || selectedIndices.size === 0}
-                className="h-14 px-10 rounded-2xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 font-black text-xs uppercase tracking-[0.2em] shadow-2xl transition-all hover:scale-105 active:scale-95"
+                className="h-14 px-10 rounded-2xl bg-neutral-900 dark:bg-neutral-900 text-white dark:text-white font-black text-xs uppercase tracking-[0.2em] shadow-2xl transition-all hover:scale-105 active:scale-95"
               >
                 {retryMutation.isLoading ? <RefreshCw className="size-5 mr-2 animate-spin" /> : <RotateCcw className="size-5 mr-2" />}
                 Execute Re-minting ({selectedIndices.size})
@@ -340,7 +340,7 @@ function FilterButton({ active, onClick, label }: any) {
       className={cn(
         "px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
         active 
-          ? "bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 shadow-lg" 
+          ? "bg-neutral-900 dark:bg-neutral-900 text-white dark:text-white shadow-lg" 
           : "text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50 dark:hover:bg-neutral-800"
       )}
     >

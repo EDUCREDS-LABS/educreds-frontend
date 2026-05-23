@@ -142,7 +142,7 @@ export default function SecurityDashboard() {
           </Button>
           <Button 
             onClick={handleExport}
-            className="h-12 px-6 rounded-2xl font-black text-xs uppercase tracking-widest bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 shadow-xl shadow-neutral-900/10"
+            className="h-12 px-6 rounded-2xl font-black text-xs uppercase tracking-widest bg-neutral-900 dark:bg-neutral-900 text-white dark:text-white shadow-xl shadow-neutral-900/10"
           >
             <Download className="size-4 mr-2" />
             Export Audit

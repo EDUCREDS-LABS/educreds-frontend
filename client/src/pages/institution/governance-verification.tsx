@@ -220,7 +220,7 @@ export default function GovernanceVerification() {
                 </div>
               </div>
             </div>
-            <Button className="w-full h-14 rounded-2xl font-black text-xs uppercase tracking-widest bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900" onClick={() => window.location.href = "/institution/governance-workspace"}>
+            <Button className="w-full h-14 rounded-2xl font-black text-xs uppercase tracking-widest bg-neutral-900 dark:bg-neutral-900 text-white dark:text-white" onClick={() => window.location.href = "/institution/governance-workspace"}>
               Return to Workspace
             </Button>
           </CardContent>

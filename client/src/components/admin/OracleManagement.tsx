@@ -121,7 +121,7 @@ export default function OracleManagement() {
             <RefreshCw className="size-4 mr-2" />
             Trigger ETA Scan
           </Button>
-          <Button className="h-14 px-10 rounded-2xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 font-black text-xs uppercase tracking-widest shadow-xl shadow-neutral-900/10 transition-all hover:scale-[1.02]">
+          <Button className="h-14 px-10 rounded-2xl bg-neutral-900 dark:bg-neutral-900 text-white dark:text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-neutral-900/10 transition-all hover:scale-[1.02]">
             Generate Risk Report
           </Button>
         </div>

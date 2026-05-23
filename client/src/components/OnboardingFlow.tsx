@@ -57,24 +57,24 @@ const onboardingSteps: OnboardingStep[] = [
   },
   {
     id: 'setup',
-    title: 'Institution Setup',
-    description: 'Configure your institution profile',
+    title: 'Set Up Your Institution',
+    description: 'Configure your institutional authority on the network',
     icon: Users,
     content: (
       <div className="space-y-6">
-        <h3 className="text-xl font-semibold">Set Up Your Institution</h3>
+        <h3 className="text-xl font-semibold dark:text-white">Institutional Configuration</h3>
         <div className="space-y-4">
-          <div className="p-4 border rounded-lg">
-            <h4 className="font-medium mb-2">Institution Information</h4>
-            <p className="text-sm text-gray-600">Add your institution name, logo, and contact details</p>
+          <div className="p-4 border rounded-lg bg-white dark:bg-neutral-800">
+            <h4 className="font-bold mb-2 text-neutral-900 dark:text-neutral-100">Institution Information</h4>
+            <p className="text-sm text-gray-600 dark:text-neutral-400">Add your institution name, email and contact details</p>
           </div>
-          <div className="p-4 border rounded-lg">
-            <h4 className="font-medium mb-2">Branding</h4>
-            <p className="text-sm text-gray-600">Customize colors and styling for your certificates</p>
+          <div className="p-4 border rounded-lg bg-white dark:bg-neutral-800">
+            <h4 className="font-bold mb-2 text-neutral-900 dark:text-neutral-100">Governance and PoIC verification</h4>
+            <p className="text-sm text-gray-600 dark:text-neutral-400">Submit identity and legal information to get verified by the protocol</p>
           </div>
-          <div className="p-4 border rounded-lg">
-            <h4 className="font-medium mb-2">Verification Settings</h4>
-            <p className="text-sm text-gray-600">Configure how recipients can verify their certificates</p>
+          <div className="p-4 border rounded-lg bg-white dark:bg-neutral-800">
+            <h4 className="font-bold mb-2 text-neutral-900 dark:text-neutral-100">Wallet configuration and batch signing config</h4>
+            <p className="text-sm text-gray-600 dark:text-neutral-400">Configure your private key for secure blockchain batch issuance</p>
           </div>
         </div>
       </div>
@@ -95,7 +95,7 @@ const onboardingSteps: OnboardingStep[] = [
             { name: 'Achievement Award', popular: true },
             { name: 'Completion Certificate', popular: false }
           ].map((template, index) => (
-            <div key={index} className="relative p-4 border rounded-lg hover:border-blue-500 cursor-pointer">
+            <div key={index} className="relative p-4 border rounded-lg bg-white dark:bg-neutral-800 hover:border-blue-500 cursor-pointer">
               {template.popular && (
                 <Badge className="absolute -top-2 -right-2 bg-orange-500">Popular</Badge>
               )}
@@ -178,9 +178,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, onSk
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
-        className="w-full max-w-2xl"
+        className="w-full max-w-2xl relative z-[60]"
       >
-        <Card className="relative">
+        <Card className="relative bg-white dark:bg-neutral-900 border-none shadow-2xl overflow-hidden opacity-100">
           <Button
             variant="ghost"
             size="sm"

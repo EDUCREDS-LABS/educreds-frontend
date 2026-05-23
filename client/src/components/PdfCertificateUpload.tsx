@@ -8,17 +8,21 @@ import { useToast } from '@/hooks/use-toast';
 import { API_CONFIG } from '@/config/api';
 import { auth, getAuthHeaders } from '@/lib/auth';
 
+import { api } from '@/lib/api';
+
 interface UploadedPdf {
   uploadId: string;
   fileName: string;
   fileSize: number;
   uploadedAt: string;
+  file?: File;
 }
 
 interface StudentData {
   name: string;
   email: string;
   studentId: string;
+  walletAddress: string;
   courseName: string;
   courseCode?: string;
 }
@@ -29,6 +33,7 @@ export const PdfCertificateUpload: React.FC = () => {
     name: '',
     email: '',
     studentId: '',
+    walletAddress: '',
     courseName: '',
     courseCode: ''
   });
@@ -67,7 +72,7 @@ export const PdfCertificateUpload: React.FC = () => {
       const data = await response.json();
       
       if (data.success) {
-        setUploadedPdfs(prev => [...prev, data.data]);
+        setUploadedPdfs(prev => [...prev, { ...data.data, file }]);
         toast({
           title: "PDF Uploaded",
           description: `${file.name} uploaded successfully`
@@ -75,7 +80,7 @@ export const PdfCertificateUpload: React.FC = () => {
       } else {
         throw new Error(data.error?.message || 'Upload failed');
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Upload Error",
         description: error.message,
@@ -87,10 +92,20 @@ export const PdfCertificateUpload: React.FC = () => {
   };
 
   const issueCertificateWithPdf = async () => {
-    if (!selectedPdf || !studentData.name || !studentData.email) {
+    if (!selectedPdf || !studentData.name || !studentData.email || !studentData.walletAddress) {
       toast({
         title: "Missing Information",
-        description: "Please fill all required fields and select a PDF",
+        description: "Please fill all required fields (including wallet address) and select a PDF",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const selectedPdfData = uploadedPdfs.find(p => p.uploadId === selectedPdf);
+    if (!selectedPdfData?.file) {
+      toast({
+        title: "Error",
+        description: "PDF file source not found. Please re-upload the PDF.",
         variant: "destructive"
       });
       return;
@@ -98,33 +113,29 @@ export const PdfCertificateUpload: React.FC = () => {
 
     setIssuing(true);
     try {
-      const institutionId = auth.getUser()?.sub || '';
-      const response = await fetch(`${API_CONFIG.CERT}/api/v1/standard/certificates/issue-with-pdf`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        },
-        body: JSON.stringify({
-          pdfUploadId: selectedPdf,
-          student: {
-            name: studentData.name,
-            email: studentData.email,
-            id: studentData.studentId
-          },
-          course: {
-            name: studentData.courseName,
-            code: studentData.courseCode
-          }
-        })
+      const formData = new FormData();
+      formData.append('certificateFile', selectedPdfData.file);
+      formData.append('studentName', studentData.name);
+      formData.append('studentEmail', studentData.email);
+      formData.append('studentWalletAddress', studentData.walletAddress);
+      formData.append('courseName', studentData.courseName || 'PDF Certificate');
+      formData.append('grade', 'N/A');
+      formData.append('completionDate', new Date().toISOString());
+      formData.append('certificateType', 'pdf_upload');
+
+      toast({
+        title: "Initiating Issuance",
+        description: "Preparing certificate and initiating wallet transaction..."
       });
 
-      const data = await response.json();
+      const result = await api.issueCertificate(formData);
       
-      if (data.success) {
+      if (result) {
         toast({
-          title: "Certificate Issued",
-          description: `Certificate issued successfully for ${studentData.name}`
+          title: result.onChainStatus === 'minted' ? "✅ Certificate Minted" : "⏳ Transaction Pending",
+          description: result.onChainStatus === 'minted' 
+            ? `Successfully issued and minted to ${studentData.walletAddress.slice(0, 6)}...`
+            : "The issuance process has started. Please confirm the transaction in your wallet if prompted."
         });
         
         // Reset form
@@ -132,14 +143,13 @@ export const PdfCertificateUpload: React.FC = () => {
           name: '',
           email: '',
           studentId: '',
+          walletAddress: '',
           courseName: '',
           courseCode: ''
         });
         setSelectedPdf('');
-      } else {
-        throw new Error(data.error?.message || 'Issuance failed');
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Issuance Error",
         description: error.message,
@@ -255,6 +265,17 @@ export const PdfCertificateUpload: React.FC = () => {
                 placeholder="Enter student email"
               />
             </div>
+
+            <div>
+              <Label htmlFor="walletAddress">Student Wallet Address *</Label>
+              <Input
+                id="walletAddress"
+                value={studentData.walletAddress}
+                onChange={(e) => setStudentData(prev => ({ ...prev, walletAddress: e.target.value }))}
+                placeholder="0x..."
+                className="font-mono"
+              />
+            </div>
             
             <div>
               <Label htmlFor="studentId">Student ID</Label>
@@ -292,7 +313,7 @@ export const PdfCertificateUpload: React.FC = () => {
       {/* Issue Certificate Button */}
       <Button
         onClick={issueCertificateWithPdf}
-        disabled={!selectedPdf || !studentData.name || !studentData.email || issuing}
+        disabled={!selectedPdf || !studentData.name || !studentData.email || !studentData.walletAddress || issuing}
         className="w-full"
         size="lg"
       >
@@ -301,3 +322,4 @@ export const PdfCertificateUpload: React.FC = () => {
     </div>
   );
 };
+

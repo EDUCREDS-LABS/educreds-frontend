@@ -306,7 +306,7 @@ export default function SubscriptionPage() {
                     "w-full h-14 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl",
                     plan.highlighted 
                       ? "bg-white text-primary hover:bg-neutral-100 shadow-white/5" 
-                      : "bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 hover:opacity-90"
+                      : "bg-neutral-900 dark:bg-neutral-900 text-white dark:text-white hover:opacity-90"
                   )}
                   onClick={() => handleSubscribe(plan)}
                   disabled={plan.id === currentSubscription?.planId}

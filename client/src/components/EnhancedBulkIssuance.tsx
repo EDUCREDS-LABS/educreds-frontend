@@ -309,7 +309,10 @@ Bob Johnson,bob@example.com,0xAbcdefabcdefabcdefabcdefabcdefabcdefabcd,2024-01-1
 
     bulkIssueMutation.mutate(
       {
-        certificates: csvData,
+        certificates: csvData.map(cert => ({
+          ...cert,
+          studentWalletAddress: cert.walletAddress
+        })),
         templateId: selectedTemplate,
         mode: issuanceMode,
       },

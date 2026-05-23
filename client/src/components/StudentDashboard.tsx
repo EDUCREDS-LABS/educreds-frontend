@@ -97,7 +97,7 @@ export function StudentDashboard() {
         {!connected && (
           <Button 
             onClick={connectWallet} 
-            className="h-14 px-10 rounded-2xl font-black text-xs uppercase tracking-widest bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 shadow-2xl shadow-neutral-900/20 hover:scale-[1.02] transition-all"
+            className="h-14 px-10 rounded-2xl font-black text-xs uppercase tracking-widest bg-neutral-900 dark:bg-neutral-900 text-white dark:text-white shadow-2xl shadow-neutral-900/20 hover:scale-[1.02] transition-all"
           >
             <Wallet className="size-5 mr-3" />
             Initialize Wallet

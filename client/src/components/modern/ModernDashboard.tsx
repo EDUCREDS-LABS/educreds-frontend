@@ -259,7 +259,7 @@ export default function ModernDashboard() {
               <Plus className="w-4 h-4 mr-2" />
               Issue Certificate
             </Button>
-            <Button variant="outline" onClick={() => setLocation("/institution/certificates")} className="bg-white dark:bg-neutral-100">
+            <Button variant="outline" onClick={() => setLocation("/institution/certificates")} className="bg-white dark:bg-neutral-900">
               <Eye className="w-4 h-4 mr-2" />
               View All
             </Button>
@@ -270,7 +270,7 @@ export default function ModernDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statsLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i} className="border-0 shadow-sm bg-white dark:bg-neutral-100 animate-pulse">
+            <Card key={i} className="border-0 shadow-sm bg-white dark:bg-neutral-900 animate-pulse">
               <CardContent className="p-6">
                 <Skeleton className="h-12 w-12 rounded-lg mb-4" />
                 <Skeleton className="h-4 w-24 mb-2" />
@@ -330,13 +330,13 @@ export default function ModernDashboard() {
                  className={`group relative p-5 rounded-xl border transition-all duration-300 text-left flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
                    action.primary
                      ? "bg-gradient-to-br from-primary via-blue-500 to-purple-600 border-transparent text-white shadow-lg hover:shadow-xl hover:-translate-y-1 focus-visible:ring-primary"
-                     : "bg-white dark:bg-neutral-100 border-neutral-200 hover:border-primary/30 hover:shadow-md hover:bg-neutral-50 dark:bg-neutral-50 focus-visible:ring-primary"
+                     : "bg-white dark:bg-neutral-900 border-neutral-200 hover:border-primary/30 hover:shadow-md hover:bg-neutral-50 dark:bg-neutral-50 focus-visible:ring-primary"
                  }`}
                >
                 <div className="relative z-10 space-y-3">
                   <div className={`w-fit p-3 rounded-lg transition-all ${
                     action.primary 
-                      ? "bg-white dark:bg-neutral-100/20 group-hover:bg-white dark:bg-neutral-100/30" 
+                      ? "bg-white dark:bg-neutral-900/20 group-hover:bg-white dark:bg-neutral-900/30" 
                       : `${action.bg} group-hover:shadow-sm`
                   }`}>
                     <action.icon className={`w-6 h-6 ${action.primary ? "text-white" : action.color}`} />
@@ -459,7 +459,7 @@ export default function ModernDashboard() {
         {/* Charts Grid */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Issuance Trend - Modern Area Chart */}
-          <Card className="xl:col-span-2 border-0 shadow-xl bg-white dark:bg-neutral-100 overflow-hidden">
+          <Card className="xl:col-span-2 border-0 shadow-xl bg-white dark:bg-neutral-900 overflow-hidden">
             <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
               <div className="flex items-center justify-between">
                 <div>
@@ -546,7 +546,7 @@ export default function ModernDashboard() {
           </Card>
 
           {/* Certificate Distribution - Modern Donut Chart */}
-          <Card className="border-0 shadow-xl bg-white dark:bg-neutral-100 overflow-hidden">
+          <Card className="border-0 shadow-xl bg-white dark:bg-neutral-900 overflow-hidden">
             <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
               <div className="flex items-center justify-between">
                 <div>
@@ -630,7 +630,7 @@ export default function ModernDashboard() {
         </div>
 
         {/* Performance Metrics Bar Chart */}
-        <Card className="border-0 shadow-xl bg-white dark:bg-neutral-100 overflow-hidden">
+        <Card className="border-0 shadow-xl bg-white dark:bg-neutral-900 overflow-hidden">
           <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
             <div>
               <CardTitle className="text-xl font-black text-slate-900 flex items-center gap-3">
@@ -734,7 +734,7 @@ export default function ModernDashboard() {
             <KeyRound className="w-5 h-5 text-primary" />
             Plan & Usage
           </h2>
-          <Card className="border border-neutral-200 shadow-sm bg-white dark:bg-neutral-100 overflow-hidden rounded-xl">
+          <Card className="border border-neutral-200 shadow-sm bg-white dark:bg-neutral-900 overflow-hidden rounded-xl">
             <CardContent className="p-0">
               <div className="p-5 border-b border-neutral-100 flex items-center justify-between bg-neutral-50 dark:bg-neutral-50/50">
                 <div>
@@ -775,7 +775,7 @@ export default function ModernDashboard() {
             <ArrowUpRight className="w-4 h-4 ml-1" />
           </Button>
         </div>
-        <Card className="border-0 shadow-sm rounded-xl bg-white dark:bg-neutral-100 overflow-hidden">
+        <Card className="border-0 shadow-sm rounded-xl bg-white dark:bg-neutral-900 overflow-hidden">
           <CardContent className="p-0">
             {recentCertificates.length === 0 ? (
               <div className="text-center py-16">
@@ -835,7 +835,7 @@ function StatCard({ title, value, icon: Icon, color, trend, progress, subtitle }
   };
 
   return (
-    <Card className="border-0 shadow-sm hover:shadow-md transition-all group rounded-xl bg-white dark:bg-neutral-100 overflow-hidden">
+    <Card className="border-0 shadow-sm hover:shadow-md transition-all group rounded-xl bg-white dark:bg-neutral-900 overflow-hidden">
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-4 flex-1">

@@ -89,25 +89,16 @@ export default function GovernanceWorkspace() {
     },
   });
 
-  const { data: verificationStatus, isLoading: verificationLoading } = useQuery({
-    queryKey: ["institution-verification-status", user?.id],
-    enabled: !!user?.id,
-    queryFn: () => api.getVerificationStatus(),
-  });
-
   const isGovernanceVerified = useMemo(() => {
+    if (!governanceInstitution) return false;
+    
+    // Unified status check
+    const status = (governanceInstitution as any).verificationStatus?.toLowerCase?.() || "";
+    const isVerified = Boolean((governanceInstitution as any).isVerified);
+    
     const governanceEligibleStatuses = ["pending", "under_governance_review", "approved"];
-    const statusFromVerification = (verificationStatus as any)?.verificationStatus?.toLowerCase?.() || "";
-    const statusFromGovernanceInstitution = (governanceInstitution as any)?.institution?.verificationStatus?.toLowerCase?.() || 
-                                           (governanceInstitution as any)?.verificationStatus?.toLowerCase?.() || "";
-
-    const isVerified = Boolean((verificationStatus as any)?.isVerified) ||
-                      Boolean((governanceInstitution as any)?.institution?.isVerified) ||
-                      Boolean((governanceInstitution as any)?.isVerified);
-
-    return isVerified || governanceEligibleStatuses.includes(statusFromVerification) || 
-           governanceEligibleStatuses.includes(statusFromGovernanceInstitution);
-  }, [governanceInstitution, verificationStatus]);
+    return isVerified || governanceEligibleStatuses.includes(status);
+  }, [governanceInstitution]);
 
   const { data: proposalsData, isLoading: proposalsLoading } = useProposals(proposalPage, 10);
   const { data: summaryData, isLoading: summaryLoading } = useGovernanceSummary();
@@ -159,7 +150,7 @@ export default function GovernanceWorkspace() {
     castVoteMutation.mutate({ proposalId, support });
   };
 
-  if (governanceLoading || verificationLoading || summaryLoading) {
+  if (governanceLoading || summaryLoading) {
     return (
       <div className="space-y-12 max-w-7xl mx-auto py-8 px-4">
         <div className="flex justify-between items-end">
@@ -201,7 +192,7 @@ export default function GovernanceWorkspace() {
             </div>
             <div className="pt-4">
               <Link href="/institution/governance-verification">
-                <Button className="h-14 px-10 rounded-2xl font-black text-sm uppercase tracking-wider bg-neutral-900 dark:bg-neutral-100 dark:text-neutral-900 hover:scale-[1.02] transition-all">
+                <Button className="h-14 px-10 rounded-2xl font-black text-sm uppercase tracking-wider bg-neutral-900 dark:bg-neutral-900 dark:text-white hover:scale-[1.02] transition-all">
                   Initiate Verification <ArrowRight className="size-4 ml-2" />
                 </Button>
               </Link>

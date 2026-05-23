@@ -280,7 +280,7 @@ export function CertificateVerification() {
 
                    <div className="pt-10 border-t border-neutral-100 dark:border-neutral-800 flex flex-wrap gap-4">
                       <Button onClick={clearResult} variant="outline" className="h-14 px-8 rounded-2xl border-neutral-200 font-black text-xs uppercase tracking-widest">Perform New Audit</Button>
-                      <Button className="h-14 px-10 rounded-2xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 font-black text-xs uppercase tracking-widest shadow-xl">Download Official Report</Button>
+                      <Button className="h-14 px-10 rounded-2xl bg-neutral-900 dark:bg-neutral-900 text-white dark:text-white font-black text-xs uppercase tracking-widest shadow-xl">Download Official Report</Button>
                    </div>
                 </CardContent>
               )}

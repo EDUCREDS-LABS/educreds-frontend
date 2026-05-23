@@ -24,26 +24,52 @@ import { getAuthHeaders } from "@/lib/auth";
 import { API_CONFIG } from "@/config/api";
 import { Skeleton } from "@/components/ui/loading-skeleton";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function BatchSigningSettings() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [privateKey, setPrivateKey] = useState("");
   const [institutionSettings, setInstitutionSettings] = useState<any>(null);
 
+  const institutionId = user?.id || user?.sub;
+
   useEffect(() => {
-    fetchSettings();
-  }, []);
+    if (institutionId) {
+      fetchSettings();
+    } else {
+      setLoading(false);
+    }
+  }, [institutionId]);
 
   const fetchSettings = async () => {
+    if (!institutionId) return;
     try {
       setLoading(true);
-      const response = await fetch(`${API_CONFIG.CERT}/api/institutions/settings`, {
+      // Try both standard and profile settings endpoints
+      const response = await fetch(API_CONFIG.INSTITUTIONS.PROFILE_SETTINGS, {
         headers: getAuthHeaders(),
       });
-      const data = await response.json();
-      setInstitutionSettings(data);
+      
+      let settings = {};
+      if (response.ok) {
+        const data = await response.json();
+        settings = data.settings || {};
+      }
+      
+      // Also check explicit batch signing status
+      const statusRes = await fetch(API_CONFIG.INSTITUTIONS.BATCH_SIGNING.STATUS(institutionId), {
+        headers: getAuthHeaders(),
+      });
+      const statusData = await statusRes.json();
+
+      setInstitutionSettings({
+        ...settings,
+        batchSigningEnabled: statusData.enabled,
+        walletAddress: user?.walletAddress
+      });
     } catch (error) {
       console.error("Failed to fetch institution settings:", error);
     } finally {
@@ -52,6 +78,15 @@ export default function BatchSigningSettings() {
   };
 
   const handleUpdateKey = async () => {
+    if (!institutionId) {
+      toast({
+        title: "Authorization Required",
+        description: "Please sign in to update your security keys.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!privateKey || privateKey.length < 64) {
       toast({
         title: "Invalid Security Key",
@@ -64,7 +99,7 @@ export default function BatchSigningSettings() {
     try {
       setIsUpdating(true);
       const response = await fetch(
-        `${API_CONFIG.CERT}/api/institutions/batch-signing-config`,
+        API_CONFIG.INSTITUTIONS.BATCH_SIGNING.STORE_KEY(institutionId),
         {
           method: "POST",
           headers: {
@@ -77,7 +112,7 @@ export default function BatchSigningSettings() {
 
       const data = await response.json();
 
-      if (response.ok) {
+      if (response.ok && data.success !== false) {
         toast({
           title: "Protocol Synchronized",
           description: "Batch signing keys have been cryptographically updated.",

@@ -116,6 +116,12 @@ export const API_CONFIG = {
     VERIFICATION_DOCUMENTS: `${CERT_API_BASE}/api/institutions/verification-documents`,
     CHANGE_PASSWORD: `${CERT_API_BASE}/auth/institution/change-password`,
     BLOCKCHAIN_STATUS: (institutionId: string) => `${CERT_API_BASE}/api/institutions/${institutionId}/blockchain-status`,
+    BATCH_SIGNING: {
+      STORE_KEY: (institutionId: string) => `${CERT_API_BASE}/api/institutions/${institutionId}/batch-signing/store-key`,
+      REMOVE_KEY: (institutionId: string) => `${CERT_API_BASE}/api/institutions/${institutionId}/batch-signing/remove-key`,
+      TEST_KEY: (institutionId: string) => `${CERT_API_BASE}/api/institutions/${institutionId}/batch-signing/test-key`,
+      STATUS: (institutionId: string) => `${CERT_API_BASE}/api/institutions/${institutionId}/batch-signing/status`,
+    },
     VARIANTS: (institutionId: string) => `${MAIN_API_BASE}/api/institutions/${institutionId}/variants`
   },
   

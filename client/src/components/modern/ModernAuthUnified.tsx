@@ -466,7 +466,7 @@ export default function ModernAuthUnified() {
                                     type={showPassword ? "text" : "password"}
                                     placeholder="Enter your password"
                                     {...field}
-                                    className="h-11 pr-10"
+                                    className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner pr-10"
                                   />
                                   <button
                                     type="button"
@@ -509,67 +509,84 @@ export default function ModernAuthUnified() {
 
                   {/* Wallet Login */}
                   <TabsContent value="wallet">
-                    <div className="space-y-4">
-                      {error && (
-                        <Alert variant="destructive">
-                          <AlertCircle className="h-4 w-4" />
-                          <AlertDescription>{error}</AlertDescription>
-                        </Alert>
-                      )}
-
-                      <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-                        <p className="text-sm text-blue-800 flex items-start">
-                          <Wallet className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
-                          <span>Connect your institution's blockchain wallet to sign in securely</span>
-                        </p>
-                      </div>
-
-                      {!isConnected ? (
-                        <Button
-                          onClick={connect}
-                          disabled={walletLoading}
-                          className="w-full h-11 bg-gradient-to-r from-primary to-purple-600"
-                        >
-                          {walletLoading ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Connecting...
-                            </>
-                          ) : (
-                            <>
-                              <Wallet className="mr-2 h-4 w-4" />
-                              Connect MetaMask
-                            </>
+                    <div className="space-y-6">
+                      {isConnected ? (
+                        <div className="space-y-6">
+                          {error && (
+                            <Alert variant="destructive" className="rounded-2xl">
+                              <AlertCircle className="h-4 w-4" />
+                              <AlertDescription>{error}</AlertDescription>
+                            </Alert>
                           )}
-                        </Button>
-                      ) : (
-                        <div className="space-y-4">
-                          <div className="p-4 rounded-lg bg-green-50 border border-green-200">
-                            <div className="flex items-center gap-2 mb-2">
-                              <CheckCircle className="w-4 h-4 text-green-600" />
-                              <p className="text-sm font-medium text-green-900">Wallet Connected</p>
+
+                          <div className="p-6 rounded-[24px] bg-emerald-50 border border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-500/20">
+                            <div className="flex items-center gap-4 mb-4">
+                              <div className="size-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+                                <Wallet className="size-6" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-black text-emerald-900 dark:text-emerald-400 uppercase tracking-tight">Active Identity</p>
+                                <p className="text-xs font-bold text-emerald-600">Protocol Synchronized</p>
+                              </div>
                             </div>
-                            <p className="text-xs text-green-700 font-mono truncate">
-                              {walletAddress}
-                            </p>
+                            <div className="bg-white/50 dark:bg-black/20 p-4 rounded-xl border border-white dark:border-white/5">
+                              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1">Wallet Address</p>
+                              <p className="text-xs font-mono font-bold text-neutral-900 dark:text-white truncate">
+                                {walletAddress}
+                              </p>
+                            </div>
                           </div>
 
                           <Button
                             onClick={handleWalletLogin}
                             disabled={isLoading}
-                            className="w-full h-11 bg-gradient-to-r from-primary to-purple-600"
+                            className="w-full h-16 rounded-[24px] bg-neutral-900 hover:bg-black dark:bg-white dark:text-neutral-900 font-black text-xs uppercase tracking-[0.2em] shadow-2xl transition-all"
                           >
-                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {isLoading ? "Signing..." : "Sign In with Wallet"}
+                            {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Shield className="mr-2 h-5 w-5" />}
+                            {isLoading ? "Synchronizing..." : "Authorize Identity"}
                           </Button>
 
                           <Button
                             onClick={disconnect}
-                            variant="outline"
-                            className="w-full h-14 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg"
+                            variant="ghost"
+                            className="w-full h-14 rounded-[24px] font-black text-[10px] uppercase tracking-[0.2em] text-neutral-400 hover:text-red-500 transition-colors"
                             disabled={isLoading}
                           >
-                            Disconnect Wallet
+                            Disconnect Authority
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-6">
+                          {error && (
+                            <Alert variant="destructive" className="rounded-2xl">
+                              <AlertCircle className="h-4 w-4" />
+                              <AlertDescription>{error}</AlertDescription>
+                            </Alert>
+                          )}
+
+                          <div className="p-8 rounded-[32px] bg-neutral-50 dark:bg-neutral-800 border-2 border-dashed border-neutral-200 dark:border-neutral-700 text-center space-y-4">
+                            <div className="size-16 bg-white dark:bg-neutral-900 rounded-[24px] shadow-xl flex items-center justify-center mx-auto text-primary">
+                              <Wallet className="size-8" />
+                            </div>
+                            <div className="space-y-2">
+                              <h3 className="text-lg font-black tracking-tight">Connect Wallet.</h3>
+                              <p className="text-xs text-neutral-500 font-medium leading-relaxed">
+                                Authorize your institutional identity through the blockchain protocol to access the network dashboard.
+                              </p>
+                            </div>
+                          </div>
+
+                          <Button
+                            onClick={connect}
+                            disabled={walletLoading}
+                            className="w-full h-16 rounded-[24px] bg-primary hover:bg-primary/90 font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all"
+                          >
+                            {walletLoading ? (
+                              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                            ) : (
+                              <Zap className="mr-2 h-5 w-5" />
+                            )}
+                            {walletLoading ? "Connecting..." : "Initialize Protocol"}
                           </Button>
                         </div>
                       )}
@@ -578,47 +595,17 @@ export default function ModernAuthUnified() {
                 </Tabs>
               )}
 
-              {!showOtp && (
-                <>
-                  <p className="text-sm text-neutral-600 mt-6">
-                    Don't have an account?{" "}
-                    <Link href="/register">
-                      <button className="text-primary hover:underline font-medium">
-                        Register your institution
-                      </button>
-                    </Link>
+              <div className="mt-10 pt-8 border-t border-neutral-100 dark:border-neutral-800">
+                <div className="flex flex-col gap-4 text-center">
+                  <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">
+                    Authorized Access Only
                   </p>
-
-                  <div className="mt-4 text-center">
-                    <p className="text-sm text-neutral-600">
-                      Are you a student?{" "}
-                      <Link href="/student-portal">
-                        <button className="text-secondary hover:underline font-medium">
-                          Access Student Portal
-                        </button>
-                      </Link>
-                    </p>
+                  <div className="flex justify-center gap-6">
+                    <Link href="/register" className="text-[10px] font-black uppercase tracking-widest text-primary hover:opacity-70 transition-opacity">Register Institution</Link>
+                    <Link href="/student-portal" className="text-[10px] font-black uppercase tracking-widest text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors">Student Access</Link>
                   </div>
-
-                  <div className="mt-6 pt-6 border-t border-neutral-200">
-                    <div className="text-center">
-                      <p className="text-xs text-neutral-500 mb-2">Quick Access</p>
-                      <div className="flex gap-2">
-                        <Link href="/verify" className="flex-1">
-                          <Button variant="outline" size="sm" className="w-full">
-                            Verify Certificate
-                          </Button>
-                        </Link>
-                        <Link href="/marketplace" className="flex-1">
-                          <Button variant="outline" size="sm" className="w-full">
-                            Browse Templates
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>

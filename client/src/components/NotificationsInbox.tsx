@@ -117,7 +117,7 @@ export function NotificationsInbox() {
             Mark Synchronized
           </Button>
           <Button 
-            className="flex-1 h-10 rounded-xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-[10px] font-black uppercase tracking-widest shadow-lg"
+            className="flex-1 h-10 rounded-xl bg-neutral-900 dark:bg-neutral-900 text-white dark:text-white text-[10px] font-black uppercase tracking-widest shadow-lg"
           >
             Terminal View
           </Button>

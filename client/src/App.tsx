@@ -1,5 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
-import { useEffect, lazy, Suspense } from "react";
+import { useEffect, lazy, Suspense, useState } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -12,6 +12,7 @@ import { DevProvider } from "./DevContext";
 import { ChatWidget } from "@/components/ChatWidget";
 import { PageLoader } from "@/components/PageLoader";
 import { useThemeStore } from "@/store/themeStore";
+import { OnboardingFlow } from "@/components/OnboardingFlow";
 const RegisterVerifyOtp = lazy(() => import("@/pages/auth/register-verify-otp"));
 const EduCredsLabsLanding = lazy(() => import("@/pages/EduCredsLabsLanding"));
 const Landing = lazy(() => import("@/pages/landing"));
@@ -310,12 +311,22 @@ function Router() {
 
 function App() {
   const { theme } = useThemeStore();
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     const root = window.document.documentElement;
     root.classList.remove("light", "dark");
     root.classList.add(theme);
   }, [theme]);
+
+  useEffect(() => {
+    const handleStartOnboarding = () => {
+      setShowOnboarding(true);
+    };
+
+    window.addEventListener('startOnboarding', handleStartOnboarding);
+    return () => window.removeEventListener('startOnboarding', handleStartOnboarding);
+  }, []);
 
   return (
     <DevProvider>
@@ -324,6 +335,12 @@ function App() {
           <TooltipProvider>
             <Toaster />
             <Router />
+            {showOnboarding && (
+              <OnboardingFlow 
+                onComplete={() => setShowOnboarding(false)} 
+                onSkip={() => setShowOnboarding(false)} 
+              />
+            )}
             <ChatWidget />
           </TooltipProvider>
         </QueryClientProvider>

@@ -188,7 +188,7 @@ export function EnterpriseCertificateIssuance() {
             <Eye className="size-4 mr-2" />
             Registry Archive
           </Button>
-          <Button className="h-12 rounded-xl font-bold px-6 bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 shadow-xl" onClick={() => setLocation('/marketplace')}>
+          <Button className="h-12 rounded-xl font-bold px-6 bg-neutral-900 dark:bg-neutral-900 text-white dark:text-white shadow-xl" onClick={() => setLocation('/marketplace')}>
             <ShoppingCart className="size-4 mr-2" />
             Get Templates
           </Button>

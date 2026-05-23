@@ -293,29 +293,38 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = ({
   // NEW: Handler for issuing certificate
   const handleIssueCertificate = async () => {
     try {
-      const response = await fetch('/api/issuance/single', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          templateId: 'current-template-id',
-          recipientName: issuanceFormData.studentName,
-          recipientEmail: issuanceFormData.recipientEmail,
-          recipientWalletAddress: issuanceFormData.walletAddress,
-          placeholders: issuanceFormData,
-        }),
+      if (!issuanceFormData.walletAddress) {
+        throw new Error('Student wallet address is required for issuance');
+      }
+
+      toast({
+        title: "Initiating Issuance",
+        description: "Preparing certificate and initiating wallet transaction..."
       });
 
-      if (!response.ok) throw new Error('Issuance failed');
-      
-      const data = await response.json();
-      announceToScreenReader('Certificate issued successfully');
-      toast({
-        title: '✅ Success',
-        description: 'Certificate issued successfully!',
+      const result = await api.issueFromTemplate({
+        templateId: 'current-template-id', // In a real scenario, this would be the actual template ID
+        recipientWallet: issuanceFormData.walletAddress,
+        recipientName: issuanceFormData.studentName || 'Recipient',
+        completionDate: new Date().toISOString(),
+        certificateType: 'Academic',
+        additionalData: {
+          ...issuanceFormData,
+          courseName: issuanceFormData.courseName || 'Course',
+          grade: issuanceFormData.grade || 'N/A'
+        }
       });
-      setShowIssuancePreview(false);
+
+      if (result) {
+        announceToScreenReader('Certificate issued successfully');
+        toast({
+          title: result.onChainStatus === 'minted' ? "✅ Success" : "⏳ Pending",
+          description: result.onChainStatus === 'minted' 
+            ? 'Certificate issued and minted successfully!' 
+            : 'Issuance initiated. Please confirm the transaction in your wallet.',
+        });
+        setShowIssuancePreview(false);
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       announceToScreenReader(`Certificate issuance failed: ${errorMessage}`);
