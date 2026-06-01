@@ -297,7 +297,7 @@ export default function ProposalDetail() {
         {/* Sidebar */}
         <div className="lg:col-span-4 space-y-8">
           {/* Voting Card */}
-          {votingPower && votingPower.votingPower > 0 ? (
+          {(votingPower && votingPower.votingPower > 0) || (proposal.state === 'ACTIVE' && (user?.isVerified || (governanceInstitution as any)?.poicScore >= 60)) ? (
             <Card className="border-none shadow-2xl shadow-primary/20 bg-primary rounded-[40px] overflow-hidden text-white">
               <CardHeader className="p-10 pb-6 border-b border-white/10">
                 <div className="flex items-center justify-between mb-4">
@@ -305,7 +305,7 @@ export default function ProposalDetail() {
                     <Vote className="size-6" />
                   </div>
                   <Badge className="bg-white/20 text-white border-none text-[9px] font-black uppercase tracking-widest px-3 h-6 backdrop-blur-xl">
-                    Weight: {votingPower.votingPower.toFixed(2)}
+                    Weight: {(votingPower?.votingPower || 1).toFixed(2)}
                   </Badge>
                 </div>
                 <CardTitle className="text-2xl font-black tracking-tight">Cast Your Vote</CardTitle>
@@ -320,7 +320,7 @@ export default function ProposalDetail() {
                       selectedVote === 1 ? "bg-white text-primary shadow-xl" : "bg-white/10 text-white border border-white/20 hover:bg-white/20"
                     )}
                     onClick={() => handleVote(1)}
-                    disabled={voteMutation.isPending}
+                    disabled={voteMutation.isPending || proposal.state !== 'ACTIVE'}
                   >
                     {voteMutation.isPending && selectedVote === 1 ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle className="size-4" />}
                     VOTE FOR PROPOSAL
@@ -332,7 +332,7 @@ export default function ProposalDetail() {
                       selectedVote === 0 ? "bg-red-500 text-white shadow-xl border-none" : "bg-white/10 text-white border border-white/20 hover:bg-white/20"
                     )}
                     onClick={() => handleVote(0)}
-                    disabled={voteMutation.isPending}
+                    disabled={voteMutation.isPending || proposal.state !== 'ACTIVE'}
                   >
                     {voteMutation.isPending && selectedVote === 0 ? <Loader2 className="size-4 animate-spin" /> : <XCircle className="size-4" />}
                     VOTE AGAINST
@@ -344,7 +344,7 @@ export default function ProposalDetail() {
                       selectedVote === 2 ? "bg-white text-primary shadow-xl" : "bg-white/10 text-white border border-white/20 hover:bg-white/20"
                     )}
                     onClick={() => handleVote(2)}
-                    disabled={voteMutation.isPending}
+                    disabled={voteMutation.isPending || proposal.state !== 'ACTIVE'}
                   >
                     {voteMutation.isPending && selectedVote === 2 ? <Loader2 className="size-4 animate-spin" /> : <Minus className="size-4" />}
                     ABSTAIN
@@ -361,12 +361,16 @@ export default function ProposalDetail() {
                 <div className="space-y-2">
                   <h4 className="text-xl font-black tracking-tight">Voting Locked.</h4>
                   <p className="text-neutral-500 text-sm font-medium leading-relaxed">
-                    You require an active Institution Identity NFT (IIN) to participate in consensus operations.
+                    {proposal.state !== 'ACTIVE' 
+                      ? "This proposal is not currently in an active voting state."
+                      : "You require an active Institution Identity NFT (IIN) to participate in consensus operations."}
                   </p>
                 </div>
-                <Button variant="outline" className="w-full h-12 rounded-xl font-black text-[10px] uppercase tracking-widest border-neutral-200 dark:border-neutral-800">
-                  Verify Credentials
-                </Button>
+                <Link href="/institution/verification">
+                  <Button variant="outline" className="w-full h-12 rounded-xl font-black text-[10px] uppercase tracking-widest border-neutral-200 dark:border-neutral-800">
+                    Check Verification Status
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           )}
@@ -412,9 +416,16 @@ export default function ProposalDetail() {
 
               <Separator className="bg-neutral-50 dark:bg-neutral-800" />
               
-              <Button variant="ghost" className="w-full h-11 rounded-xl font-black text-[10px] uppercase tracking-widest text-primary hover:bg-primary/5">
-                View On-Chain Receipt <ExternalLink className="size-3 ml-2" />
-              </Button>
+              <a 
+                href={`https://sepolia.basescan.org/address/${process.env.GOVERNANCE_DAO_ADDRESS || '0x'}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="block"
+              >
+                <Button variant="ghost" className="w-full h-11 rounded-xl font-black text-[10px] uppercase tracking-widest text-primary hover:bg-primary/5">
+                  View On-Chain Protocol <ExternalLink className="size-3 ml-2" />
+                </Button>
+              </a>
             </CardContent>
           </Card>
         </div>

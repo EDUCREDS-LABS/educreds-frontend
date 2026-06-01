@@ -92,12 +92,35 @@ export default function GovernanceWorkspace() {
   const isGovernanceVerified = useMemo(() => {
     if (!governanceInstitution) return false;
     
-    // Unified status check
-    const status = (governanceInstitution as any).verificationStatus?.toLowerCase?.() || "";
-    const isVerified = Boolean((governanceInstitution as any).isVerified);
+    // Unified status check with multiple layers of verification
+    const status = (governanceInstitution as any).verificationStatus?.toLowerCase?.() || 
+                   (governanceInstitution as any).institution?.verificationStatus?.toLowerCase?.() || "";
     
-    const governanceEligibleStatuses = ["pending", "under_governance_review", "approved"];
-    return isVerified || governanceEligibleStatuses.includes(status);
+    const isVerified = Boolean((governanceInstitution as any).isVerified) || 
+                      Boolean((governanceInstitution as any).institution?.isVerified);
+    
+    const hasIIN = Boolean((governanceInstitution as any).iinTokenId) || 
+                  Boolean((governanceInstitution as any).institution?.iinTokenId) ||
+                  Boolean((governanceInstitution as any).iinId);
+    
+    const score = Number((governanceInstitution as any).poicScore || 
+                        (governanceInstitution as any).institution?.poicScore || 0);
+    
+    const governanceEligibleStatuses = [
+      "pending", 
+      "pending_review", 
+      "under_governance_review", 
+      "approved", 
+      "verified",
+      "active"
+    ];
+    
+    // An institution is governance-active if:
+    // 1. Explicitly verified
+    // 2. Has an IIN token on-chain
+    // 3. Has a high credibility score (>= 60)
+    // 4. Is in an eligible verification state
+    return isVerified || hasIIN || score >= 60 || governanceEligibleStatuses.includes(status);
   }, [governanceInstitution]);
 
   const { data: proposalsData, isLoading: proposalsLoading } = useProposals(proposalPage, 10);
@@ -304,7 +327,7 @@ export default function GovernanceWorkspace() {
                               <div className="flex items-center gap-2 mb-2">
                                 <Badge className="bg-primary/10 text-primary border-none text-[9px] font-black uppercase px-2 h-5">ID: {proposal.id.slice(0, 8)}</Badge>
                                 <Badge className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-none text-[9px] font-black uppercase px-2 h-5">
-                                  Score: {Math.round(proposal.legitimacyScore || 0)}
+                                  Legitimacy: {Math.round(proposal.legitimacyScore || 0)}%
                                 </Badge>
                               </div>
                               <h4 className="text-xl font-black tracking-tight dark:text-neutral-100 group-hover:text-primary transition-colors">{proposal.title || "Institution Verification"}</h4>
@@ -465,7 +488,7 @@ export default function GovernanceWorkspace() {
                     <TableRow className="border-b border-neutral-100 dark:border-neutral-800">
                       <TableHead className="px-8 font-black text-[10px] uppercase tracking-widest py-5">Proposal Title</TableHead>
                       <TableHead className="font-black text-[10px] uppercase tracking-widest">Status</TableHead>
-                      <TableHead className="font-black text-[10px] uppercase tracking-widest">Trust Score</TableHead>
+                      <TableHead className="font-black text-[10px] uppercase tracking-widest text-neutral-400">Legitimacy</TableHead>
                       <TableHead className="font-black text-[10px] uppercase tracking-widest">Date</TableHead>
                       <TableHead className="px-8 text-right font-black text-[10px] uppercase tracking-widest">Action</TableHead>
                     </TableRow>

@@ -12,7 +12,10 @@ import {
   FileCheck,
   Globe,
   Server,
-  Activity
+  Activity,
+  Landmark,
+  User,
+  ShieldCheck
 } from "lucide-react";
 import { motion } from "framer-motion";
 import ModernHeader from "@/components/modern/ModernHeader";
@@ -211,10 +214,66 @@ export default function EduCredsLabsLanding() {
         </div>
       </section>
 
-      {/* System Architecture */}
-      <div className="bg-neutral-50 border-t border-neutral-200">
-        <SystemArchitecture />
-      </div>
+      {/* Ecosystem Participants Section */}
+      <section className="py-24 bg-neutral-50/50 border-t border-neutral-200/60">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16 space-y-4">
+            <h2 className="text-3xl md:text-5xl font-black text-neutral-900 tracking-tight uppercase">
+              The Trust <span className="text-blue-600">Ecosystem</span>.
+            </h2>
+            <p className="text-lg text-neutral-500 max-w-2xl mx-auto font-medium">
+              Connecting every stakeholder in the academic lifecycle through a unified protocol.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              {
+                title: "Educational Institutions",
+                role: "Issuers",
+                description: "Scale your certification pipeline with industrial-grade blockchain infrastructure and dynamic PoIC scoring.",
+                icon: Landmark,
+                color: "text-blue-600",
+                bg: "bg-blue-50"
+              },
+              {
+                title: "Individual Learners",
+                role: "Owners",
+                description: "Take absolute ownership of your academic history with soulbound credentials and a unified digital identity.",
+                icon: User,
+                color: "text-indigo-600",
+                bg: "bg-indigo-50"
+              },
+              {
+                title: "Global Verifiers",
+                role: "Validating Nodes",
+                description: "Eliminate manual checks. Verify qualifications instantly through the public ledger with mathematical certainty.",
+                icon: ShieldCheck,
+                color: "text-emerald-600",
+                bg: "bg-emerald-50"
+              }
+            ].map((p, i) => (
+              <Card key={i} className="border-none shadow-xl shadow-neutral-200/40 bg-white rounded-[32px] overflow-hidden group hover:shadow-2xl transition-all duration-500">
+                <CardContent className="p-10 space-y-6">
+                  <div className={`size-16 rounded-2xl ${p.bg} flex items-center justify-center ${p.color} group-hover:scale-110 transition-transform duration-500 shadow-inner`}>
+                    <p.icon className="size-8" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-neutral-900 mb-1">{p.title}</h3>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400">{p.role}</p>
+                  </div>
+                  <p className="text-neutral-500 font-medium leading-relaxed">
+                    {p.description}
+                  </p>
+                  <Button variant="link" className={`p-0 h-auto font-black text-xs uppercase tracking-widest ${p.color} hover:no-underline gap-2`}>
+                    Learn Details <ArrowRight className="size-3" />
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <PartnersSection />
 

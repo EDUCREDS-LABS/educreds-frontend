@@ -1,10 +1,19 @@
 import { API_CONFIG } from '@/config/api';
+import { jwtDecode } from 'jwt-decode';
 
 type AdminSession = {
   email: string;
   role: string;
   expiresAt: string | null;
 };
+
+interface AdminTokenPayload {
+  sub: string;
+  email: string;
+  role: string;
+  type: string;
+  exp: number;
+}
 
 const parseErrorMessage = async (response: Response) => {
   const text = await response.text();
@@ -17,7 +26,7 @@ const parseErrorMessage = async (response: Response) => {
 };
 
 export class AdminAuth {
-  static async login(email: string, password: string): Promise<{ success: boolean; message: string }> {
+  static async login(email: string, password: string): Promise<{ success: boolean; message: string; data?: any }> {
     const response = await fetch(API_CONFIG.ADMIN.LOGIN, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -32,39 +41,61 @@ export class AdminAuth {
       };
     }
 
+    const data = await response.json();
+    
+    // Store the token in localStorage
+    if (data.token) {
+      localStorage.setItem('admin_token', data.token);
+    }
+
     return {
       success: true,
       message: 'Authentication successful',
+      data
     };
   }
 
   static async logout(): Promise<void> {
+    localStorage.removeItem('admin_token');
     await fetch(API_CONFIG.ADMIN.LOGOUT, {
       method: 'POST',
       credentials: 'include',
     }).catch(() => undefined);
   }
 
-  static async getSession(): Promise<AdminSession | null> {
-    const response = await fetch(API_CONFIG.ADMIN.SESSION, {
-      credentials: 'include',
-      cache: 'no-store',
-    });
+  static getSession(): AdminSession | null {
+    const token = localStorage.getItem('admin_token');
+    if (!token) return null;
 
-    if (!response.ok) {
+    try {
+      const decoded = jwtDecode<AdminTokenPayload>(token);
+      
+      // Check if token is expired
+      const currentTime = Date.now() / 1000;
+      if (decoded.exp < currentTime) {
+        localStorage.removeItem('admin_token');
+        return null;
+      }
+
+      // Verify it's an admin token
+      if (decoded.type !== 'admin') {
+        return null;
+      }
+
+      return {
+        email: decoded.email,
+        role: decoded.role,
+        expiresAt: new Date(decoded.exp * 1000).toISOString(),
+      };
+    } catch (error) {
+      console.error('Failed to decode admin token:', error);
+      localStorage.removeItem('admin_token');
       return null;
     }
-
-    const data = await response.json();
-    return {
-      email: data.user?.email || '',
-      role: data.user?.role || '',
-      expiresAt: data.expiresAt || null,
-    };
   }
 
-  static async getSessionInfo(): Promise<{ email: string; timeRemaining: number } | null> {
-    const session = await this.getSession();
+  static getSessionInfo(): { email: string; timeRemaining: number } | null {
+    const session = this.getSession();
     if (!session) return null;
 
     const expiresAtMs = session.expiresAt ? Date.parse(session.expiresAt) : NaN;
@@ -76,5 +107,10 @@ export class AdminAuth {
       email: session.email,
       timeRemaining,
     };
+  }
+
+  static getAuthHeaders(): Record<string, string> {
+    const token = localStorage.getItem('admin_token');
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
   }
 }

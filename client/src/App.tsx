@@ -13,6 +13,13 @@ import { ChatWidget } from "@/components/ChatWidget";
 import { PageLoader } from "@/components/PageLoader";
 import { useThemeStore } from "@/store/themeStore";
 import { OnboardingFlow } from "@/components/OnboardingFlow";
+import { AdminLayout } from "@/components/admin/AdminLayout";
+import { UserManagement } from "@/components/admin/UserManagementModule";
+import { InfrastructureManagement } from "@/components/admin/InfrastructureModule";
+import { InstitutionalRecoveryModule } from "@/components/admin/InstitutionalRecoveryModule";
+import { ComplianceModule } from "@/components/admin/ComplianceModule";
+import { SecurityLogsModule } from "@/components/admin/SecurityLogsModule";
+import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 const RegisterVerifyOtp = lazy(() => import("@/pages/auth/register-verify-otp"));
 const EduCredsLabsLanding = lazy(() => import("@/pages/EduCredsLabsLanding"));
 const Landing = lazy(() => import("@/pages/landing"));
@@ -130,9 +137,22 @@ function Router() {
 
       {/* Admin Routes */}
       <Route path="/admin/login" component={AdminLogin} />
-      <Route path="/admin/dashboard" component={AdminDashboard} />
-      <Route path="/admin" component={AdminDashboard} />
-      <Route path="/admin/governance" component={AdminGovernanceDashboard} />
+      <Route path="/admin/*">
+        <AdminProtectedRoute>
+          <AdminLayout>
+            <Switch>
+              <Route path="/admin" component={AdminDashboard} />
+              <Route path="/admin/dashboard" component={AdminDashboard} />
+              <Route path="/admin/users" component={UserManagement} />
+              <Route path="/admin/infrastructure" component={InfrastructureManagement} />
+              <Route path="/admin/recovery" component={InstitutionalRecoveryModule} />
+              <Route path="/admin/compliance" component={ComplianceModule} />
+              <Route path="/admin/security" component={SecurityLogsModule} />
+            </Switch>
+          </AdminLayout>
+        </AdminProtectedRoute>
+      </Route>
+// ...
       <Route path="/dao" component={DAODashboard} />
       <Route path="/governance/public-vote">
         <Layout>

@@ -41,8 +41,10 @@ import {
   Search,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { governanceApiService } from '@/lib/governanceApiService';
 import { api } from '@/lib/api';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { TemplateSelector } from './TemplateSelector';
 import { PDFUploader } from './PDFUploader';
@@ -88,6 +90,7 @@ interface Template {
 }
 
 export function EnterpriseCertificateIssuance() {
+  const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -109,6 +112,21 @@ export function EnterpriseCertificateIssuance() {
   const certificatesUsed = (subscription as any)?.usage?.certificatesThisMonth || 0;
   const planCertificateLimit = planId === 'pro' ? 1000 : planId === 'enterprise' ? -1 : 200;
   
+  const { data: governanceInstitution } = useQuery({
+    queryKey: ["/governance/institutions", user?.id],
+    enabled: !!user?.id,
+    queryFn: () => governanceApiService.getInstitutionDetail(user!.id),
+  });
+
+  const isInstitutionVerified = useMemo(() => {
+    if (!user || !governanceInstitution) return false;
+    const stats = governanceInstitution || {};
+    const hasIIN = Boolean(stats.iinTokenId || stats.iinId || stats.institution?.iinTokenId);
+    const hasHighPoIC = Number(stats.poicScore || stats.institution?.poicScore || 0) >= 60;
+    const isExplicitlyVerified = Boolean(user.isVerified) || Boolean(stats.institution?.isVerified);
+    return isExplicitlyVerified || hasIIN || hasHighPoIC;
+  }, [user, governanceInstitution]);
+
   const stats = {
     totalIssued: allCertificates.length,
     thisMonth: certificatesUsed,
@@ -117,6 +135,7 @@ export function EnterpriseCertificateIssuance() {
   };
 
   const isLimitExceeded = planCertificateLimit !== -1 && certificatesUsed >= planCertificateLimit;
+  const isIssuanceBlocked = !isInstitutionVerified;
 
   const pdfForm = useForm<PDFIssuanceFormData>({
     resolver: zodResolver(pdfIssuanceSchema),
@@ -219,6 +238,18 @@ export function EnterpriseCertificateIssuance() {
         ))}
       </div>
 
+      {isIssuanceBlocked && (
+        <Alert variant="destructive" className="rounded-3xl p-6 shadow-xl shadow-red-500/10 border-red-200 dark:border-red-900/50">
+          <ShieldAlert className="size-5" />
+          <AlertTitle className="font-black text-lg">Infrastructure Restricted</AlertTitle>
+          <AlertDescription className="font-medium opacity-80">
+            Your institutional node is currently restricted from issuing on-chain credentials. 
+            Verification is required (PoIC ≥ 60% or valid IIN token). 
+            Please visit the <Link href="/institution/governance-workspace" className="underline font-bold">Governance Workspace</Link> to audit your status.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {isLimitExceeded && (
         <Alert variant="destructive" className="rounded-3xl p-6 shadow-xl shadow-red-500/10 border-red-200 dark:border-red-900/50">
           <AlertCircle className="size-5" />
@@ -264,7 +295,7 @@ export function EnterpriseCertificateIssuance() {
                     form={templateForm}
                     onSubmit={handleTemplateSubmit}
                     isLoading={templateIssueMutation.isPending}
-                    isLimitExceeded={isLimitExceeded || !isWalletConnected}
+                    isLimitExceeded={isLimitExceeded || !isWalletConnected || isIssuanceBlocked}
                   />
                 </TabsContent>
 
@@ -273,7 +304,7 @@ export function EnterpriseCertificateIssuance() {
                     form={pdfForm}
                     onSubmit={handlePDFSubmit}
                     isLoading={pdfIssueMutation.isPending}
-                    isLimitExceeded={isLimitExceeded || !isWalletConnected}
+                    isLimitExceeded={isLimitExceeded || !isWalletConnected || isIssuanceBlocked}
                     uploadProgress={uploadProgress}
                     setUploadProgress={setUploadProgress}
                   />
@@ -282,7 +313,7 @@ export function EnterpriseCertificateIssuance() {
                 <TabsContent value="bulk" className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-500">
                   <BulkCSVUploader
                     templates={templates}
-                    isLimitExceeded={isLimitExceeded || !isWalletConnected}
+                    isLimitExceeded={isLimitExceeded || !isWalletConnected || isIssuanceBlocked}
                   />
                 </TabsContent>
               </Tabs>

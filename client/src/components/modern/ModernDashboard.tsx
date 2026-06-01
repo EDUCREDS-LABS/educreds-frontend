@@ -213,6 +213,14 @@ export default function ModernDashboard() {
   const certificatesRemaining = Math.max(0, certificateLimit - certificatesUsed);
   const isNearLimit = getUsagePercentage() >= 80;
 
+  const isInstitutionVerified = useMemo(() => {
+    if (!user) return false;
+    const hasIIN = Boolean(stats.iinTokenId || stats.iinId);
+    const hasHighPoIC = Number(stats.poicScore || 0) >= 60;
+    const isExplicitlyVerified = Boolean(user.isVerified);
+    return isExplicitlyVerified || hasIIN || hasHighPoIC;
+  }, [user, stats]);
+
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-50/50">
       <div className="max-w-7xl mx-auto space-y-8 px-4 sm:px-6 lg:px-8 py-8">
@@ -224,7 +232,7 @@ export default function ModernDashboard() {
                 <h1 className="text-3xl font-bold tracking-tight text-neutral-900 dark:text-white">
                   Welcome back, {user?.name?.split(' ')[0] || 'Admin'}
                 </h1>
-                {stats.poicScore > 60 && (
+                {isInstitutionVerified && (
                   <div className="size-6 flex-shrink-0 animate-in fade-in zoom-in duration-500">
                     <img 
                       src="https://res.cloudinary.com/dycszahnr/image/upload/q_auto/f_auto/v1777384457/verified_badge_mysrk6.jpg" 
@@ -234,7 +242,7 @@ export default function ModernDashboard() {
                   </div>
                 )}
               </div>
-              {user?.isVerified ? (
+              {isInstitutionVerified ? (
                 <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800">
                   <CheckCircle className="w-3 h-3 mr-1" />
                   Verified

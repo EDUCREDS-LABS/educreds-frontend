@@ -1,5 +1,8 @@
+import { useState, useMemo } from "react";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { Award, Bell, Search, User, LogOut, Wallet, ShieldCheck, Settings, CheckCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -13,7 +16,6 @@ import {
   DropdownMenuLabel
 } from "@/components/ui/dropdown-menu";
 import { Link } from "wouter";
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationsInbox } from "./NotificationsInbox";
@@ -27,6 +29,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     console.log("Searching for:", searchQuery);
     // Add real search logic here when API is available
   };
+
+  const { data: statsData } = useQuery({
+    queryKey: ["/api/stats", user?.id],
+    queryFn: () => api.getStats(user?.id),
+    enabled: !!user,
+  });
+
+  const isInstitutionVerified = useMemo(() => {
+    if (!user) return false;
+    const stats = statsData || {};
+    const hasIIN = Boolean(stats.iinTokenId || stats.iinId);
+    const hasHighPoIC = Number(stats.poicScore || 0) >= 60;
+    const isExplicitlyVerified = Boolean(user.isVerified);
+    return isExplicitlyVerified || hasIIN || hasHighPoIC;
+  }, [user, statsData]);
 
   return (
     <SidebarProvider>
@@ -72,7 +89,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <div className="text-right hidden sm:block">
                       <p className="text-sm font-bold text-neutral-900 dark:text-neutral-100 leading-tight group-hover:text-primary transition-colors">{user?.name}</p>
                       <p className="text-[10px] text-neutral-500 dark:text-neutral-400 mt-1 font-black uppercase tracking-widest">
-                        {user?.isVerified ? "Verified Partner" : "Pending Review"}
+                        {isInstitutionVerified ? "Verified Partner" : "Pending Review"}
                       </p>
                     </div>
                     <div className="relative">
@@ -81,7 +98,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                           {user?.name?.charAt(0) || "I"}
                         </AvatarFallback>
                       </Avatar>
-                      {user?.isVerified && (
+                      {isInstitutionVerified && (
                         <div className="absolute -bottom-1 -right-1 bg-green-500 text-white p-0.5 rounded-full border-2 border-white dark:border-neutral-900 shadow-sm">
                           <CheckCircle className="size-3" />
                         </div>
@@ -136,5 +153,3 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
-
-

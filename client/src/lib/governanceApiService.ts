@@ -301,6 +301,7 @@ class GovernanceApiService {
     // Add auth token to requests if available
     this.client.interceptors.request.use((config: any) => {
       const token =
+        localStorage.getItem('admin_token') ||
         localStorage.getItem('institution_token') ||
         localStorage.getItem('marketplace_token') ||
         localStorage.getItem('authToken');
@@ -706,6 +707,16 @@ class GovernanceApiService {
       `/governance/admin/institutions/${institutionId}/decommission`,
       {}
     );
+    return response.data;
+  }
+
+  async getInstitutionGovernanceStatus(institutionId: string): Promise<any> {
+    const response = await this.client.get(`/admin/institutions/${institutionId}/governance-status`);
+    return response.data;
+  }
+
+  async unblockInstitutionIssuance(institutionId: string): Promise<any> {
+    const response = await this.client.post(`/admin/institutions/${institutionId}/unblock-issuance`);
     return response.data;
   }
 
