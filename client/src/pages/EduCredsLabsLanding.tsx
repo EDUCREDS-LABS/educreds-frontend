@@ -131,7 +131,7 @@ export default function EduCredsLabsLanding() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
               <Badge variant="outline" className="mb-6 border-neutral-700 text-neutral-300 px-4 py-1">Why EduCreds?</Badge>
-              <h2 className="mt-4 text-3xl font-bold leading-tight text-blue-500 md:text-5xl lg:text-5xl">
+              <h2 className="mt-4 text-3xl font-bold leading-tight text-cyan-400 md:text-5xl lg:text-5xl uppercase tracking-tighter">
                 Eliminating Credential Fraud with Blockchain Technology
               </h2>
               <div className="space-y-10">

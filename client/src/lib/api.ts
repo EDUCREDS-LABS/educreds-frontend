@@ -71,6 +71,22 @@ const isPlaceholderAddress = (address?: string): boolean => {
   );
 };
 
+const isWalletDirectEnabled = (): boolean =>
+  String(import.meta.env.VITE_ENABLE_WALLET_DIRECT_ISSUANCE ?? "true").toLowerCase() !== "false";
+
+// A wallet provider is available when either an injected provider (MetaMask/Coinbase)
+// exists OR the app has an active WalletConnect/AppKit session. Gating only on
+// `window.ethereum` silently skips signing for WalletConnect users.
+const hasWalletProvider = (): boolean => {
+  if (typeof window === "undefined") return false;
+  if (typeof (window as { ethereum?: unknown }).ethereum !== "undefined") return true;
+  try {
+    return walletService.isConnected();
+  } catch {
+    return false;
+  }
+};
+
 const toHexChainId = (chainId: number): string => `0x${Number(chainId).toString(16)}`;
 
 const CHAIN_CONFIG: Record<number, { chainName: string; rpcUrls: string[]; nativeCurrency: { name: string; symbol: string; decimals: number }; blockExplorerUrls: string[] }> = {
@@ -394,16 +410,18 @@ export const api = {
     if (params?.severity) query.set("severity", params.severity);
     
     const response = await fetch(`${API_CONFIG.ADMIN.AUDIT_LOGS}?${query.toString()}`, {
+      headers: getAuthHeaders(),
       credentials: "include",
     });
     return handleResponse(response);
   },
 
   getSystemHealth: async () => {
+    const authHeaders = getAuthHeaders();
     const [main, cert, marketplace] = await Promise.allSettled([
-      fetch(API_CONFIG.HEALTH.MAIN, { credentials: "include" }).then(handleResponse),
-      fetch(API_CONFIG.HEALTH.CERT, { credentials: "include" }).then(handleResponse),
-      fetch(API_CONFIG.HEALTH.MARKETPLACE, { credentials: "include" }).then(handleResponse),
+      fetch(API_CONFIG.HEALTH.MAIN, { headers: authHeaders, credentials: "include" }).then(handleResponse),
+      fetch(API_CONFIG.HEALTH.CERT, { headers: authHeaders, credentials: "include" }).then(handleResponse),
+      fetch(API_CONFIG.HEALTH.MARKETPLACE, { headers: authHeaders, credentials: "include" }).then(handleResponse),
     ]);
     
     return {
@@ -620,13 +638,30 @@ export const api = {
     };
   },
 
+  // Trust Agent endpoints
+  trustAgent: {
+    getObservabilityData: async () => {
+      const response = await fetch(`${API_CONFIG.TRUST_AGENT}/api/trust-agent/observability`, {
+        headers: getAuthHeaders(),
+      });
+      return handleResponse(response);
+    },
+    getSystemHealth: async () => {
+      const response = await fetch(`${API_CONFIG.TRUST_AGENT}/api/trust-agent/health`, {
+        headers: getAuthHeaders(),
+      });
+      return handleResponse(response);
+    }
+  },
+
   // Certificate endpoints
   issueCertificate: async (formData: FormData) => {
     const authHeaders = getAuthHeaders();
-    const walletDirectEnabled = String(import.meta.env.VITE_ENABLE_WALLET_DIRECT_ISSUANCE ?? "true").toLowerCase() !== "false";
+    const walletDirectEnabled = isWalletDirectEnabled();
+    const walletAvailable = walletDirectEnabled && hasWalletProvider();
     let walletDirectFailureReason: string | undefined;
 
-    if (walletDirectEnabled && typeof window !== "undefined" && typeof window.ethereum !== "undefined") {
+    if (walletAvailable) {
       try {
         return await tryWalletDirectIssuance(formData, authHeaders);
       } catch (error) {
@@ -642,7 +677,7 @@ export const api = {
     });
     const fallback = await handleResponse(response);
     const walletDirectRequired = Boolean(fallback?.walletDirectRequired);
-    if (walletDirectRequired && typeof window !== "undefined" && typeof window.ethereum !== "undefined") {
+    if (walletDirectRequired && hasWalletProvider()) {
       try {
         return await confirmWalletDirectIssuanceIfNeeded(fallback, authHeaders);
       } catch (error) {
@@ -663,7 +698,7 @@ export const api = {
         ? "pending_wallet_signature"
         : fallback?.onChainStatus || "minted_backend_fallback",
       issuanceMode: walletDirectRequired ? "wallet_direct_pending" : "backend_fallback",
-      walletDirectAttempted: walletDirectEnabled && typeof window !== "undefined" && typeof window.ethereum !== "undefined",
+      walletDirectAttempted: walletAvailable,
       walletDirectFailureReason,
     };
   },
@@ -691,7 +726,7 @@ export const api = {
 
     console.log('[API] Response status:', response.status);
     const result = await handleResponse(response);
-    if (result?.walletDirectRequired && typeof window !== "undefined" && typeof window.ethereum !== "undefined") {
+    if (result?.walletDirectRequired && hasWalletProvider()) {
       try {
         return await confirmWalletDirectIssuanceIfNeeded(result, authHeaders);
       } catch (error) {
@@ -713,6 +748,57 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  // List credentials stuck pending on-chain confirmation for the authenticated institution.
+  getPendingCertificates: async (limit = 100) => {
+    const query = new URLSearchParams({ limit: String(limit) });
+    const response = await fetch(`${API_CONFIG.CERTIFICATES.PENDING}?${query.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  // Resume the wallet-direct mint for a pending credential: re-prepares the signing
+  // payload, prompts the wallet to sign, then confirms the resulting transaction.
+  retryMintCertificate: async (certificateId: string) => {
+    const authHeaders = getAuthHeaders();
+    if (!hasWalletProvider()) {
+      throw new Error(
+        "Connect an institutional wallet to retry the on-chain mint.",
+      );
+    }
+
+    const prepareResponse = await fetch(API_CONFIG.CERTIFICATES.RETRY_MINT(certificateId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify({}),
+    });
+    const prepared = await handleResponse(prepareResponse);
+
+    const txHash = await submitWalletDirectIssuanceTx(prepared);
+
+    const confirmResponse = await fetch(API_CONFIG.CERTIFICATES.WALLET_DIRECT_CONFIRM, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify({
+        issuanceRequestId: prepared.issuanceRequestId || certificateId,
+        txHash,
+      }),
+    });
+    const confirmed = await handleResponse(confirmResponse);
+    return { ...confirmed, txHash, onChainStatus: "minted_wallet_direct" };
+  },
+
+  // Finalise a pending credential using a known mint transaction hash, or by
+  // matching an existing on-chain tokenId when no hash is supplied.
+  reconcileCertificate: async (certificateId: string, txHash?: string) => {
+    const response = await fetch(API_CONFIG.CERTIFICATES.RECONCILE(certificateId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify(txHash ? { txHash } : {}),
     });
     return handleResponse(response);
   },
@@ -1150,7 +1236,7 @@ export const api = {
       const result = await handleResponse(response);
       let results = Array.isArray(result?.results) ? result.results : [];
 
-      if (walletDirectEnabled && typeof window !== "undefined" && typeof window.ethereum !== "undefined") {
+      if (walletDirectEnabled && hasWalletProvider()) {
         const updatedResults = [];
         for (const item of results) {
           if (item?.walletDirectRequired && item?.transactionData && item?.issuanceRequestId) {
@@ -1427,7 +1513,7 @@ export const api = {
       body: JSON.stringify(data),
     });
     const result = await handleResponse(response);
-    if (result?.walletDirectRequired && typeof window !== "undefined" && typeof window.ethereum !== "undefined") {
+    if (result?.walletDirectRequired && hasWalletProvider()) {
       try {
         return await confirmWalletDirectIssuanceIfNeeded(result, authHeaders);
       } catch (error) {

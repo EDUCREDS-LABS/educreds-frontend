@@ -49,23 +49,23 @@ import { useSidebar } from "@/components/ui/sidebar";
 
 const data = {
   navMain: [
-    { title: "Network Overview", url: "/institution/dashboard", icon: LayoutDashboard },
+    { title: "Dashboard", url: "/institution/dashboard", icon: LayoutDashboard },
     {
       title: "Credentialing",
       url: "#",
       icon: Award,
       items: [
-        { title: "Mint Credentials", url: "/institution/issue", icon: Zap },
-        { title: "Registry Archive", url: "/institution/certificates", icon: FileText },
-        { title: "Asset Templates", url: "/institution/manage-specs", icon: Palette },
+        { title: "Issue Credentials", url: "/institution/issue", icon: Zap },
+        { title: "Issued Credentials", url: "/institution/certificates", icon: FileText },
+        { title: "Templates", url: "/institution/manage-specs", icon: Palette },
       ],
     },
-    { title: "Trust Pipeline", url: "/institution/verification", icon: Shield },
-    { title: "DAO Governance", url: "/institution/governance-workspace", icon: Cpu },
+    { title: "Verification", url: "/institution/verification", icon: Shield },
+    { title: "Governance", url: "/institution/governance-workspace", icon: Cpu },
   ],
   navSecondary: [
-    { title: "Entity Profile", url: "/institution/profile", icon: User },
-    { title: "Infrastructure Plan", url: "/institution/subscription", icon: CreditCard },
+    { title: "Institution Profile", url: "/institution/profile", icon: User },
+    { title: "Plan & Billing", url: "/institution/subscription", icon: CreditCard },
     { title: "System Settings", url: "/institution/settings", icon: Settings },
   ],
 };

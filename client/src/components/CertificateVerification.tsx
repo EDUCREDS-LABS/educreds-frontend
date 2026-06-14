@@ -23,7 +23,8 @@ import {
   Fingerprint,
   Link2,
   Lock,
-  Cpu
+  Cpu,
+  Clock
 } from 'lucide-react';
 import { Skeleton } from "@/components/ui/loading-skeleton";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,14 @@ export function CertificateVerification() {
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [disclaimerChecked, setDisclaimerChecked] = useState(false);
+
+  const parseTokenId = (input: string): number | null => {
+    if (!input || typeof input !== 'string') return null;
+    const trimmed = input.trim();
+    if (!trimmed) return null;
+    const parsed = parseInt(trimmed.replace(/^#/, ''), 10);
+    return Number.isNaN(parsed) ? null : parsed;
+  };
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -54,10 +63,12 @@ export function CertificateVerification() {
     }
   }, []);
 
-  const parseTokenId = (value: string): number | null => {
-    const normalized = String(value || '').trim().replace(/^#/, '');
-    if (!normalized || !/^\d+$/.test(normalized)) return null;
-    return Number(normalized);
+  const clearResult = () => {
+    setResult(null);
+    setW3cCredential('');
+    setTokenId('');
+    setIpfsHash('');
+    setCertificateId('');
   };
 
   const handleVerify = async () => {
@@ -87,6 +98,22 @@ export function CertificateVerification() {
       setLoading(false);
     }
   };
+
+  // A credential can be in one of four states. The backend returns `valid:false`
+  // for credentials that exist and are not revoked but have not yet been confirmed
+  // on-chain (issuanceStatus === 'pending_blockchain_mint'). Showing "Audit Failed"
+  // for those is misleading, so we surface a distinct "pending" state and still
+  // render the certificate data we received.
+  const cert = result?.certificate;
+  const hasCertData = Boolean(cert && (cert.studentName || cert.courseName || cert.id || cert.tokenId));
+  const isRevoked = result?.issuanceStatus === 'revoked' || result?.checks?.notRevoked === false;
+  const resultStatus: 'authentic' | 'pending' | 'revoked' | 'failed' = result?.valid
+    ? 'authentic'
+    : isRevoked
+      ? 'revoked'
+      : hasCertData
+        ? 'pending'
+        : 'failed';
 
   return (
     <div className="max-w-4xl mx-auto space-y-10 py-12 px-4">
@@ -218,7 +245,7 @@ export function CertificateVerification() {
               className="w-full h-16 rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all"
             >
               {loading ? <RefreshCw className="size-5 mr-2 animate-spin" /> : <Zap className="size-5 mr-2" />}
-              Initiate Consensus Audit
+              Verify Credential
             </Button>
           </CardContent>
         </Card>
@@ -231,28 +258,48 @@ export function CertificateVerification() {
           >
             <Card className={cn(
               "border-none shadow-2xl rounded-[40px] overflow-hidden",
-              result.valid ? "bg-white dark:bg-neutral-900" : "bg-red-50 dark:bg-red-950/20"
+              resultStatus === 'authentic' && "bg-white dark:bg-neutral-900",
+              resultStatus === 'pending' && "bg-amber-50 dark:bg-amber-950/20",
+              (resultStatus === 'revoked' || resultStatus === 'failed') && "bg-red-50 dark:bg-red-950/20"
             )}>
               <div className={cn(
-                "p-12 flex flex-col md:flex-row items-center gap-10",
-                result.valid ? "bg-emerald-500 text-white" : "bg-red-600 text-white"
+                "p-12 flex flex-col md:flex-row items-center gap-10 text-white",
+                resultStatus === 'authentic' && "bg-emerald-500",
+                resultStatus === 'pending' && "bg-amber-500",
+                (resultStatus === 'revoked' || resultStatus === 'failed') && "bg-red-600"
               )}>
                 <div className="size-24 rounded-[32px] bg-white/20 flex items-center justify-center backdrop-blur-xl border border-white/10 shadow-2xl">
-                  {result.valid ? <ShieldCheck className="size-12" /> : <ShieldAlert className="size-12" />}
+                  {resultStatus === 'authentic' && <ShieldCheck className="size-12" />}
+                  {resultStatus === 'pending' && <Clock className="size-12" />}
+                  {(resultStatus === 'revoked' || resultStatus === 'failed') && <ShieldAlert className="size-12" />}
                 </div>
                 <div className="text-center md:text-left space-y-2">
                   <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-70">Protocol Verification Status</p>
                   <h2 className="text-5xl font-black tracking-tighter leading-none italic uppercase">
-                    {result.valid ? "Authentic." : "Audit Failed."}
+                    {resultStatus === 'authentic' && "Authentic."}
+                    {resultStatus === 'pending' && "Pending Confirmation."}
+                    {resultStatus === 'revoked' && "Revoked."}
+                    {resultStatus === 'failed' && "Not Verified."}
                   </h2>
                   <p className="text-white/80 font-bold uppercase tracking-widest text-xs">
-                    {result.valid ? "Cryptographically signed & verified on-chain" : result.error || "Integrity check returned invalid signatures"}
+                    {resultStatus === 'authentic' && "Cryptographically signed & verified on-chain"}
+                    {resultStatus === 'pending' && "Credential record found — awaiting on-chain finality"}
+                    {resultStatus === 'revoked' && "This credential has been revoked by the issuer"}
+                    {resultStatus === 'failed' && (result.error || "Integrity check returned invalid signatures")}
                   </p>
                 </div>
               </div>
 
-              {result.valid && (
+              {(resultStatus === 'authentic' || resultStatus === 'pending') && (
                 <CardContent className="p-12 space-y-12">
+                   {resultStatus === 'pending' && (
+                     <div className="p-6 bg-amber-500/10 rounded-[28px] border border-amber-500/20 flex items-start gap-4">
+                        <Clock className="size-6 text-amber-600 shrink-0 mt-0.5" />
+                        <p className="text-amber-700 dark:text-amber-400 font-medium text-sm leading-relaxed">
+                          This credential exists in the EduCreds registry and has not been revoked, but it has not yet been confirmed on the blockchain. The data below is authentic registry data; on-chain finality will appear here once the issuance transaction is mined.
+                        </p>
+                     </div>
+                   )}
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                       <div className="space-y-8">
                         <h3 className="text-sm font-black uppercase tracking-[0.2em] text-primary flex items-center gap-3">
@@ -268,30 +315,34 @@ export function CertificateVerification() {
                       <div className="space-y-8">
                         <h3 className="text-sm font-black uppercase tracking-[0.2em] text-primary flex items-center gap-3">
                            <div className="size-1.5 rounded-full bg-primary" />
-                           Network Telemetry
+                           Blockchain Record
                         </h3>
                         <div className="space-y-6">
-                           <ResultItem label="Blockchain ID" value={`Token #${result.certificate?.tokenId || "N/A"}`} icon={Database} mono />
-                           <ResultItem label="Consensus Point" value={result.certificate?.isMinted ? "Verified On-Chain" : "Stored Off-Chain"} icon={Zap} />
-                           <ResultItem label="Audit Date" value={new Date().toLocaleString()} icon={RefreshCw} />
+                           <ResultItem label="Blockchain ID" value={result.certificate?.tokenId ? `Token #${result.certificate.tokenId}` : "Not yet minted"} icon={Database} mono />
+                           <ResultItem label="On-Chain Status" value={resultStatus === 'authentic' ? "Verified on-chain" : "Pending confirmation"} icon={Zap} />
+                           <ResultItem label="Issued" value={formatIssuedDate(result.certificate)} icon={Clock} />
                         </div>
                       </div>
                    </div>
 
                    <div className="pt-10 border-t border-neutral-100 dark:border-neutral-800 flex flex-wrap gap-4">
-                      <Button onClick={clearResult} variant="outline" className="h-14 px-8 rounded-2xl border-neutral-200 font-black text-xs uppercase tracking-widest">Perform New Audit</Button>
-                      <Button className="h-14 px-10 rounded-2xl bg-neutral-900 dark:bg-neutral-900 text-white dark:text-white font-black text-xs uppercase tracking-widest shadow-xl">Download Official Report</Button>
+                      <Button onClick={clearResult} variant="outline" className="h-14 px-8 rounded-2xl border-neutral-200 font-black text-xs uppercase tracking-widest">Verify Another</Button>
+                      {resultStatus === 'authentic' && (
+                        <Button className="h-14 px-10 rounded-2xl bg-neutral-900 dark:bg-neutral-900 text-white dark:text-white font-black text-xs uppercase tracking-widest shadow-xl">Download Official Report</Button>
+                      )}
                    </div>
                 </CardContent>
               )}
-              {!result.valid && (
+              {(resultStatus === 'revoked' || resultStatus === 'failed') && (
                  <CardContent className="p-12">
                     <div className="p-8 bg-red-500/10 rounded-[32px] border border-red-500/20 space-y-4">
-                       <p className="text-red-600 font-black uppercase tracking-widest text-xs">Technical Failure Analysis</p>
+                       <p className="text-red-600 font-black uppercase tracking-widest text-xs">Why verification failed</p>
                        <p className="text-red-500/80 font-medium text-lg leading-relaxed">
-                         {result.error || "The provided payload did not match any cryptographically signed records on the EduCreds network. This credential may be fraudulent or have been revoked."}
+                         {resultStatus === 'revoked'
+                           ? "This credential has been revoked by the issuing institution and is no longer valid."
+                           : result.error || "The provided payload did not match any cryptographically signed records on the EduCreds network. This credential may be fraudulent or have been revoked."}
                        </p>
-                       <Button onClick={clearResult} className="bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold mt-4">Reset Audit</Button>
+                       <Button onClick={clearResult} className="bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold mt-4">Verify Another</Button>
                     </div>
                  </CardContent>
               )}
@@ -301,6 +352,13 @@ export function CertificateVerification() {
       )}
     </div>
   );
+}
+
+function formatIssuedDate(cert: any): string {
+  const raw = cert?.issueDate || cert?.issuedAt || cert?.completionDate || cert?.createdAt;
+  if (!raw) return "—";
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 function ResultItem({ label, value, icon: Icon, mono }: any) {

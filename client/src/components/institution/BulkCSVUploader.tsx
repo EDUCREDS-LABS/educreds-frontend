@@ -137,9 +137,17 @@ export function BulkCSVUploader({
     return Number.isNaN(normalized.getTime()) ? value.trim() : normalized.toISOString().split('T')[0];
   };
 
+  // Normalize a header cell so that "Student Name", "student_name" and
+  // "studentName" all compare equal, and any leading UTF-8 BOM (added by Excel
+  // when re-saving the downloaded template) is ignored.
+  const normalizeHeaderKey = (value: string): string =>
+    value.replace(/^\uFEFF/, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
   const findColumnIndex = (headers: string[], variants: string[]): number => {
+    const normalizedHeaders = headers.map(normalizeHeaderKey);
     for (const variant of variants) {
-      const index = headers.findIndex((h) => h === variant);
+      const normalizedVariant = normalizeHeaderKey(variant);
+      const index = normalizedHeaders.findIndex((h) => h === normalizedVariant);
       if (index !== -1) {
         return index;
       }
@@ -147,15 +155,23 @@ export function BulkCSVUploader({
     return -1;
   };
 
+  const escapeCsvValue = (value: string): string => {
+    const safe = value ?? '';
+    return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+  };
+
+  const toCsvLine = (values: string[]): string => values.map(escapeCsvValue).join(',');
+
   const validateCsvFile = async (file: File): Promise<CsvValidationSummary> => {
-    const csvText = await file.text();
+    // Strip a leading BOM so the first header is detected correctly.
+    const csvText = (await file.text()).replace(/^\uFEFF/, '');
     const lines = csvText.split(/\r?\n/).filter((line) => line.trim());
 
     if (lines.length < 2) {
       throw new Error('CSV must contain headers and at least one data row');
     }
 
-    const headers = parseCsvLine(lines[0]).map((h) => h.toLowerCase().trim());
+    const headers = parseCsvLine(lines[0]).map((h) => h.replace(/^\uFEFF/, '').toLowerCase().trim());
 
     const walletIndex = findColumnIndex(headers, ['wallet', 'studentwalletaddress', 'walletaddress', 'recipientwalletaddress', 'student_wallet']);
     const nameIndex = findColumnIndex(headers, ['name', 'studentname', 'recipientname', 'student_name', 'full_name']);
@@ -180,7 +196,11 @@ export function BulkCSVUploader({
     const duplicateRows: CsvValidationError[] = [];
     const invalidRows: CsvValidationError[] = [];
     const seenKeys = new Set<string>();
-    const cleanedLines: string[] = [lines[0]];
+    // Re-emit the cleaned file with canonical headers/column order so the backend
+    // parser always receives a well-formed CSV regardless of the original header
+    // naming or column ordering the institution used.
+    const CANONICAL_HEADER = ['wallet', 'name', 'email', 'course', 'grade', 'completionDate', 'certificateType'];
+    const cleanedLines: string[] = [CANONICAL_HEADER.join(',')];
     let validRowCount = 0;
     let rowCount = 0;
 
@@ -195,8 +215,10 @@ export function BulkCSVUploader({
       const wallet = values[walletIndex]?.trim() || '';
       const name = values[nameIndex]?.trim() || '';
       const course = values[courseIndex]?.trim() || '';
-      const completionDate = dateIndex >= 0 ? values[dateIndex]?.trim() : '';
-      const certificateType = typeIndex >= 0 ? values[typeIndex]?.trim() : '';
+      const email = emailIndex >= 0 ? (values[emailIndex]?.trim() || '') : '';
+      const grade = gradeIndex >= 0 ? (values[gradeIndex]?.trim() || '') : '';
+      const completionDate = dateIndex >= 0 ? (values[dateIndex]?.trim() || '') : '';
+      const certificateType = typeIndex >= 0 ? (values[typeIndex]?.trim() || '') : '';
 
       if (!wallet || !name || !course) {
         invalidRows.push({
@@ -238,7 +260,7 @@ export function BulkCSVUploader({
       }
 
       seenKeys.add(rowKey);
-      cleanedLines.push(line);
+      cleanedLines.push(toCsvLine([wallet, name, email, course, grade, completionDate, certificateType]));
       validRowCount++;
     }
 

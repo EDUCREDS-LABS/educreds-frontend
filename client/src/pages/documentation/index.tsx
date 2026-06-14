@@ -1,54 +1,51 @@
-import { FC } from "react";
+import React from 'react';
+import { InfoPageLayout } from '@/components/InfoPageLayout';
+import { Button } from "@/components/ui/button";
+import { ExternalLink, BookOpen, Code2, ShieldCheck, Zap } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 
-const DocumentationPage: FC = () => {
+export default function DocumentationPage() {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold mb-4">Documentation</h1>
+    <InfoPageLayout 
+      title="Documentation" 
+      subtitle="Explore the technical specifications, integration guides, and protocol standards of the EduCreds network."
+      badge="Technical Hub"
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {[
+          { title: "Getting Started", icon: Zap, desc: "Quick-start guide for institutional node deployment and API integration." },
+          { title: "Protocol Standards", icon: ShieldCheck, desc: "Detailed breakdown of W3C Verifiable Credentials and DID implementation." },
+          { title: "API Reference", icon: Code2, desc: "REST and GraphQL endpoint documentation for automated credential issuance." },
+          { title: "Governance Guide", icon: BookOpen, desc: "Understanding PoIC scoring, DAO voting, and consensus mechanics." }
+        ].map((item, i) => (
+          <Card key={i} className="border-none shadow-lg shadow-neutral-200/40 bg-neutral-50/50 rounded-3xl overflow-hidden hover:bg-white transition-all duration-300">
+            <CardContent className="p-8 space-y-4">
+              <div className="size-12 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600">
+                <item.icon className="size-6" />
+              </div>
+              <h3 className="text-xl font-bold text-neutral-900">{item.title}</h3>
+              <p className="text-neutral-500 font-medium text-sm leading-relaxed">{item.desc}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-      <h2 className="text-3xl font-bold mb-4">Introduction</h2>
-      <ul className="list-disc list-inside">
-        <li className="mb-2">What EduCreds is</li>
-        <li className="mb-2">How it works</li>
-        <li className="mb-2">Key Features</li>
-        <li className="mb-2">Architecture overview</li>
-      </ul>
-
-      <h2 className="text-3xl font-bold mb-4">Getting Started</h2>
-      <ul className="list-disc list-inside">
-        <li className="mb-2">How institutions onboard</li>
-        <li className="mb-2">How students access certificates</li>
-        <li className="mb-2">How employers verify credentials</li>
-      </ul>
-
-      <h2 className="text-3xl font-bold mb-4">Certificate Issuing Guide</h2>
-      <ul className="list-disc list-inside">
-        <li className="mb-2">Step-by-step on issuing a certificate</li>
-        <li className="mb-2">Metadata structure</li>
-        <li className="mb-2">NFT minting flow</li>
-      </ul>
-
-      <h2 className="text-3xl font-bold mb-4">Verification Guide</h2>
-      <ul className="list-disc list-inside">
-        <li className="mb-2">How verification works</li>
-        <li className="mb-2">Error codes</li>
-        <li className="mb-2">API endpoints (basic)</li>
-      </ul>
-
-      <h2 className="text-3xl font-bold mb-4">Marketplace Guide</h2>
-      <ul className="list-disc list-inside">
-        <li className="mb-2">Listing certificates</li>
-        <li className="mb-2">AI-powered recommendations</li>
-        <li className="mb-2">Pricing models</li>
-      </ul>
-
-      <h2 className="text-3xl font-bold mb-4">Security & Compliance</h2>
-      <ul className="list-disc list-inside">
-        <li className="mb-2">Blockchain transparency</li>
-        <li className="mb-2">GDPR considerations</li>
-        <li className="mb-2">Data handling practices</li>
-      </ul>
-    </div>
+      <div className="mt-16 p-12 rounded-[48px] bg-neutral-900 text-white text-center space-y-8 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-10 opacity-5">
+           <BookOpen className="size-64 rotate-12" />
+        </div>
+        <div className="relative z-10 space-y-4">
+          <h2 className="text-3xl font-black uppercase tracking-tight">Access Central Docs</h2>
+          <p className="text-neutral-400 font-medium max-w-xl mx-auto">
+            Our comprehensive developer and institutional documentation is hosted on our dedicated knowledge base.
+          </p>
+        </div>
+        <a href="https://docs.educreds.xyz" target="_blank" rel="noopener noreferrer" className="inline-block relative z-10">
+          <Button size="lg" className="h-16 px-12 rounded-2xl bg-white text-black hover:bg-neutral-200 font-black text-xs uppercase tracking-[0.2em] shadow-2xl">
+            Go to Docs <ExternalLink className="ml-3 size-4" />
+          </Button>
+        </a>
+      </div>
+    </InfoPageLayout>
   );
-};
-
-export default DocumentationPage;
+}

@@ -108,6 +108,7 @@ export default function GovernanceWorkspace() {
     
     const governanceEligibleStatuses = [
       "pending", 
+      "pending review",
       "pending_review", 
       "under_governance_review", 
       "approved", 
@@ -136,7 +137,8 @@ export default function GovernanceWorkspace() {
         (proposal.id || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         (proposal.institution_name || "").toLowerCase().includes(searchQuery.toLowerCase());
       
-      const matchesStatus = statusFilter === "ALL" || proposal.state === statusFilter;
+      const matchesStatus = statusFilter === "ALL" || 
+                           proposal.state?.toUpperCase() === statusFilter.toUpperCase();
       
       return matchesSearch && matchesStatus;
     });
@@ -312,14 +314,14 @@ export default function GovernanceWorkspace() {
                   <div className="space-y-4">
                     {[1, 2].map(i => <Skeleton key={i} className="h-48 rounded-[32px]" />)}
                   </div>
-                ) : proposals.filter((p: any) => p.state === "ACTIVE").length === 0 ? (
+                ) : proposals.filter((p: any) => p.state?.toUpperCase() === "ACTIVE").length === 0 ? (
                   <div className="bg-neutral-50 dark:bg-neutral-900/50 rounded-[32px] p-12 text-center border-2 border-dashed border-neutral-200 dark:border-neutral-800">
                     <Vote className="size-12 text-neutral-300 dark:text-neutral-700 mx-auto mb-4" />
                     <p className="text-neutral-500 font-bold uppercase tracking-widest text-xs">No active consensus required</p>
                   </div>
                 ) : (
                   <div className="grid gap-6">
-                    {proposals.filter((p: any) => p.state === "ACTIVE").slice(0, 3).map((proposal: any) => (
+                    {proposals.filter((p: any) => p.state?.toUpperCase() === "ACTIVE").slice(0, 3).map((proposal: any) => (
                       <Card key={proposal.id} className="border-none shadow-xl shadow-neutral-200/30 dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[32px] overflow-hidden group">
                         <CardContent className="p-8 space-y-6">
                           <div className="flex items-start justify-between">

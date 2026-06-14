@@ -38,6 +38,9 @@ const InstitutionSettings = lazy(() => import("@/pages/institution/settings"));
 const AdminLogin = lazy(() => import("@/pages/admin/login"));
 const AdminDashboard = lazy(() => import("@/pages/admin/dashboard"));
 const AdminGovernanceDashboard = lazy(() => import("@/pages/admin/governance-dashboard"));
+const AdminObservabilityPage = lazy(() => import("@/pages/admin/observability"));
+const AdminPendingMintsPage = lazy(() => import("@/pages/admin/pending-mints"));
+const SecurityDashboard = lazy(() => import("@/components/admin/SecurityDashboard"));
 const DAODashboard = lazy(() => import("@/pages/DAODashboard"));
 const PublicWalletVotingPage = lazy(() => import("@/pages/governance/public-wallet-voting"));
 const MarketplacePage = lazy(() => import("@/pages/marketplace/index"));
@@ -137,23 +140,32 @@ function Router() {
 
       {/* Admin Routes */}
       <Route path="/admin/login" component={AdminLogin} />
-      <Route path="/admin/*">
+      <Route path="/admin/:rest*">
         <AdminProtectedRoute>
           <AdminLayout>
             <Switch>
               <Route path="/admin" component={AdminDashboard} />
               <Route path="/admin/dashboard" component={AdminDashboard} />
+              <Route path="/admin/security" component={SecurityDashboard} />
               <Route path="/admin/users" component={UserManagement} />
               <Route path="/admin/infrastructure" component={InfrastructureManagement} />
               <Route path="/admin/recovery" component={InstitutionalRecoveryModule} />
+              <Route path="/admin/governance" component={AdminGovernanceDashboard} />
               <Route path="/admin/compliance" component={ComplianceModule} />
-              <Route path="/admin/security" component={SecurityLogsModule} />
+              <Route path="/admin/audit" component={SecurityLogsModule} />
+              <Route path="/admin/observability" component={AdminObservabilityPage} />
+              <Route path="/admin/pending-mints" component={AdminPendingMintsPage} />
             </Switch>
           </AdminLayout>
         </AdminProtectedRoute>
       </Route>
-// ...
+
       <Route path="/dao" component={DAODashboard} />
+      <Route path="/governance">
+        <Layout>
+          <GovernanceWorkspace />
+        </Layout>
+      </Route>
       <Route path="/governance/public-vote">
         <Layout>
           <PublicWalletVotingPage />

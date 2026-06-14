@@ -8,7 +8,7 @@ import { config, networks, projectId, wagmiAdapter, defaultNetwork } from './wag
 const metadata = {
   name: 'EduCreds',
   description: 'Blockchain-powered educational credential management platform',
-  url: 'https://educreds.xyz',
+  url: typeof window !== 'undefined' ? window.location.origin : 'https://educreds.xyz',
   icons: ['https://educreds.xyz/favicon.ico'],
 }
 

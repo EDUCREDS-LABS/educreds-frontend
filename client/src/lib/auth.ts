@@ -126,20 +126,31 @@ export const auth = {
 };
 
 export const getAuthHeaders = (): Record<string, string> => {
-  const authType = localStorage.getItem('auth_type');
+  const path = typeof window !== 'undefined' ? window.location.pathname : '';
   let token: string | null = null;
 
-  if (authType === AuthType.INSTITUTION) {
+  if (path.startsWith('/admin')) {
+    token = localStorage.getItem('admin_token');
+  } else if (path.startsWith('/institution')) {
     token = localStorage.getItem('institution_token');
-  } else if (authType === AuthType.MARKETPLACE) {
-    token = localStorage.getItem('marketplace_token');
+  } else {
+    // Default fallback logic
+    const authType = localStorage.getItem('auth_type');
+    if (authType === AuthType.INSTITUTION) {
+      token = localStorage.getItem('institution_token');
+    } else if (authType === AuthType.MARKETPLACE) {
+      token = localStorage.getItem('marketplace_token');
+    }
   }
 
-  // Backward-compatible fallback for older sessions without auth_type.
+  // Final catch-all for legacy or mixed states
   if (!token) {
-    token = localStorage.getItem('institution_token') || localStorage.getItem('marketplace_token');
+    token = 
+      localStorage.getItem('institution_token') || 
+      localStorage.getItem('admin_token') || 
+      localStorage.getItem('marketplace_token') ||
+      localStorage.getItem('authToken');
   }
 
-  console.log('Getting auth headers, authType:', authType || 'unknown', 'token:', token ? 'present' : 'missing');
   return token ? { Authorization: `Bearer ${token}` } : {};
 };

@@ -33,6 +33,7 @@ export function AdminSidebar({ activeTab, setActiveTab, onLogout, adminEmail }: 
         { id: 'blockchain', label: 'On-Chain Ledger', icon: Link2 },
         { id: 'users', label: 'Administrative Team', icon: Users },
         { id: 'audit', label: 'Infrastructure Logs', icon: Terminal },
+        { id: 'observability', label: 'Observability Hub', icon: Activity },
         { id: 'integrity', label: 'System Integrity', icon: Activity },
     ];
 

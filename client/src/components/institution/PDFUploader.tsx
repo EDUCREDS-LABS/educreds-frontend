@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { UseFormReturn, useFieldArray } from "react-hook-form";
 import {
   Card,
@@ -65,6 +65,22 @@ export function PDFUploader({
     control: form.control,
     name: "certificates",
   });
+
+  // Ensure fields are initialized if empty
+  useEffect(() => {
+    if (fields.length === 0) {
+      append({ 
+        studentName: "", 
+        studentAddress: "", 
+        studentEmail: "",
+        completionDate: new Date().toISOString().split('T')[0], 
+        certificateType: 'Course Completion',
+        courseName: '',
+        grade: '',
+        description: ''
+      });
+    }
+  }, [fields.length, append]);
 
   return (
     <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900">
@@ -148,14 +164,14 @@ export function PDFUploader({
                             )}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <FormField control={form.control} name={`certificates.${index}.recipientName`} render={({ field }) => (
-                                <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Student Name</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl></FormItem>
+                            <FormField control={form.control} name={`certificates.${index}.studentName`} render={({ field }) => (
+                                <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Student Name</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem>
                             )}/>
-                            <FormField control={form.control} name={`certificates.${index}.recipientWallet`} render={({ field }) => (
-                                <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Wallet Address</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl font-mono" /></FormControl></FormItem>
+                            <FormField control={form.control} name={`certificates.${index}.studentAddress`} render={({ field }) => (
+                                <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Wallet Address</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl font-mono" /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <FormField control={form.control} name={`certificates.${index}.completionDate`} render={({ field }) => (
-                                <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Completion Date</FormLabel><FormControl><Input type="date" {...field} className="h-12 rounded-xl" /></FormControl></FormItem>
+                                <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Completion Date</FormLabel><FormControl><Input type="date" {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <FormField control={form.control} name={`certificates.${index}.courseName`} render={({ field }) => (
                                 <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Course Name</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl></FormItem>
@@ -187,12 +203,12 @@ export function PDFUploader({
                     </div>
                 ))}
                 
-              {fields.length < 10 && (
-                  <Button type="button" variant="outline" onClick={() => append({ recipientName: "", recipientWallet: "", completionDate: new Date().toISOString().split('T')[0], certificateType: 'Course Completion' })} className="h-14 rounded-2xl font-black text-xs uppercase tracking-widest w-full">
-                      <Plus className="size-4 mr-2" /> Add Another Recipient
-                  </Button>
-              )}
-            </div>
+{fields.length < 10 && (
+                   <Button type="button" variant="outline" onClick={() => append({ studentName: "", studentAddress: "", studentEmail: "", completionDate: new Date().toISOString().split('T')[0], certificateType: 'Course Completion', courseName: '', grade: '', description: '' })} className="h-14 rounded-2xl font-black text-xs uppercase tracking-widest w-full">
+                       <Plus className="size-4 mr-2" /> Add Another Recipient
+                   </Button>
+               )}
+             </div>
 
             {/* Submit Actions */}
             <div className="flex gap-3 pt-6 border-t border-neutral-100 dark:border-neutral-800">

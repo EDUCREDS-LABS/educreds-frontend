@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,6 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertCircle,
   CheckCircle,
@@ -39,6 +40,7 @@ import {
   Globe,
   Database,
   Search,
+  ShieldAlert,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -54,24 +56,26 @@ import { useWallet } from '@/hooks/useWallet';
 import { cn } from '@/lib/utils';
 
 // Validation schemas
-const baseFieldsSchema = z.object({
-  recipientWallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Valid Ethereum wallet address required').toLowerCase(),
-  recipientName: z.string().min(2, 'Name must be at least 2 characters'),
+const recipientSchema = z.object({
+  studentName: z.string().min(2, 'Name must be at least 2 characters'),
+  studentAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Valid Ethereum wallet address required').toLowerCase(),
+  studentEmail: z.string().optional(),
   completionDate: z.string().refine((date) => !isNaN(new Date(date).getTime()), { message: 'Valid completion date required' }),
-  certificateType: z.string().min(1, 'Certificate type is required').max(100, 'Certificate type too long'),
-});
-
-const pdfIssuanceSchema = baseFieldsSchema.extend({
-  pdfFile: z.instanceof(File).refine((file) => file.type === 'application/pdf', 'PDF file required').refine((file) => file.size <= 10 * 1024 * 1024, 'PDF must be under 10MB'),
   courseName: z.string().optional(),
   grade: z.string().optional(),
+  certificateType: z.string().optional(),
   description: z.string().optional(),
 });
 
-const templateIssuanceSchema = baseFieldsSchema.extend({
+const pdfIssuanceSchema = z.object({
+  pdfFile: z.instanceof(File).refine((file) => file.type === 'application/pdf', 'PDF file required').refine((file) => file.size <= 10 * 1024 * 1024, 'PDF must be under 10MB'),
+  certificates: z.array(recipientSchema).min(1, 'At least one certificate is required'),
+});
+
+const templateIssuanceSchema = z.object({
   templateId: z.string().min(1, 'Select a template'),
+  certificates: z.array(recipientSchema).min(1, 'At least one certificate is required'),
   courseId: z.string().optional(),
-  grade: z.string().optional(),
   additionalData: z.record(z.string()).optional(),
 });
 
@@ -91,17 +95,17 @@ interface Template {
 
 export function EnterpriseCertificateIssuance() {
   const { user } = useAuth();
+  const { isConnected: isWalletConnected } = useWallet();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { isConnected: isWalletConnected } = useWallet();
 
   const [activeMethod, setActiveMethod] = useState<'template' | 'pdf' | 'bulk'>('template');
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [showTemplatePreview, setShowTemplatePreview] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  const { data: templatesData, isLoading: templatesLoading } = useQuery({ queryKey: ['/templates/specs'], queryFn: () => api.getTemplateSpecs() });
+  const { data: templatesData, isLoading: templatesLoading, isError: templatesError } = useQuery({ queryKey: ['/templates/specs'], queryFn: () => api.getTemplateSpecs() });
   const { data: subscription } = useQuery({ queryKey: ['/api/subscription/current'], queryFn: () => api.getCurrentSubscription() });
   const { data: certificatesData } = useQuery({ queryKey: ['/api/certificates/institution'], queryFn: () => api.getCertificates() });
 
@@ -139,52 +143,153 @@ export function EnterpriseCertificateIssuance() {
 
   const pdfForm = useForm<PDFIssuanceFormData>({
     resolver: zodResolver(pdfIssuanceSchema),
-    defaultValues: { recipientWallet: '', recipientName: '', completionDate: new Date().toISOString().split('T')[0], certificateType: 'Course Completion', courseName: '', grade: '', description: '' },
+    defaultValues: { 
+      pdfFile: undefined,
+      certificates: [{ 
+        studentName: '', 
+        studentAddress: '', 
+        studentEmail: '',
+        completionDate: new Date().toISOString().split('T')[0], 
+        certificateType: 'Course Completion', 
+        courseName: '', 
+        grade: '', 
+        description: '' 
+      }] 
+    },
   });
 
   const templateForm = useForm<TemplateIssuanceFormData>({
     resolver: zodResolver(templateIssuanceSchema),
-    defaultValues: { recipientWallet: '', recipientName: '', completionDate: new Date().toISOString().split('T')[0], certificateType: 'Course Completion', templateId: '', courseId: '', grade: '', additionalData: {} },
+    defaultValues: { 
+      templateId: '', 
+      certificates: [{ 
+        studentName: '', 
+        studentAddress: '', 
+        studentEmail: '',
+        completionDate: new Date().toISOString().split('T')[0], 
+        certificateType: 'Course Completion',
+        courseName: '',
+        grade: '',
+        description: ''
+      }], 
+      courseId: '', 
+      additionalData: {} 
+    },
   });
 
+  const [pendingIssuance, setPendingIssuance] = useState<any>(null);
+
   const pdfIssueMutation = useMutation({
-    mutationFn: (data: PDFIssuanceFormData) => {
+    mutationFn: async (data: PDFIssuanceFormData) => {
+      const firstCert = data.certificates[0];
       const fd = new FormData();
       fd.append('certificateFile', data.pdfFile);
-      fd.append('studentWalletAddress', data.recipientWallet);
-      fd.append('studentName', data.recipientName);
-      fd.append('completionDate', data.completionDate);
-      fd.append('certificateType', data.certificateType);
-      fd.append('courseName', data.courseName || '');
-      fd.append('grade', data.grade || '');
-      fd.append('description', data.description || '');
+      fd.append('studentWalletAddress', firstCert.studentAddress);
+      fd.append('studentName', firstCert.studentName);
+      fd.append('completionDate', firstCert.completionDate);
+      fd.append('certificateType', firstCert.certificateType || 'Course Completion');
+      fd.append('courseName', firstCert.courseName || '');
+      fd.append('grade', firstCert.grade || '');
+      fd.append('description', firstCert.description || '');
       return api.issueCertificate(fd);
     },
-    onSuccess: () => {
-      toast({ title: "Issuance successful", description: "Certificate anchored on blockchain." });
-      queryClient.invalidateQueries({ queryKey: ['/api/certificates/institution'] });
-      pdfForm.reset();
+    onSuccess: (data) => {
+      if (data?.onChainStatus === 'pending_wallet_signature') {
+        setPendingIssuance(data);
+      } else {
+        toast({ title: "Issuance successful", description: "Certificate anchored on blockchain." });
+        queryClient.invalidateQueries({ queryKey: ['/api/certificates/institution'] });
+        pdfForm.reset();
+      }
+    },
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : 'Certificate issuance failed. Please try again.';
+      toast({ title: "Issuance failed", description: message, variant: "destructive" });
     },
   });
 
   const templateIssueMutation = useMutation({
-    mutationFn: (data: TemplateIssuanceFormData) => api.issueFromTemplate(data),
-    onSuccess: () => {
-      toast({ title: "Issuance successful", description: "Template-based credential minted." });
-      queryClient.invalidateQueries({ queryKey: ['/api/certificates/institution'] });
-      templateForm.reset();
+    mutationFn: async (data: TemplateIssuanceFormData) => {
+      if (data.certificates.length === 1) {
+        const cert = data.certificates[0];
+        return api.issueFromTemplate({
+          templateId: data.templateId,
+          recipientWallet: cert.studentAddress,
+          recipientName: cert.studentName,
+          completionDate: cert.completionDate,
+          certificateType: cert.certificateType || 'Course Completion',
+          courseId: data.courseId,
+          grade: cert.grade,
+          additionalData: data.additionalData,
+        });
+      } else {
+        return api.bulkIssueFromTemplate({
+          templateId: data.templateId,
+          certificates: data.certificates.map(c => ({
+            studentName: c.studentName,
+            studentEmail: c.studentEmail || '',
+            walletAddress: c.studentAddress,
+            completionDate: c.completionDate,
+            grade: c.grade,
+            courseName: c.courseName,
+          })),
+        });
+      }
+    },
+    onSuccess: (data) => {
+      if (data?.onChainStatus === 'pending_wallet_signature') {
+        setPendingIssuance(data);
+      } else {
+        toast({ title: "Issuance successful", description: "Template-based credential minted." });
+        queryClient.invalidateQueries({ queryKey: ['/api/certificates/institution'] });
+        templateForm.reset();
+      }
+    },
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : 'Certificate issuance failed. Please try again.';
+      toast({ title: "Issuance failed", description: message, variant: "destructive" });
     },
   });
 
+  if (templatesLoading) {
+    return (
+      <div className="space-y-12 max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-64 rounded-xl" />
+          <Skeleton className="h-4 w-[500px] rounded-lg" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 rounded-[32px]" />)}
+        </div>
+        <Skeleton className="h-[600px] w-full rounded-[40px]" />
+      </div>
+    );
+  }
+
+  const notifyValidationErrors = () => {
+    toast({
+      title: "Check the form",
+      description: "Some required fields are missing or invalid. Highlighted fields need a valid value (wallet address must be 0x followed by 40 hex characters).",
+      variant: "destructive",
+    });
+  };
+
+  const passesIssuanceGuards = () => {
+    if (isLimitExceeded) { toast({ title: "Limit Reached", description: "You have reached your plan's issuance limit. Upgrade to issue more.", variant: "destructive" }); return false; }
+    if (isIssuanceBlocked) { toast({ title: "Infrastructure Restricted", description: "Your institution must be verified (PoIC \u2265 60% or valid IIN) before issuing.", variant: "destructive" }); return false; }
+    if (!isWalletConnected) { toast({ title: "Wallet Not Connected", description: "Connect your institutional wallet to sign the issuance transaction.", variant: "destructive" }); return false; }
+    return true;
+  };
+
   const handlePDFSubmit = pdfForm.handleSubmit((data) => {
-    if (isLimitExceeded) { toast({ title: "Limit Reached", variant: "destructive" }); return; }
+    if (!passesIssuanceGuards()) return;
     pdfIssueMutation.mutate(data);
-  });
+  }, notifyValidationErrors);
 
   const handleTemplateSubmit = templateForm.handleSubmit((data) => {
-    if (isLimitExceeded) { toast({ title: "Limit Reached", variant: "destructive" }); return; }
+    if (!passesIssuanceGuards()) return;
     templateIssueMutation.mutate(data);
-  });
+  }, notifyValidationErrors);
 
   return (
     <div className="space-y-12 max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -193,19 +298,19 @@ export function EnterpriseCertificateIssuance() {
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-[0.2em] text-[10px]">
             <Zap className="size-4" />
-            High-Velocity Issuance
+            Credential Issuance
           </div>
           <h1 className="text-5xl font-black text-neutral-900 dark:text-neutral-100 tracking-tighter leading-none">
-            Credential <span className="text-primary">Generation</span>.
+            Issue <span className="text-primary">Credentials</span>.
           </h1>
           <p className="text-neutral-500 dark:text-neutral-400 max-w-2xl text-lg font-medium leading-relaxed">
-            Mint cryptographic academic achievements. Leverage institutional templates or legacy PDF assets for secure, on-chain distribution.
+            Issue verifiable academic credentials to your students. Use an institutional template or upload your own PDF — each credential is digitally signed and anchored on-chain.
           </p>
         </div>
         <div className="flex items-center gap-4">
           <Button variant="outline" className="h-12 rounded-xl border-neutral-200 dark:border-neutral-800 font-bold px-6" onClick={() => setLocation('/institution/certificates')}>
             <Eye className="size-4 mr-2" />
-            Registry Archive
+            Issued Credentials
           </Button>
           <Button className="h-12 rounded-xl font-bold px-6 bg-neutral-900 dark:bg-neutral-900 text-white dark:text-white shadow-xl" onClick={() => setLocation('/marketplace')}>
             <ShoppingCart className="size-4 mr-2" />
@@ -219,10 +324,10 @@ export function EnterpriseCertificateIssuance() {
       {/* Stats Bento */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: "Lifetime Issued", value: stats.totalIssued, icon: FileText, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950/30" },
-          { label: "Active Period", value: stats.thisMonth, icon: TrendingUp, color: "text-green-600", bg: "bg-green-50 dark:bg-green-950/30" },
-          { label: "Success Audit", value: `${stats.successRate}%`, icon: ShieldCheck, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950/30" },
-          { label: "Node Capacity", value: stats.remaining, icon: Database, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950/30" },
+          { label: "Total Issued", value: stats.totalIssued, icon: FileText, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950/30" },
+          { label: "This Month", value: stats.thisMonth, icon: TrendingUp, color: "text-green-600", bg: "bg-green-50 dark:bg-green-950/30" },
+          { label: "Success Rate", value: `${stats.successRate}%`, icon: ShieldCheck, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950/30" },
+          { label: "Remaining This Month", value: stats.remaining, icon: Database, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950/30" },
         ].map((s, i) => (
           <Card key={i} className="border-none shadow-xl shadow-neutral-200/40 dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[32px] group overflow-hidden transition-all hover:shadow-2xl">
             <CardContent className="p-8">
@@ -238,14 +343,35 @@ export function EnterpriseCertificateIssuance() {
         ))}
       </div>
 
+      {pendingIssuance && (
+        <Dialog open={!!pendingIssuance} onOpenChange={() => setPendingIssuance(null)}>
+          <DialogContent className="max-w-md rounded-[32px] border-none bg-neutral-900 text-white shadow-2xl p-10 text-center">
+             <DialogHeader>
+               <DialogTitle className="text-2xl font-black mb-4">Pending Wallet Signature</DialogTitle>
+               <DialogDescription className="text-neutral-400 font-medium">
+                 Your certificate is prepared. Please review and sign the transaction in your connected wallet extension to finalize issuance.
+               </DialogDescription>
+             </DialogHeader>
+             <div className="py-8">
+               <div className="size-24 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+                 <Wallet className="size-10 text-primary" />
+               </div>
+               <p className="text-xs font-black uppercase tracking-widest text-primary">Awaiting Signature Request</p>
+             </div>
+             <DialogFooter className="justify-center">
+               <Button onClick={() => setPendingIssuance(null)} className="w-full rounded-2xl h-12">Close</Button>
+             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {isIssuanceBlocked && (
-        <Alert variant="destructive" className="rounded-3xl p-6 shadow-xl shadow-red-500/10 border-red-200 dark:border-red-900/50">
+        <Alert className="rounded-3xl p-6 shadow-xl shadow-amber-500/10 border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200 [&>svg]:text-amber-600">
           <ShieldAlert className="size-5" />
-          <AlertTitle className="font-black text-lg">Infrastructure Restricted</AlertTitle>
+          <AlertTitle className="font-black text-lg">Finish verification to start issuing</AlertTitle>
           <AlertDescription className="font-medium opacity-80">
-            Your institutional node is currently restricted from issuing on-chain credentials. 
-            Verification is required (PoIC ≥ 60% or valid IIN token). 
-            Please visit the <Link href="/institution/governance-workspace" className="underline font-bold">Governance Workspace</Link> to audit your status.
+            Your institution needs to be verified before issuing on-chain credentials (institutional credibility score ≥ 60% or a valid IIN token). 
+            Visit the <Link href="/institution/governance-workspace" className="underline font-bold">Governance Workspace</Link> to check your status.
           </AlertDescription>
         </Alert>
       )}
@@ -253,8 +379,8 @@ export function EnterpriseCertificateIssuance() {
       {isLimitExceeded && (
         <Alert variant="destructive" className="rounded-3xl p-6 shadow-xl shadow-red-500/10 border-red-200 dark:border-red-900/50">
           <AlertCircle className="size-5" />
-          <AlertTitle className="font-black text-lg">Capacity Limit Reached</AlertTitle>
-          <AlertDescription className="font-medium opacity-80">Infrastructure nodes on your current plan have reached the maximum issuance threshold. Upgrade your protocol for unlimited capacity.</AlertDescription>
+          <AlertTitle className="font-black text-lg">Monthly issuance limit reached</AlertTitle>
+          <AlertDescription className="font-medium opacity-80">You've reached your plan's issuance limit for this month. Upgrade your plan to issue more credentials.</AlertDescription>
         </Alert>
       )}
 
@@ -264,17 +390,17 @@ export function EnterpriseCertificateIssuance() {
           <Card className="border-none shadow-2xl shadow-neutral-200/40 dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[40px] overflow-hidden">
             <CardHeader className="p-10 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
               <div className="space-y-1">
-                <CardTitle className="text-2xl font-black tracking-tight dark:text-neutral-100">Issuance Protocol</CardTitle>
-                <CardDescription className="font-medium">Configure achievement parameters for decentralized verification.</CardDescription>
+                <CardTitle className="text-2xl font-black tracking-tight dark:text-neutral-100">Issuance Method</CardTitle>
+                <CardDescription className="font-medium">Choose how to issue and enter your recipients' details.</CardDescription>
               </div>
             </CardHeader>
             <CardContent className="p-10">
               <Tabs value={activeMethod} onValueChange={(v: any) => setActiveMethod(v)} className="space-y-10">
                 <TabsList className="bg-neutral-100 dark:bg-neutral-800 p-1.5 rounded-2xl h-16 w-full gap-2">
                   {[
-                    { id: 'template', label: 'Template Workflow', icon: LayoutTemplate },
-                    { id: 'pdf', label: 'PDF Asset', icon: FileUp },
-                    { id: 'bulk', label: 'Bulk Cluster', icon: Users },
+                    { id: 'template', label: 'Template', icon: LayoutTemplate },
+                    { id: 'pdf', label: 'PDF Upload', icon: FileUp },
+                    { id: 'bulk', label: 'Bulk (CSV)', icon: Users },
                   ].map(m => (
                     <TabsTrigger 
                       key={m.id} 
@@ -295,7 +421,9 @@ export function EnterpriseCertificateIssuance() {
                     form={templateForm}
                     onSubmit={handleTemplateSubmit}
                     isLoading={templateIssueMutation.isPending}
-                    isLimitExceeded={isLimitExceeded || !isWalletConnected || isIssuanceBlocked}
+                    isLimitExceeded={isLimitExceeded || isIssuanceBlocked}
+                    templatesLoading={templatesLoading}
+                    templatesError={templatesError}
                   />
                 </TabsContent>
 
@@ -304,7 +432,7 @@ export function EnterpriseCertificateIssuance() {
                     form={pdfForm}
                     onSubmit={handlePDFSubmit}
                     isLoading={pdfIssueMutation.isPending}
-                    isLimitExceeded={isLimitExceeded || !isWalletConnected || isIssuanceBlocked}
+                    isLimitExceeded={isLimitExceeded || isIssuanceBlocked}
                     uploadProgress={uploadProgress}
                     setUploadProgress={setUploadProgress}
                   />
@@ -313,7 +441,7 @@ export function EnterpriseCertificateIssuance() {
                 <TabsContent value="bulk" className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-500">
                   <BulkCSVUploader
                     templates={templates}
-                    isLimitExceeded={isLimitExceeded || !isWalletConnected || isIssuanceBlocked}
+                    isLimitExceeded={isLimitExceeded || isIssuanceBlocked}
                   />
                 </TabsContent>
               </Tabs>
@@ -325,9 +453,9 @@ export function EnterpriseCertificateIssuance() {
           <Card className="border-none shadow-xl shadow-neutral-200/20 dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[32px] p-2">
             <CardHeader className="p-8 pb-4">
               <div className="flex items-center gap-2 text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-2">
-                <Info className="size-3" /> Integrity Check
+                <Info className="size-3" /> Before you issue
               </div>
-              <CardTitle className="text-xl font-bold tracking-tight">Compliance Audit</CardTitle>
+              <CardTitle className="text-xl font-bold tracking-tight">Issuance checklist</CardTitle>
             </CardHeader>
             <CardContent className="p-8 pt-0 space-y-6">
               <p className="text-neutral-500 dark:text-neutral-400 text-sm font-medium leading-relaxed">Ensure all issuance data matches official institutional records for successful on-chain anchoring.</p>

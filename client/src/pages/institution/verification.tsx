@@ -206,8 +206,8 @@ export default function Verification() {
       <div className="space-y-8 px-2">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
-            <h2 className="text-3xl font-black text-neutral-900 tracking-tight">Trust Pipeline</h2>
-            <p className="text-neutral-500 font-medium">Your institution's progression through our security protocols.</p>
+            <h2 className="text-3xl font-black text-neutral-900 tracking-tight">Verification Status</h2>
+            <p className="text-neutral-500 font-medium">Your institution's progress through the verification steps.</p>
           </div>
           <div className="flex items-center gap-2 text-[10px] font-black text-neutral-400 uppercase tracking-[0.2em] bg-neutral-100/50 px-4 py-2 rounded-full border border-neutral-200/50">
             <Database className="size-3" />

@@ -2,9 +2,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { API_CONFIG } from "@/config/api";
 import { transformDocumentsForBackend } from "@/utils/documentTransform";
 
-const getAdminHeaders = () => ({
-  'Content-Type': 'application/json',
-});
+const getAdminHeaders = () => {
+  const token = localStorage.getItem('admin_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+  };
+};
 
 export function useVerificationRequests() {
   return useQuery({
@@ -180,6 +184,50 @@ export function useDeleteAdminUser() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+    },
+  });
+}
+
+const parseAdminError = async (response: Response) => {
+  const text = await response.text();
+  try {
+    const data = JSON.parse(text);
+    return data.message || data.error || data.details || response.statusText;
+  } catch {
+    return text || response.statusText;
+  }
+};
+
+export function useAdminPendingMints() {
+  return useQuery({
+    queryKey: ["/api/admin/pending-mints"],
+    queryFn: async () => {
+      const response = await fetch(API_CONFIG.ADMIN.PENDING_MINTS, {
+        headers: getAdminHeaders(),
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error(await parseAdminError(response));
+      return response.json();
+    },
+    refetchInterval: 30000,
+  });
+}
+
+export function useReconcilePendingMint() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ certificateId, txHash }: { certificateId: string; txHash?: string }) => {
+      const response = await fetch(API_CONFIG.ADMIN.PENDING_MINT_RECONCILE(certificateId), {
+        method: "POST",
+        headers: getAdminHeaders(),
+        credentials: 'include',
+        body: JSON.stringify(txHash ? { txHash } : {}),
+      });
+      if (!response.ok) throw new Error(await parseAdminError(response));
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pending-mints"] });
     },
   });
 }

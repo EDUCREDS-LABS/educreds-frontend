@@ -300,11 +300,23 @@ class GovernanceApiService {
 
     // Add auth token to requests if available
     this.client.interceptors.request.use((config: any) => {
-      const token =
-        localStorage.getItem('admin_token') ||
-        localStorage.getItem('institution_token') ||
-        localStorage.getItem('marketplace_token') ||
-        localStorage.getItem('authToken');
+      const path = typeof window !== 'undefined' ? window.location.pathname : '';
+      let token: string | null = null;
+
+      if (path.startsWith('/admin')) {
+        token = localStorage.getItem('admin_token');
+      } else if (path.startsWith('/institution')) {
+        token = localStorage.getItem('institution_token');
+      }
+
+      if (!token) {
+        token =
+          localStorage.getItem('admin_token') ||
+          localStorage.getItem('institution_token') ||
+          localStorage.getItem('marketplace_token') ||
+          localStorage.getItem('authToken');
+      }
+
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -707,6 +719,40 @@ class GovernanceApiService {
       `/governance/admin/institutions/${institutionId}/decommission`,
       {}
     );
+    return response.data;
+  }
+
+  // ============ ADMIN USERS API ============
+
+  async getAdminUsers(): Promise<any[]> {
+    const response = await this.client.get('/admin/users');
+    return response.data;
+  }
+
+  async createAdminUser(data: { email: string; name: string; role: string; password: string }): Promise<any> {
+    const response = await this.client.post('/admin/users', data);
+    return response.data;
+  }
+
+  async updateAdminUser(userId: string, data: { name?: string; role?: string; isActive?: boolean }): Promise<any> {
+    const response = await this.client.put(`/admin/users/${userId}`, data);
+    return response.data;
+  }
+
+  // ============ INFRASTRUCTURE API ============
+
+  async getBlockchainStatus(): Promise<any> {
+    const response = await this.client.get('/admin/blockchain-status');
+    return response.data;
+  }
+
+  async bulkRegisterInstitutions(): Promise<any> {
+    const response = await this.client.post('/admin/blockchain-register-all', {});
+    return response.data;
+  }
+
+  async bootstrapSignerIIN(walletAddress?: string): Promise<any> {
+    const response = await this.client.post('/admin/bootstrap/signer-iin', { walletAddress });
     return response.data;
   }
 

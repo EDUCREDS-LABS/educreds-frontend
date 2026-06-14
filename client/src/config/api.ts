@@ -43,6 +43,7 @@ const DEFAULT_API_BASE = resolveDefaultApiBase();
 const MAIN_API_BASE = getEnvVar('VITE_API_BASE', DEFAULT_API_BASE)?.replace(/\/$/, "") || DEFAULT_API_BASE;
 const CERT_API_BASE = getEnvVar('VITE_CERT_API_BASE', DEFAULT_API_BASE)?.replace(/\/$/, "") || DEFAULT_API_BASE;
 const MARKETPLACE_API_BASE = getEnvVar('VITE_MARKETPLACE_API_BASE', DEFAULT_API_BASE)?.replace(/\/$/, "") || DEFAULT_API_BASE;
+const TRUST_AGENT_API_BASE = getEnvVar('VITE_TRUST_AGENT_API_BASE', 'http://localhost:3010')?.replace(/\/$/, "") || 'http://localhost:3010';
 
 export const API_CONFIG = {
   // Main backend (admin, oracle, unified services)
@@ -53,6 +54,9 @@ export const API_CONFIG = {
   
   // Marketplace backend (marketplace operations)
   MARKETPLACE: MARKETPLACE_API_BASE,
+  
+  // Trust Agent
+  TRUST_AGENT: TRUST_AGENT_API_BASE,
   
   // Health check endpoints
   HEALTH: {
@@ -75,6 +79,8 @@ export const API_CONFIG = {
     CHANGE_PASSWORD: `${MAIN_API_BASE}/api/admin/change-password`,
     USERS: `${MAIN_API_BASE}/api/admin/users`,
     AUDIT_LOGS: `${MAIN_API_BASE}/api/admin/audit-logs`,
+    PENDING_MINTS: `${MAIN_API_BASE}/api/admin/pending-mints`,
+    PENDING_MINT_RECONCILE: (certificateId: string) => `${MAIN_API_BASE}/api/admin/pending-mints/${certificateId}/reconcile`,
     NOTIFICATIONS_SETTINGS: (email: string) => `${MAIN_API_BASE}/api/admin/notifications/settings/${encodeURIComponent(email)}`
   },
   
@@ -90,6 +96,10 @@ export const API_CONFIG = {
     WALLET: (walletAddress: string) => `${CERT_API_BASE}/api/certificates/wallet/${walletAddress}`,
     MINT: (certificateId: string) => `${CERT_API_BASE}/api/certificates/${certificateId}/mint`,
     ONCHAIN_MINT: (certificateId: string) => `${CERT_API_BASE}/api/certificates/${certificateId}/onchain-mint`,
+    PENDING: `${CERT_API_BASE}/api/certificates/pending`,
+    RETRY_MINT: (certificateId: string) => `${CERT_API_BASE}/api/certificates/${certificateId}/retry-mint`,
+    RECONCILE: (certificateId: string) => `${CERT_API_BASE}/api/certificates/${certificateId}/reconcile`,
+    WALLET_DIRECT_CONFIRM: `${CERT_API_BASE}/api/certificates/issue/wallet-direct/confirm`,
     SHARE_PACKAGE: (certificateId: string) => `${CERT_API_BASE}/api/student/share/${certificateId}/package`,
     SHARE_METHODS: (certificateId: string) => `${CERT_API_BASE}/api/student/share/${certificateId}/methods`
   },

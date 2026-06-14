@@ -1,38 +1,61 @@
-import { FC } from "react";
+import React from 'react';
+import { InfoPageLayout } from '@/components/InfoPageLayout';
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Download, FileText, Image as ImageIcon, ExternalLink } from "lucide-react";
 
-const PressKitPage: FC = () => {
+export default function PressKitPage() {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold mb-4">Press Kit</h1>
-      
-      <h2 className="text-3xl font-bold mb-4">Overview</h2>
-      <p className="mb-4">
-        This section helps media, investors, and partners understand EduCreds quickly.
-      </p>
+    <InfoPageLayout 
+      title="Press Kit" 
+      subtitle="Official resources, brand assets, and protocol background for media and institutional use."
+      badge="Media Center"
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+        <Card className="border-none shadow-xl shadow-neutral-200/40 bg-neutral-50/50 rounded-[32px] overflow-hidden">
+          <CardContent className="p-10 space-y-6">
+            <div className="size-14 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600">
+              <ImageIcon className="size-6" />
+            </div>
+            <h3 className="text-2xl font-black text-neutral-900 uppercase tracking-tight">Brand Assets</h3>
+            <p className="text-neutral-500 font-medium leading-relaxed">
+              Official logos, institutional badge templates, and protocol icons in multiple formats (PNG, SVG, AI).
+            </p>
+            <Button className="w-full h-12 rounded-xl font-black text-xs uppercase tracking-widest bg-neutral-900 text-white hover:bg-neutral-800">
+              Download Logos (.zip) <Download className="size-4 ml-2" />
+            </Button>
+          </CardContent>
+        </Card>
 
-      <h2 className="text-3xl font-bold mb-4">Include:</h2>
-      <ul className="list-disc list-inside">
-        <li className="mb-2">Brand Story</li>
-        <li className="mb-2">Logo Pack (PNG, SVG, Light/Dark)</li>
-        <li className="mb-2">Brand Colors + Typography</li>
-        <li className="mb-2">Founder Bio</li>
-        <li className="mb-2">Platform Screenshots</li>
-        <li className="mb-2">One-Page Pitch PDF</li>
-      </ul>
+        <Card className="border-none shadow-xl shadow-neutral-200/40 bg-neutral-50/50 rounded-[32px] overflow-hidden">
+          <CardContent className="p-10 space-y-6">
+            <div className="size-14 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600">
+              <FileText className="size-6" />
+            </div>
+            <h3 className="text-2xl font-black text-neutral-900 uppercase tracking-tight">Executive Summary</h3>
+            <p className="text-neutral-500 font-medium leading-relaxed">
+              Technical whitepapers, protocol architecture summaries, and the official mission statement.
+            </p>
+            <Button variant="outline" className="w-full h-12 rounded-xl border-neutral-200 font-black text-xs uppercase tracking-widest hover:bg-white">
+              Download Media Deck <Download className="size-4 ml-2" />
+            </Button>
+          </CardContent>
+        </Card>
 
-      <p className="mt-8">
-        Press Contact:{" "}
-        <a href="mailto:press@educreds.xyz" className="text-blue-500 hover:underline">
-          press@educreds.xyz
-        </a>
-      </p>
-
-      <h2 className="text-3xl font-bold mt-8 mb-4">Brand Story (short)</h2>
-      <p>
-        EduCreds is transforming academic records using blockchain and AI. Our platform enables institutions to issue digital certificates and employers to verify them instantly—ensuring trust, transparency, and security.
-      </p>
-    </div>
+        <Card className="md:col-span-2 border-none shadow-xl shadow-neutral-200/40 bg-neutral-900 rounded-[32px] overflow-hidden text-white">
+          <CardContent className="p-10 flex flex-col md:flex-row md:items-center justify-between gap-10">
+            <div className="space-y-4">
+              <h3 className="text-2xl font-black uppercase tracking-tight text-blue-400">Looking for an Interview?</h3>
+              <p className="text-neutral-400 font-medium max-w-xl">
+                Our protocol architects and founders are available for insights into the future of decentralized education and blockchain infrastructure.
+              </p>
+            </div>
+            <Button className="rounded-xl h-14 px-10 font-black text-xs uppercase tracking-widest bg-white text-black hover:bg-neutral-200">
+              Contact Press Team <ExternalLink className="size-4 ml-2" />
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </InfoPageLayout>
   );
-};
-
-export default PressKitPage;
+}

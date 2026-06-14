@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/loading-skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { 
   Shield, 
@@ -26,7 +26,8 @@ import {
   ArrowUpRight,
   Search,
   Fingerprint,
-  Radio
+  Radio,
+  Loader2
 } from "lucide-react";
 import { 
   Area, 
@@ -68,6 +69,22 @@ export default function SecurityDashboard() {
     refetchInterval: 60000,
   });
 
+  const { data: securityStats, isLoading: statsLoading } = useQuery({
+    queryKey: ["/api/trust-agent/security-stats"],
+    queryFn: async () => {
+      // In a real scenario, this would be a specific endpoint. 
+      // Mapping the trust agent observability data as proxy for now based on available methods
+      const data = await api.trustAgent.getObservabilityData();
+      return {
+        totalEvents: data.stats?.totalEvents || 0,
+        last24Hours: data.stats?.last24Hours || 0,
+        criticalEvents: data.stats?.criticalEvents || 0,
+        highSeverityEvents: data.stats?.highSeverityEvents || 0
+      };
+    },
+    refetchInterval: 30000,
+  });
+
   const { data: indexerStatus, isLoading: indexerLoading } = useQuery({
     queryKey: ["/api/indexer/status"],
     queryFn: api.getIndexerStatus,
@@ -75,11 +92,11 @@ export default function SecurityDashboard() {
   });
 
   const logs = auditLogs?.logs || [];
-  const stats = auditLogs?.stats || {
-    totalEvents: 1247, // Mock fallbacks if real stats not available
-    last24Hours: 89,
-    criticalEvents: 2,
-    highSeverityEvents: 12
+  const stats = securityStats || {
+    totalEvents: 0,
+    last24Hours: 0,
+    criticalEvents: 0,
+    highSeverityEvents: 0
   };
 
   const trendData = [
@@ -113,6 +130,15 @@ export default function SecurityDashboard() {
     a.download = `security-audit-${format(new Date(), "yyyy-MM-dd")}.json`;
     a.click();
   };
+
+  if (logsLoading || healthLoading || statsLoading || indexerLoading) {
+      return (
+        <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
+          <Loader2 className="size-8 animate-spin text-primary" />
+          <p className="text-sm font-bold text-neutral-500">Loading Security Dashboard...</p>
+        </div>
+      );
+  }
 
   return (
     <div className="space-y-8 pb-12">

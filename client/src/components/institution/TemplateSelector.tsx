@@ -46,6 +46,7 @@ import {
   Sparkles,
   Plus,
   Trash2,
+  AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -68,6 +69,8 @@ interface TemplateSelectorProps {
   onSubmit: (data: any) => void;
   isLoading: boolean;
   isLimitExceeded: boolean;
+  templatesLoading?: boolean;
+  templatesError?: boolean;
 }
 
 export function TemplateSelector({
@@ -78,6 +81,8 @@ export function TemplateSelector({
   onSubmit,
   isLoading,
   isLimitExceeded,
+  templatesLoading,
+  templatesError,
 }: TemplateSelectorProps) {
   const [showPreview, setShowPreview] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
@@ -109,7 +114,7 @@ export function TemplateSelector({
         </CardHeader>
         <CardContent className="p-10">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
+            <form onSubmit={onSubmit} className="space-y-10">
               
               {/* Template Selection */}
               <div className="space-y-6">
@@ -121,6 +126,15 @@ export function TemplateSelector({
                     </Button>
                   )}
                 </div>
+
+                {templatesError && (
+                  <Alert className="rounded-2xl border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200 [&>svg]:text-amber-600">
+                    <AlertCircle className="size-4" />
+                    <AlertDescription className="font-medium">
+                      Templates couldn't be loaded right now. You can still issue using the PDF Upload tab, or try again shortly.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
                 <FormField
                   control={form.control}
@@ -135,7 +149,7 @@ export function TemplateSelector({
                         </FormControl>
                         <SelectContent className="rounded-2xl p-2 border-neutral-100 dark:border-neutral-800">
                           {templates.length === 0 ? (
-                            <SelectItem value="empty" disabled>No templates available.</SelectItem>
+                            <SelectItem value="empty" disabled>{templatesLoading ? "Loading templates…" : "No templates available yet."}</SelectItem>
                           ) : (
                             templates.map((template: Template) => (
                               <SelectItem key={template.id} value={template.id} className="rounded-xl font-bold py-3">
@@ -210,12 +224,12 @@ export function TemplateSelector({
                     </div>
                 ))}
                 
-                {fields.length < 10 && (
-                    <Button type="button" variant="outline" onClick={() => append({ recipientName: "", recipientWallet: "", completionDate: new Date().toISOString().split('T')[0], certificateType: 'Course Completion' })} className="h-14 rounded-2xl font-black text-xs uppercase tracking-widest w-full">
-                        <Plus className="size-4 mr-2" /> Add Another Recipient
-                    </Button>
-                )}
-              </div>
+{fields.length < 10 && (
+                     <Button type="button" variant="outline" onClick={() => append({ studentName: "", studentAddress: "", studentEmail: "", completionDate: new Date().toISOString().split('T')[0], certificateType: 'Course Completion', courseName: '', grade: '' })} className="h-14 rounded-2xl font-black text-xs uppercase tracking-widest w-full">
+                         <Plus className="size-4 mr-2" /> Add Another Recipient
+                     </Button>
+                 )}
+               </div>
 
               {/* Submit Actions */}
               <div className="flex gap-3 pt-6 border-t border-neutral-100 dark:border-neutral-800">
