@@ -8,8 +8,7 @@ import {
   securityHeaders,
   corsOptions,
   validateInput,
-  requestSizeLimits,
-  rateLimits
+  requestSizeLimits
 } from "./lib/security";
 import cors from 'cors';
 import session from 'express-session';
@@ -30,14 +29,22 @@ app.use(cors(corsOptions));
 app.use(express.json(requestSizeLimits.json));
 app.use(express.urlencoded(requestSizeLimits.urlencoded));
 
+// Trust proxy for secure cookies / rate limiting behind reverse proxy
+app.set('trust proxy', 1);
+
 // Session configuration
-app.use(session(sessionConfig));
+app.use(session({
+  ...sessionConfig,
+  cookie: {
+    ...sessionConfig.cookie,
+    secure: true,
+    httpOnly: true,
+    sameSite: 'lax',
+  },
+}));
 
 // Input validation
 app.use(validateInput);
-
-// Trust proxy for rate limiting behind reverse proxy
-app.set('trust proxy', 1);
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -54,7 +61,7 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
+      if (capturedJsonResponse && res.statusCode >= 400) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 
@@ -80,7 +87,7 @@ app.use((req, res, next) => {
     const message = err.message || "Internal Server Error";
 
     res.status(status).json({ message });
-    throw err;
+    log(String(err?.stack || err), "error");
   });
 
   // importantly only setup vite in development and after

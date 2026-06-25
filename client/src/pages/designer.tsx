@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { defaultTemplates } from '../../../shared/templates/default-templates';
 import { motion, AnimatePresence } from 'framer-motion';

@@ -31,7 +31,6 @@ export default function Verify() {
       if (!searchValue.trim()) return null;
 
       try {
-        console.log('Attempting verification with:', { searchMethod, searchValue });
 
         let result;
         if (searchMethod === "ipfs") {
@@ -53,7 +52,6 @@ export default function Verify() {
           result = await api.verifyCertificate(searchValue);
         }
 
-        console.log('Verification result:', result);
         return result;
       } catch (error: any) {
         console.error('Verification error:', error);

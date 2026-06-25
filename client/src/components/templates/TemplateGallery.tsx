@@ -45,7 +45,6 @@ export function TemplateGallery({ onTemplateSelect, showCustomizeButton = true }
 
   // Debug: Log the first template to see its structure
   if (filteredTemplates.length > 0) {
-    console.log('First template structure:', filteredTemplates[0]);
   }
 
   if (isLoading) {

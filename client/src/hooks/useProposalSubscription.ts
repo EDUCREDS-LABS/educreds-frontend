@@ -47,7 +47,6 @@ export function useProposalSubscription(
     });
 
     newSocket.on('connect', () => {
-      console.log('Connected to governance gateway');
       setIsConnected(true);
       setIsLive(true);
       setConnectionAttempts(0);
@@ -59,7 +58,6 @@ export function useProposalSubscription(
     });
 
     newSocket.on('disconnect', (reason) => {
-      console.log('Disconnected from governance gateway:', reason);
       setIsConnected(false);
       setIsLive(false);
       
@@ -73,7 +71,6 @@ export function useProposalSubscription(
         setConnectionAttempts(prev => prev + 1);
         
         reconnectTimeoutRef.current = setTimeout(() => {
-          console.log(`Attempting to reconnect... (${connectionAttempts + 1}/${maxReconnectAttempts})`);
           connect();
         }, delay);
       }
@@ -121,7 +118,6 @@ export function useProposalSubscription(
 
     newSocket.on('governance:metrics-updated', (data) => {
       // Handle governance metrics updates
-      console.log('Governance metrics updated:', data);
     });
 
     newSocket.on('error', (error) => {

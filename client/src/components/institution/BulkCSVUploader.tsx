@@ -289,7 +289,6 @@ export function BulkCSVUploader({
     while (attempts < maxAttempts) {
       try {
         const data = await api.getBulkIssuanceJobStatus(jobId);
-        console.log('Job status:', data);
         
         // Handle different response formats
         const current = data.progress?.current || data.progress?.processed || data.processedItems || 0;
@@ -341,7 +340,6 @@ export function BulkCSVUploader({
         clearInterval(progressInterval);
         setUploadProgress(100);
         
-        console.log('Bulk issuance response:', result);
         
         // Start polling for job status
         if (result.jobId) {

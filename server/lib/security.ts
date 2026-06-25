@@ -2,6 +2,7 @@ import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import cors from 'cors';
 import { Request, Response, NextFunction } from 'express';
+import { isValidWalletAddress, sanitizeObject } from './shared-validators';
 
 // Rate limiting configurations
 export const createRateLimit = (windowMs: number, max: number, message?: string) => {
@@ -137,38 +138,12 @@ export const corsOptions = {
 
 // Input validation middleware
 export const validateInput = (req: Request, res: Response, next: NextFunction) => {
-  // Remove any potential XSS attempts
-  const sanitizeString = (str: string): string => {
-    return str.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/javascript:/gi, '')
-      .replace(/on\w+\s*=/gi, '');
-  };
-
-  const sanitizeObject = (obj: any): any => {
-    if (typeof obj === 'string') {
-      return sanitizeString(obj);
-    }
-    if (Array.isArray(obj)) {
-      return obj.map(sanitizeObject);
-    }
-    if (obj && typeof obj === 'object') {
-      const sanitized: any = {};
-      for (const key in obj) {
-        if (obj.hasOwnProperty(key)) {
-          sanitized[key] = sanitizeObject(obj[key]);
-        }
-      }
-      return sanitized;
-    }
-    return obj;
-  };
-
   if (req.body) {
     req.body = sanitizeObject(req.body);
   }
 
   if (req.query) {
-    req.query = sanitizeObject(req.query);
+    req.query = sanitizeObject(req.query) as typeof req.query;
   }
 
   next();
@@ -220,7 +195,7 @@ export const validateBlockchainOperation = (req: Request, res: Response, next: N
   const { walletAddress, signature } = req.body;
 
   // Basic wallet address validation
-  if (walletAddress && !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+  if (walletAddress && !isValidWalletAddress(walletAddress)) {
     return res.status(400).json({
       error: 'Invalid wallet address',
       message: 'Wallet address must be a valid Ethereum address'

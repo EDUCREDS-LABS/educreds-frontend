@@ -11,9 +11,8 @@ let provider: JsonRpcProvider;
 try {
   provider = new JsonRpcProvider(CONTRACT_CONFIG.rpcUrl);
 } catch (error) {
-  console.warn('Failed to initialize blockchain provider:', error);
-  // Create a mock provider that will fail gracefully
-  provider = new JsonRpcProvider('https://invalid-url');
+  console.error('Failed to initialize blockchain provider. Blockchain features will be unavailable:', error);
+  provider = null as unknown as JsonRpcProvider;
 }
 
 
@@ -166,19 +165,16 @@ export class BlockchainService {
 
   // Get all certificates for a student address
   async getCertificatesByStudent(studentAddress: string): Promise<number[]> {
+    if (!provider || !CONTRACT_CONFIG.rpcUrl) {
+      console.warn('Blockchain provider not configured, returning empty array');
+      return [];
+    }
+
     try {
-      // Check if provider is connected
-      if (!provider || !CONTRACT_CONFIG.rpcUrl || CONTRACT_CONFIG.rpcUrl.includes('invalid-url')) {
-        console.warn('Blockchain provider not configured, returning empty array');
-        return [];
-      }
-      
       const certificateIds = await this.contract.getStudentCertificates(studentAddress);
       return certificateIds.map((id: any) => Number(id));
     } catch (error: any) {
-      console.warn('Failed to get student certificates from blockchain:', error.message);
-      // Return empty array instead of throwing error to prevent infinite retries
-      return [];
+      throw new Error(`Failed to get student certificates from blockchain: ${error.message}`);
     }
   }
 

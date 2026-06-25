@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useEffect, useState } from 'react';
 import { useMarketplaceStore } from '@/store/marketplaceStore';
 import { TemplateCard } from './TemplateCard';

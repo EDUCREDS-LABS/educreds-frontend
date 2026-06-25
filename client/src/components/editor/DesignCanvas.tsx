@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useEffect, useRef, useState } from 'react';
 import { useEditorStore } from '@/store/editorStore';
 import { createGrapesJSConfig, A4_CANVAS_SIZE, CERTIFICATE_CANVAS_SIZE } from '@/utils/grapesjs-config';

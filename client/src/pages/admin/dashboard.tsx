@@ -17,6 +17,7 @@ import { z } from "zod";
 import { AdminGuard } from "@/components/admin/AdminGuard";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { useAdminNotificationSettings, useUpdateAdminNotificationSettings } from "@/hooks/useAdmin";
+import { useEmailHealth } from "@/hooks/useNotifications";
 import {
   Users,
   DollarSign,
@@ -80,6 +81,7 @@ export default function AdminDashboard() {
   // TanStack Query Hooks
   const { data: verifData, isLoading: verifLoading, refetch: refetchVerif } = useVerificationRequests();
   const { data: revenueData, isLoading: revenueLoading, refetch: refetchRevenue } = useRevenueData();
+  const { data: emailHealth, isLoading: emailHealthLoading, refetch: refetchEmailHealth } = useEmailHealth(24, true);
   const reviewMutation = useReviewVerification();
 
   const verificationRequests = verifData?.verificationRequests || [];
@@ -93,6 +95,7 @@ export default function AdminDashboard() {
   const handleRefresh = () => {
     refetchVerif();
     refetchRevenue();
+    refetchEmailHealth();
   };
 
   const handleReview = async (data: ReviewForm) => {
@@ -274,6 +277,65 @@ export default function AdminDashboard() {
                   </div>
                   <span className="text-3xl font-black text-green-500 tracking-tighter group-hover:scale-110 transition-transform">AAA+</span>
                 </div>
+              </div>
+
+              <div className="pt-8 border-t border-white/5 space-y-6">
+                <div className="flex items-center justify-between">
+                  <h5 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Email Health (24h)</h5>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => refetchEmailHealth()}
+                    className="h-7 px-2 text-[9px] font-black uppercase tracking-widest text-neutral-400 hover:text-white"
+                  >
+                    <RefreshCw className="size-3 mr-1" /> Refresh
+                  </Button>
+                </div>
+
+                {emailHealthLoading ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-16 rounded-2xl bg-white/5" />
+                    <Skeleton className="h-16 rounded-2xl bg-white/5" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                        <p className="text-[9px] text-neutral-500 font-black uppercase tracking-widest">Sent</p>
+                        <p className="text-2xl font-black text-green-400 tracking-tighter">{emailHealth?.counts?.sent ?? 0}</p>
+                      </div>
+                      <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                        <p className="text-[9px] text-neutral-500 font-black uppercase tracking-widest">Failed</p>
+                        <p className="text-2xl font-black text-red-400 tracking-tighter">{emailHealth?.counts?.failed ?? 0}</p>
+                      </div>
+                      <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                        <p className="text-[9px] text-neutral-500 font-black uppercase tracking-widest">Pending</p>
+                        <p className="text-2xl font-black text-amber-400 tracking-tighter">{emailHealth?.counts?.pending ?? 0}</p>
+                      </div>
+                      <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                        <p className="text-[9px] text-neutral-500 font-black uppercase tracking-widest">Success</p>
+                        <p className="text-2xl font-black text-primary tracking-tighter">{emailHealth?.successRate ?? 0}%</p>
+                      </div>
+                    </div>
+
+                    {(emailHealth?.recentFailures?.length ?? 0) > 0 ? (
+                      <div className="space-y-2">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-neutral-500">Recent Failures</p>
+                        {emailHealth.recentFailures.slice(0, 3).map((failure: any, index: number) => (
+                          <div key={`${failure.to}-${failure.createdAt}-${index}`} className="p-3 rounded-xl bg-red-500/5 border border-red-500/20">
+                            <p className="text-[10px] font-black text-red-300 truncate">{failure.to}</p>
+                            <p className="text-[10px] text-neutral-400 truncate">{failure.subject}</p>
+                            <p className="text-[9px] text-neutral-500 truncate">{failure.errorMessage || "Unknown delivery error"}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-4 rounded-2xl bg-green-500/5 border border-green-500/20">
+                        <p className="text-[10px] font-black text-green-300 uppercase tracking-widest">No delivery failures in this window</p>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -1,37 +1,39 @@
-// Mock database tables for development
-export const templates = {
-  tableName: 'templates',
-  id: { primaryKey: true, defaultRandom: () => Math.random().toString(36).substr(2, 9) },
-  name: { notNull: true },
-  category: { notNull: true },
-  description: { notNull: true },
-  fields: { notNull: true },
-  design: { notNull: true },
-  previewImage: { notNull: true },
-  createdAt: { defaultNow: () => new Date() },
-  updatedAt: { defaultNow: () => new Date() }
-};
+import { randomUUID } from 'crypto';
+import { integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import type { CertificateData, TemplateField, TemplateVariant as TemplateVariantType } from '../types/template';
 
-export const templateVariants = {
-  tableName: 'template_variants',
-  id: { primaryKey: true, defaultRandom: () => Math.random().toString(36).substr(2, 9) },
-  templateId: { notNull: true },
-  institutionId: { notNull: true },
-  name: { notNull: true },
-  customizations: { notNull: true },
-  createdAt: { defaultNow: () => new Date() },
-  updatedAt: { defaultNow: () => new Date() }
-};
+export const templates = pgTable('templates', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  category: text('category').notNull(),
+  description: text('description').notNull(),
+  fields: jsonb('fields').$type<TemplateField[]>().notNull(),
+  design: text('design').notNull(),
+  previewImage: text('preview_image').notNull(),
+  price: integer('price').notNull(),
+  currency: text('currency').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
 
-export const issuedCertificates = {
-  tableName: 'issued_certificates',
-  id: { primaryKey: true, defaultRandom: () => Math.random().toString(36).substr(2, 9) },
-  templateId: { notNull: true },
-  variantId: {},
-  institutionId: { notNull: true },
-  data: { notNull: true },
-  certificateHash: { notNull: true },
-  blockchainTxHash: {},
-  issuedAt: { defaultNow: () => new Date() },
-  status: { notNull: true, default: 'issued' }
-};
+export const templateVariants = pgTable('template_variants', {
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
+  templateId: text('template_id').notNull(),
+  institutionId: text('institution_id').notNull(),
+  name: text('name').notNull(),
+  customizations: jsonb('customizations').$type<TemplateVariantType['customizations']>().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const issuedCertificates = pgTable('issued_certificates', {
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
+  templateId: text('template_id').notNull(),
+  variantId: text('variant_id'),
+  institutionId: text('institution_id').notNull(),
+  data: jsonb('data').$type<CertificateData>().notNull(),
+  certificateHash: text('certificate_hash').notNull(),
+  blockchainTxHash: text('blockchain_tx_hash'),
+  issuedAt: timestamp('issued_at').defaultNow().notNull(),
+  status: text('status').notNull().default('issued'),
+});

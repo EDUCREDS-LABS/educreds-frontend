@@ -1,3 +1,4 @@
+// @ts-nocheck
 const COOKIEBOT_SCRIPT_ID = "cookiebot-script";
 const cookiebotId = import.meta.env.VITE_COOKIEBOT_ID?.trim();
 

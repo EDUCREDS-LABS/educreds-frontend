@@ -19,10 +19,3 @@ export interface EthereumProvider {
   networkVersion?: string;
   selectedAddress?: string;
 }
-
-// Extend Window interface globally for TypeScript
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-}

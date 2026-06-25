@@ -12,10 +12,8 @@ export default function MarketplaceProtectedRoute({ children }: MarketplaceProte
 
   useEffect(() => {
     // Add some debugging
-    console.log('MarketplaceProtectedRoute - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading);
 
     if (!isLoading && !isAuthenticated) {
-      console.log('MarketplaceProtectedRoute - Redirecting to marketplace login');
       setLocation("/marketplace/login");
     }
   }, [isAuthenticated, isLoading, setLocation]);

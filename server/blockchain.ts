@@ -12,7 +12,7 @@ let parsedABI: any[];
 try {
   parsedABI = JSON.parse(CONTRACT_ABI || '[]');
 } catch (error) {
-  console.error('Failed to parse CONTRACT_ABI:', error);
+  console.error('Failed to parse CONTRACT_ABI - blockchain features will be unavailable:', error);
   parsedABI = [];
 }
 

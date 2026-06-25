@@ -17,6 +17,11 @@ import {
   Globe,
   Database,
   Cpu,
+  BarChart3,
+  ScrollText,
+  Package,
+  Paintbrush,
+  Webhook,
 } from "lucide-react";
 
 import {
@@ -62,6 +67,18 @@ const data = {
     },
     { title: "Verification", url: "/institution/verification", icon: Shield },
     { title: "Governance", url: "/institution/governance-workspace", icon: Cpu },
+    {
+      title: "Enterprise",
+      url: "#",
+      icon: Database,
+      items: [
+        { title: "Analytics", url: "/institution/enhanced-analytics", icon: BarChart3 },
+        { title: "Batch Operations", url: "/institution/batch-operations", icon: Package },
+        { title: "Audit Trail", url: "/institution/audit-trail", icon: ScrollText },
+        { title: "Webhooks", url: "/institution/webhooks", icon: Webhook },
+        { title: "White Label", url: "/institution/white-label", icon: Paintbrush },
+      ],
+    },
   ],
   navSecondary: [
     { title: "Institution Profile", url: "/institution/profile", icon: User },

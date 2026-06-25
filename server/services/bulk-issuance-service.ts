@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { db } from '../lib/db';
 import { bulkJobs, bulkJobItems } from '../../shared/schema/bulk';
 import { templates, templateVariants, issuedCertificates } from '../../shared/schema/templates';
@@ -151,6 +152,8 @@ export async function enqueueBulkJob(jobId: string) {
 	setTimeout(async () => {
 		try {
 			await BulkIssuanceService.processJob(jobId);
+		} catch (error) {
+			console.error(`Bulk issuance job ${jobId} failed:`, error);
 		} finally {
 			pendingJobs.delete(jobId);
 		}

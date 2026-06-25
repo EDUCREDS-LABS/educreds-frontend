@@ -41,7 +41,7 @@ export default function BlogPage() {
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
         {blogPosts.map((post, i) => (
-          <Card key={i} className="border-none shadow-xl shadow-neutral-200/50 bg-neutral-50/50 rounded-[32px] overflow-hidden group hover:bg-white hover:shadow-2xl transition-all duration-500">
+          <Card key={i} className="border-none shadow-xl shadow-neutral-200/50 dark:shadow-black/20 bg-neutral-50/50 dark:bg-neutral-900 rounded-[32px] overflow-hidden group hover:bg-white dark:hover:bg-neutral-800 hover:shadow-2xl transition-all duration-500">
             <CardContent className="p-10 space-y-6">
               <div className="flex items-center justify-between">
                 <Badge className="bg-blue-600 text-white border-none text-[9px] font-black uppercase px-3 py-1">
@@ -51,18 +51,18 @@ export default function BlogPage() {
                   <Clock className="size-3" /> {post.readTime}
                 </div>
               </div>
-              <h3 className="text-2xl font-black text-neutral-900 leading-tight group-hover:text-blue-600 transition-colors">
+              <h3 className="text-2xl font-black text-neutral-900 dark:text-neutral-100 leading-tight group-hover:text-blue-600 transition-colors">
                 {post.title}
               </h3>
-              <p className="text-neutral-500 font-medium leading-relaxed">
+              <p className="text-neutral-500 dark:text-neutral-400 font-medium leading-relaxed">
                 {post.desc}
               </p>
-              <div className="pt-6 border-t border-neutral-100 flex items-center justify-between">
+              <div className="pt-6 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="size-6 rounded-full bg-neutral-200 flex items-center justify-center">
+                  <div className="size-6 rounded-full bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center">
                     <User className="size-3 text-neutral-500" />
                   </div>
-                  <span className="text-xs font-bold text-neutral-600">{post.author}</span>
+                  <span className="text-xs font-bold text-neutral-600 dark:text-neutral-300">{post.author}</span>
                 </div>
                 <Button variant="ghost" className="p-0 h-auto font-black text-[10px] uppercase tracking-widest text-blue-600 hover:no-underline group-hover:translate-x-1 transition-transform">
                   Read Article <ArrowRight className="size-3 ml-2" />

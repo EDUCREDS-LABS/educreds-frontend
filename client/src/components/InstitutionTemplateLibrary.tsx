@@ -146,7 +146,6 @@ export const InstitutionTemplateLibrary: React.FC = () => {
   };
 
   const handleViewAnalytics = (templateId: string) => {
-    console.log('View analytics for template:', templateId);
   };
 
   const totalCertificatesIssued = purchasedTemplates.reduce((sum, template) => sum + template.usage.totalIssued, 0);

@@ -14,11 +14,6 @@ interface EthereumProvider extends Eip1193Provider {
 
 // Note: For wallet connection in utility functions, we use window.ethereum directly.
 
-console.log("Using API configuration:", {
-  MAIN: API_CONFIG.MAIN,
-  CERT: API_CONFIG.CERT,
-  MARKETPLACE: API_CONFIG.MARKETPLACE
-});
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -80,9 +75,16 @@ const isWalletDirectEnabled = (): boolean =>
 const hasWalletProvider = (): boolean => {
   if (typeof window === "undefined") return false;
   if (typeof (window as { ethereum?: unknown }).ethereum !== "undefined") return true;
+
+  // WalletConnect/AppKit can still open a connect modal even when not connected yet.
+  if (String(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || "").trim()) {
+    return true;
+  }
+
   try {
     return walletService.isConnected();
-  } catch {
+  } catch (error) {
+    console.warn("[API] walletService.isConnected() threw:", error);
     return false;
   }
 };
@@ -483,11 +485,106 @@ export const api = {
 
   // Institution endpoints
   getProfile: async () => {
-    const user = auth.getUser();
     const response = await fetch(API_CONFIG.INSTITUTIONS.PROFILE, {
       method: "GET",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ institutionId: user?.sub })
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+    });
+    return handleResponse(response);
+  },
+
+  getInstitutionNotificationPreferences: async () => {
+    const response = await fetch(API_CONFIG.INSTITUTIONS.NOTIFICATION_PREFERENCES, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+    });
+    return handleResponse(response);
+  },
+
+  updateInstitutionNotificationPreferences: async (payload: {
+    proposalUpdates?: boolean;
+    governanceAlerts?: boolean;
+    certificateEvents?: boolean;
+    systemAnnouncements?: boolean;
+    verificationStatus?: boolean;
+    notificationsEnabled?: boolean;
+    contactEmails?: string[];
+    preferredContactMethod?: "email" | "dashboard" | "both";
+  }) => {
+    const response = await fetch(API_CONFIG.INSTITUTIONS.NOTIFICATION_PREFERENCES, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+
+  getNotifications: async (params?: { page?: number; limit?: number; unreadOnly?: boolean }) => {
+    const query = new URLSearchParams();
+    if (params?.page !== undefined) query.set("page", String(params.page));
+    if (params?.limit !== undefined) query.set("limit", String(params.limit));
+    if (params?.unreadOnly !== undefined) query.set("unreadOnly", String(params.unreadOnly));
+    const url = query.toString()
+      ? `${API_CONFIG.NOTIFICATIONS.LIST}?${query.toString()}`
+      : API_CONFIG.NOTIFICATIONS.LIST;
+
+    const response = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+    });
+    return handleResponse(response);
+  },
+
+  getUnreadNotificationCount: async () => {
+    const response = await fetch(API_CONFIG.NOTIFICATIONS.UNREAD_COUNT, {
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+    });
+    return handleResponse(response);
+  },
+
+  markNotificationAsRead: async (notificationId: string) => {
+    const response = await fetch(API_CONFIG.NOTIFICATIONS.MARK_READ(notificationId), {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+    });
+    return handleResponse(response);
+  },
+
+  markAllNotificationsAsRead: async () => {
+    const response = await fetch(API_CONFIG.NOTIFICATIONS.MARK_ALL_READ, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+    });
+    return handleResponse(response);
+  },
+
+  getEmailHealth: async (hours: number = 24) => {
+    const url = `${API_CONFIG.EMAIL.HEALTH}?hours=${encodeURIComponent(String(hours))}`;
+    const response = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+      credentials: "include",
     });
     return handleResponse(response);
   },
@@ -659,14 +756,13 @@ export const api = {
     const authHeaders = getAuthHeaders();
     const walletDirectEnabled = isWalletDirectEnabled();
     const walletAvailable = walletDirectEnabled && hasWalletProvider();
-    let walletDirectFailureReason: string | undefined;
 
     if (walletAvailable) {
       try {
         return await tryWalletDirectIssuance(formData, authHeaders);
       } catch (error) {
-        walletDirectFailureReason = error instanceof Error ? error.message : String(error);
-        console.warn("[API] Wallet-direct issuance failed, falling back to backend signer mode:", error);
+        const walletDirectFailureReason = error instanceof Error ? error.message : String(error);
+        throw new Error(`Wallet signing failed: ${walletDirectFailureReason}`);
       }
     }
 
@@ -677,29 +773,30 @@ export const api = {
     });
     const fallback = await handleResponse(response);
     const walletDirectRequired = Boolean(fallback?.walletDirectRequired);
-    if (walletDirectRequired && hasWalletProvider()) {
+
+    if (walletDirectRequired) {
+      if (!walletService.isConnected()) {
+        await walletService.connect();
+      }
+      if (!hasWalletProvider()) {
+        throw new Error(
+          "This institution requires wallet-direct issuance. Connect an institutional wallet and retry issuance.",
+        );
+      }
+
       try {
         return await confirmWalletDirectIssuanceIfNeeded(fallback, authHeaders);
       } catch (error) {
         const walletError = error instanceof Error ? error.message : String(error);
-        return {
-          ...fallback,
-          onChainStatus: "pending_wallet_signature",
-          issuanceMode: "wallet_direct_pending",
-          walletDirectAttempted: true,
-          walletDirectFailureReason: walletError,
-        };
+        throw new Error(`Wallet signing failed during confirmation: ${walletError}`);
       }
     }
 
     return {
       ...fallback,
-      onChainStatus: walletDirectRequired
-        ? "pending_wallet_signature"
-        : fallback?.onChainStatus || "minted_backend_fallback",
-      issuanceMode: walletDirectRequired ? "wallet_direct_pending" : "backend_fallback",
+      onChainStatus: fallback?.onChainStatus || "minted_backend_fallback",
+      issuanceMode: "backend_fallback",
       walletDirectAttempted: walletAvailable,
-      walletDirectFailureReason,
     };
   },
 
@@ -711,12 +808,9 @@ export const api = {
   // 4. Store only DIDs and IPFS hashes in database
   issueCertificatePrivacyFirst: async (formData: FormData) => {
     const authHeaders = getAuthHeaders();
-    console.log('[API] issueCertificatePrivacyFirst called');
-    console.log('[API] Auth headers present:', Object.keys(authHeaders).length > 0);
 
     // Use standard issue endpoint with privacy flag
     const url = `${API_CONFIG.CERTIFICATES.ISSUE}?privacy=true`;
-    console.log('[API] Fetching from URL:', url);
 
     const response = await fetch(url, {
       method: "POST",
@@ -724,20 +818,22 @@ export const api = {
       body: formData,
     });
 
-    console.log('[API] Response status:', response.status);
     const result = await handleResponse(response);
-    if (result?.walletDirectRequired && hasWalletProvider()) {
+    if (result?.walletDirectRequired) {
+      if (!walletService.isConnected()) {
+        await walletService.connect();
+      }
+      if (!hasWalletProvider()) {
+        throw new Error(
+          "This institution requires wallet-direct issuance. Connect an institutional wallet and retry issuance.",
+        );
+      }
+
       try {
         return await confirmWalletDirectIssuanceIfNeeded(result, authHeaders);
       } catch (error) {
         const walletError = error instanceof Error ? error.message : String(error);
-        return {
-          ...result,
-          onChainStatus: "pending_wallet_signature",
-          issuanceMode: "wallet_direct_pending",
-          walletDirectAttempted: true,
-          walletDirectFailureReason: walletError,
-        };
+        throw new Error(`Wallet signing failed during confirmation: ${walletError}`);
       }
     }
     return result;
@@ -754,11 +850,15 @@ export const api = {
 
   // List credentials stuck pending on-chain confirmation for the authenticated institution.
   getPendingCertificates: async (limit = 100) => {
-    const query = new URLSearchParams({ limit: String(limit) });
-    const response = await fetch(`${API_CONFIG.CERTIFICATES.PENDING}?${query.toString()}`, {
-      headers: getAuthHeaders(),
-    });
-    return handleResponse(response);
+    const data = await api.getCertificates({ limit, status: "pending" });
+    const certificates = Array.isArray(data?.certificates)
+      ? data.certificates.filter((cert: any) => {
+          const status = String(cert?.issuanceStatus || "").toLowerCase();
+          return status.includes("pending") || (!cert?.tokenId && !cert?.isMinted);
+        })
+      : [];
+
+    return { certificates };
   },
 
   // Resume the wallet-direct mint for a pending credential: re-prepares the signing
@@ -839,61 +939,92 @@ export const api = {
           : [];
 
     const certificates = list.map((c: any) => {
+      const isWalletLike = (value: unknown) =>
+        typeof value === "string" && /^0x[a-fA-F0-9]{40}$/.test(value.trim());
+
+      const toMeaningfulString = (value: unknown) => {
+        if (typeof value !== "string") return undefined;
+        const trimmed = value.trim();
+        if (!trimmed) return undefined;
+        const normalized = trimmed.toLowerCase();
+        if (
+          normalized === "unknown" ||
+          normalized === "unknown student" ||
+          normalized === "student" ||
+          normalized === "n/a" ||
+          normalized === "na"
+        ) {
+          return undefined;
+        }
+        if (isWalletLike(trimmed)) {
+          return undefined;
+        }
+        return trimmed;
+      };
+
       const resolveStudentName = () => {
         if (!c) return undefined;
-        
-        // Direct name fields
-        const direct = c.studentName || c.student_name || c.studentFullName || 
-          c.student_full_name || c.fullName || c.name;
-        if (direct && typeof direct === 'string' && direct.trim() && 
-            direct.toLowerCase() !== 'unknown' && direct.toLowerCase() !== 'unknown student') {
-          return direct.trim();
+
+        const direct =
+          toMeaningfulString(c.studentName) ||
+          toMeaningfulString(c.student_name) ||
+          toMeaningfulString(c.studentFullName) ||
+          toMeaningfulString(c.student_full_name) ||
+          toMeaningfulString(c.fullName);
+        if (direct) {
+          return direct;
         }
-        
-        // Nested student object
+
         if (c.student && typeof c.student === 'object') {
-          const name = c.student.fullName || c.student.name ||
-            [c.student.firstName, c.student.lastName].filter(Boolean).join(' ');
+          const name =
+            toMeaningfulString(c.student.fullName) ||
+            toMeaningfulString(c.student.name) ||
+            toMeaningfulString([c.student.firstName, c.student.lastName].filter(Boolean).join(' '));
           if (name) return name;
         }
-        
-        // W3C credential subject
+
         if (c.credentialSubject && typeof c.credentialSubject === 'object') {
-          const name = c.credentialSubject.fullName || c.credentialSubject.name || 
-            c.credentialSubject.studentName;
+          const name =
+            toMeaningfulString(c.credentialSubject.studentName) ||
+            toMeaningfulString(c.credentialSubject.fullName) ||
+            toMeaningfulString(c.credentialSubject.name);
           if (name) return name;
         }
-        
-        // Separate first/last name fields
+
         const first = c.studentFirstName || c.firstName || c.first_name;
         const last = c.studentLastName || c.lastName || c.last_name;
-        const combined = [first, last].filter(Boolean).join(' ');
-        if (combined) return combined;
-        
-        return undefined;
+        return toMeaningfulString([first, last].filter(Boolean).join(' '));
       };
 
       const resolveCourseName = () => {
         if (!c) return undefined;
-        
-        // Direct course/program name fields
-        const direct = c.courseName || c.course_name || c.program || c.programName || 
-          c.program_name || c.title || c.courseTitle || c.credential_name;
+
+        const direct =
+          toMeaningfulString(c.courseName) ||
+          toMeaningfulString(c.course_name) ||
+          toMeaningfulString(c.program) ||
+          toMeaningfulString(c.programName) ||
+          toMeaningfulString(c.program_name) ||
+          toMeaningfulString(c.courseTitle) ||
+          toMeaningfulString(c.credential_name);
         if (direct) return direct;
-        
-        // W3C credential subject
+
         if (c.credentialSubject && typeof c.credentialSubject === 'object') {
-          const course = c.credentialSubject.courseName || c.credentialSubject.programName || 
-            c.credentialSubject.name || c.credentialSubject.credentialName;
+          const course =
+            toMeaningfulString(c.credentialSubject.courseName) ||
+            toMeaningfulString(c.credentialSubject.programName) ||
+            toMeaningfulString(c.credentialSubject.credentialName);
           if (course) return course;
         }
-        
-        // Nested course/program object
+
         if (c.course && typeof c.course === 'object') {
-          const course = c.course.name || c.course.courseName || c.course.programName;
+          const course =
+            toMeaningfulString(c.course.courseName) ||
+            toMeaningfulString(c.course.programName) ||
+            toMeaningfulString(c.course.name);
           if (course) return course;
         }
-        
+
         return undefined;
       };
 

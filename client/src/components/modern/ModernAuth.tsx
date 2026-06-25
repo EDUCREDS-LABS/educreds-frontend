@@ -117,9 +117,7 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
         description: "Welcome back to EduCreds!",
       });
 
-      // Force redirect to dashboard
-      console.log('Redirecting to dashboard...');
-      setLocation('/dashboard');
+      setLocation('/institution/dashboard');
 
     } catch (err: any) {
       setError(err.message || "Invalid OTP. Please try again.");
@@ -165,11 +163,11 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       {/* Header */}
       <div className="absolute top-4 left-4">
         <Link href="/">
-          <Button variant="ghost" className="flex items-center space-x-2">
+          <Button variant="ghost" className="flex items-center space-x-2 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800">
             <ArrowLeft className="w-4 h-4" />
             <span>Back to Home</span>
           </Button>
@@ -178,7 +176,7 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
 
       <div className="flex min-h-screen">
         {/* Left Side - Features */}
-        <div className="hidden lg:flex lg:w-1/2 flex-col justify-center p-12 bg-gradient-to-br from-primary/10 to-purple-500/10">
+        <div className="hidden lg:flex lg:w-1/2 flex-col justify-center p-12 bg-gradient-to-br from-primary/10 to-purple-500/10 dark:from-primary/5 dark:to-purple-500/5">
           <div className="max-w-md">
             <div className="flex items-center space-x-2 mb-8">
               <img src="/logo.png" alt="EduCreds" className="h-10 w-auto" />
@@ -187,10 +185,10 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
               </h1>
             </div>
 
-            <h2 className="text-3xl font-bold text-neutral-900 mb-4">
+            <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-100 mb-4">
               The Future of Educational Certificates
             </h2>
-            <p className="text-lg text-neutral-600 mb-8">
+            <p className="text-lg text-neutral-600 dark:text-neutral-400 mb-8">
               Issue, verify, and manage educational certificates with blockchain technology.
               Join the revolution in academic credential verification.
             </p>
@@ -200,19 +198,19 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
                 const Icon = feature.icon;
                 return (
                   <div key={index} className="flex items-start space-x-4">
-                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 bg-primary/10 dark:bg-primary/20 rounded-lg flex items-center justify-center flex-shrink-0">
                       <Icon className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-neutral-900 mb-1">{feature.title}</h3>
-                      <p className="text-sm text-neutral-600">{feature.description}</p>
+                      <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 mb-1">{feature.title}</h3>
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400">{feature.description}</p>
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            <div className="mt-8 p-4 bg-white/50 rounded-lg border border-white/20">
+            <div className="mt-8 p-4 bg-white/50 dark:bg-neutral-800/50 rounded-lg border border-white/20 dark:border-neutral-700/50">
               <div className="flex items-center space-x-2 mb-2">
                 <Badge variant="secondary" className="bg-green-100 text-green-800">
                   <CheckCircle className="w-3 h-3 mr-1" />
@@ -222,7 +220,7 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
                   SOC 2 Compliant
                 </Badge>
               </div>
-              <p className="text-sm text-neutral-600">
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">
                 Enterprise-grade security with 99.9% uptime guarantee
               </p>
             </div>
@@ -231,17 +229,17 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
 
         {/* Right Side - Auth Form */}
         <div className="flex-1 flex items-center justify-center p-8">
-          <Card className="w-full max-w-md shadow-xl border-0">
+          <Card className="w-full max-w-md shadow-xl border-0 dark:bg-neutral-900 dark:border dark:border-neutral-800">
             <CardHeader className="text-center pb-6">
               <div className="lg:hidden flex items-center justify-center space-x-2 mb-4">
                 <img src="/logo.png" alt="EduCreds" className="h-6 w-auto" />
-                <span className="text-lg font-bold text-neutral-900">EduCreds</span>
+                <span className="text-lg font-bold text-neutral-900 dark:text-neutral-100">EduCreds</span>
               </div>
 
-              <CardTitle className="text-2xl font-bold text-neutral-900">
+              <CardTitle className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
                 {mode === 'login' ? 'Welcome Back' : 'Get Started'}
               </CardTitle>
-              <p className="text-neutral-600">
+              <p className="text-neutral-600 dark:text-neutral-400">
                 {mode === 'login'
                   ? 'Sign in to your institution dashboard'
                   : 'Create your institution account'
@@ -313,7 +311,7 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
                               <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-neutral-700"
+                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
                               >
                                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                               </button>
@@ -327,8 +325,8 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
                     {mode === 'login' && (
                       <div className="flex items-center justify-between text-sm">
                         <label className="flex items-center space-x-2">
-                          <input type="checkbox" className="rounded border-neutral-300" />
-                          <span className="text-neutral-600">Remember me</span>
+                          <input type="checkbox" className="rounded border-neutral-300 dark:border-neutral-600" />
+                          <span className="text-neutral-600 dark:text-neutral-400">Remember me</span>
                         </label>
                         <Link href="/forgot-password">
                           <button type="button" className="text-primary hover:underline">
@@ -352,7 +350,7 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
 
               {!showOtp && (
                 <>
-                  <p className="text-sm text-neutral-600">
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400">
                     {mode === 'login' ? "Don't have an account? " : "Already have an account? "}
                     <Link href={mode === 'login' ? '/register' : '/login'}>
                       <button className="text-primary hover:underline font-medium">
@@ -362,7 +360,7 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
                   </p>
 
                   <div className="mt-4 text-center">
-                    <p className="text-sm text-neutral-600">
+                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
                       Are you a student?{" "}
                       <Link href="/student-portal">
                         <button className="text-secondary hover:underline font-medium">
@@ -373,9 +371,9 @@ export default function ModernAuth({ mode }: ModernAuthProps) {
                   </div>
 
                   {mode === 'login' && (
-                    <div className="mt-6 pt-6 border-t border-neutral-200">
+                    <div className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-700">
                       <div className="text-center">
-                        <p className="text-xs text-neutral-500 mb-2">Quick Access</p>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-2">Quick Access</p>
                         <div className="flex gap-2">
                           <Link href="/verify" className="flex-1">
                             <Button variant="outline" size="sm" className="w-full">

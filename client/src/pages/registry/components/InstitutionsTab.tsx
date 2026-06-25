@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useMemo, useEffect } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';

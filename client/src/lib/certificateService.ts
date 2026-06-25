@@ -254,8 +254,13 @@ export class CertificateService {
       // 1. Get from backend
       const backendCertificates = await api.getCertificatesByWallet(walletAddress);
       
-      // 2. Get from blockchain
-      const blockchainTokenIds = await blockchainService.getCertificatesByStudent(walletAddress);
+      // 2. Get from blockchain (isolated so backend results are preserved on failure)
+      let blockchainTokenIds: number[] = [];
+      try {
+        blockchainTokenIds = await blockchainService.getCertificatesByStudent(walletAddress);
+      } catch (error) {
+        console.error('Blockchain fetch failed, continuing with backend certificates only:', error);
+      }
       
       const results: CertificateVerificationResponse[] = [];
       

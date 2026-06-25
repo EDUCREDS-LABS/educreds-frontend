@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useQuery } from "@tanstack/react-query";
@@ -15,19 +15,59 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel
 } from "@/components/ui/dropdown-menu";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationsInbox } from "./NotificationsInbox";
 
+const SEARCH_ROUTES = [
+  { keywords: ["certificate", "cert", "credential", "issue", "issued"], path: "/institution/certificates", label: "Certificates" },
+  { keywords: ["analytics", "stats", "statistics", "performance", "report"], path: "/institution/analytics", label: "Analytics" },
+  { keywords: ["verify", "verification", "check", "validate"], path: "/institution/verification", label: "Verification" },
+  { keywords: ["governance", "dao", "proposal", "vote", "voting"], path: "/institution/governance-workspace", label: "Governance" },
+  { keywords: ["profile", "account", "institution", "organization"], path: "/institution/profile", label: "Profile" },
+  { keywords: ["setting", "config", "preference"], path: "/institution/settings", label: "Settings" },
+  { keywords: ["template", "design", "layout"], path: "/institution/templates", label: "Templates" },
+  { keywords: ["subscription", "plan", "billing", "payment", "pricing"], path: "/institution/subscription", label: "Subscription" },
+  { keywords: ["developer", "api", "key", "integration"], path: "/developer-portal", label: "Developer Portal" },
+  { keywords: ["marketplace", "browse", "shop"], path: "/marketplace", label: "Marketplace" },
+  { keywords: ["audit", "trail", "log", "activity", "compliance"], path: "/institution/audit-trail", label: "Audit Trail" },
+  { keywords: ["batch", "bulk", "mass", "import", "operations"], path: "/institution/batch-operations", label: "Batch Operations" },
+  { keywords: ["brand", "white", "label", "custom", "theme", "logo"], path: "/institution/white-label", label: "White Label" },
+  { keywords: ["webhook", "hook", "notify", "notification", "event"], path: "/institution/webhooks", label: "Webhooks" },
+  { keywords: ["enhanced", "analytics", "chart", "insight", "metric", "dashboard"], path: "/institution/enhanced-analytics", label: "Enhanced Analytics" },
+];
+
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
+  const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<typeof SEARCH_ROUTES>([]);
+  const [showResults, setShowResults] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Searching for:", searchQuery);
-    // Add real search logic here when API is available
+    if (searchResults.length > 0) {
+      setLocation(searchResults[0].path);
+      setSearchQuery("");
+      setShowResults(false);
+    }
+  };
+
+  const handleSearchInput = (value: string) => {
+    setSearchQuery(value);
+    const q = value.trim().toLowerCase();
+    if (!q) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+    const matches = SEARCH_ROUTES.filter((route) =>
+      route.keywords.some((kw) => kw.includes(q)) || route.label.toLowerCase().includes(q)
+    );
+    setSearchResults(matches);
+    setShowResults(matches.length > 0);
   };
 
   const { data: statsData } = useQuery({
@@ -45,15 +85,39 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return isExplicitlyVerified || hasIIN || hasHighPoIC;
   }, [user, statsData]);
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
     <SidebarProvider>
       <div className="min-h-screen w-full bg-neutral-50/50 dark:bg-neutral-950 transition-colors duration-300">
-        <AppSidebar />
-        <main className="ml-16 transition-all duration-300 ease-in-out flex flex-col bg-transparent relative z-10">
+        {/* Desktop sidebar */}
+        <div className="hidden md:block">
+          <AppSidebar />
+        </div>
+
+        {/* Mobile sidebar overlay */}
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-50 md:hidden">
+            <div className="absolute inset-0 bg-black/50" onClick={() => setMobileMenuOpen(false)} />
+            <div className="relative w-64 h-full">
+              <AppSidebar />
+            </div>
+          </div>
+        )}
+
+        <main className="md:ml-16 transition-all duration-300 ease-in-out flex flex-col bg-transparent relative z-10">
           {/* Header */}
-          <header className="sticky top-0 z-40 flex h-20 shrink-0 items-center justify-between border-b border-neutral-200/60 dark:border-neutral-800/60 bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl px-6 md:px-8 shadow-sm">
-            <div className="flex items-center gap-6">
-              <SidebarTrigger className="-ml-1 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors" />
+          <header className="sticky top-0 z-40 flex h-16 md:h-20 shrink-0 items-center justify-between border-b border-neutral-200/60 dark:border-neutral-800/60 bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl px-4 md:px-8 shadow-sm">
+            <div className="flex items-center gap-4 md:gap-6">
+              {/* Mobile hamburger */}
+              <button
+                className="md:hidden -ml-1 p-2 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label="Toggle navigation menu"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+              </button>
+              <SidebarTrigger className="-ml-1 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors hidden md:flex" />
               <div className="h-6 w-[1px] bg-neutral-200 dark:bg-neutral-800 hidden md:block" />
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 text-xs font-black text-neutral-400 uppercase tracking-[0.2em] hidden md:flex">
@@ -64,17 +128,40 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
 
             <div className="flex items-center gap-4 md:gap-6">
-              <form onSubmit={handleSearch} className="relative hidden lg:block group">
-                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400 group-focus-within:text-primary transition-colors" />
-                <input
-                  type="search"
-                  placeholder="Universal search..."
-                  aria-label="Search across the application"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-11 w-80 rounded-xl border-none bg-neutral-100/80 dark:bg-neutral-800/80 pl-11 text-sm font-medium focus:bg-white dark:focus:bg-neutral-800 focus:ring-2 focus:ring-primary/20 transition-all shadow-inner dark:text-neutral-200"
-                />
-              </form>
+              <div className="relative hidden lg:block" ref={searchRef}>
+                <form onSubmit={handleSearch} className="relative group">
+                  <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400 group-focus-within:text-primary transition-colors" />
+                  <input
+                    type="search"
+                    placeholder="Search pages..."
+                    aria-label="Search across the application"
+                    value={searchQuery}
+                    onChange={(e) => handleSearchInput(e.target.value)}
+                    onFocus={() => searchResults.length > 0 && setShowResults(true)}
+                    onBlur={() => setTimeout(() => setShowResults(false), 150)}
+                    className="h-11 w-80 rounded-xl border-none bg-neutral-100/80 dark:bg-neutral-800/80 pl-11 text-sm font-medium focus:bg-white dark:focus:bg-neutral-800 focus:ring-2 focus:ring-primary/20 transition-all shadow-inner dark:text-neutral-200"
+                  />
+                </form>
+                {showResults && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-neutral-900 rounded-xl shadow-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden z-50">
+                    {searchResults.map((result) => (
+                      <button
+                        key={result.path}
+                        className="w-full text-left px-4 py-3 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 flex items-center gap-3 transition-colors"
+                        onMouseDown={() => {
+                          setLocation(result.path);
+                          setSearchQuery("");
+                          setShowResults(false);
+                        }}
+                      >
+                        <Search className="size-3.5 text-neutral-400" />
+                        {result.label}
+                        <span className="ml-auto text-[10px] text-neutral-400 font-mono">{result.path}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div className="flex items-center gap-2">
                 <NotificationsInbox />
@@ -143,7 +230,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </header>
 
           {/* Main Content Area */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden p-8 md:p-12 lg:p-16 bg-neutral-50/50 dark:bg-neutral-950 transition-colors duration-300">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 md:p-12 lg:p-16 bg-neutral-50/50 dark:bg-neutral-950 transition-colors duration-300">
             <div className="mx-auto max-w-7xl animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
               {children}
             </div>

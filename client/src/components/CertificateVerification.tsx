@@ -105,13 +105,14 @@ export function CertificateVerification() {
   // for those is misleading, so we surface a distinct "pending" state and still
   // render the certificate data we received.
   const cert = result?.certificate;
-  const hasCertData = Boolean(cert && (cert.studentName || cert.courseName || cert.id || cert.tokenId));
   const isRevoked = result?.issuanceStatus === 'revoked' || result?.checks?.notRevoked === false;
+  const isPendingMint = result?.issuanceStatus === 'pending_blockchain_mint'
+    || result?.issuanceStatus === 'pending_wallet_signature';
   const resultStatus: 'authentic' | 'pending' | 'revoked' | 'failed' = result?.valid
     ? 'authentic'
     : isRevoked
       ? 'revoked'
-      : hasCertData
+      : isPendingMint && Boolean(cert)
         ? 'pending'
         : 'failed';
 
@@ -307,9 +308,9 @@ export function CertificateVerification() {
                            Identity Metadata
                         </h3>
                         <div className="space-y-6">
-                           <ResultItem label="Recipient" value={result.certificate?.studentName || "N/A"} icon={Users} />
-                           <ResultItem label="Credential" value={result.certificate?.courseName || "N/A"} icon={FileText} />
-                           <ResultItem label="Authority" value={result.certificate?.institutionName || "N/A"} icon={Globe} />
+                          <ResultItem label="Recipient" value={displayValue(result.certificate?.studentName, "Unknown Student")} icon={Users} />
+                          <ResultItem label="Credential" value={displayValue(result.certificate?.courseName, "Unknown Course")} icon={FileText} />
+                          <ResultItem label="Authority" value={displayValue(result.certificate?.institutionName, "Unknown Institution")} icon={Globe} />
                         </div>
                       </div>
                       <div className="space-y-8">
@@ -352,6 +353,23 @@ export function CertificateVerification() {
       )}
     </div>
   );
+}
+
+function displayValue(value: unknown, fallback: string): string {
+  if (typeof value !== 'string') return fallback;
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+  const normalized = trimmed.toLowerCase();
+  if (
+    normalized === 'student' ||
+    normalized === 'unknown' ||
+    normalized === 'unknown student' ||
+    normalized === 'n/a' ||
+    normalized === 'na'
+  ) {
+    return fallback;
+  }
+  return trimmed;
 }
 
 function formatIssuedDate(cert: any): string {

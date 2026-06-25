@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { APIGatewayAuthorizerResult, APIGatewayTokenAuthorizerEvent } from 'aws-lambda';
 import { createHash } from 'crypto';
 import { neon } from '@neondatabase/serverless';

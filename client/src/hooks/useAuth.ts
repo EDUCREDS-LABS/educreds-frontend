@@ -3,7 +3,12 @@ import { useState, useEffect } from "react";
 import { DualAuth, AuthType, AuthUser } from "@/lib/dualAuth";
 import { useLocation } from "wouter";
 
-const BYPASS_AUTH = import.meta.env.VITE_BYPASS_AUTH === "true";
+const BYPASS_AUTH =
+  import.meta.env.DEV &&
+  (typeof window === "undefined" ||
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1") &&
+  String(import.meta.env.VITE_BYPASS_AUTH ?? "false").toLowerCase() === "true";
 const DEV_USER: AuthUser = {
   id: "dev-user",
   email: "dev@educreds.local",

@@ -1,12 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { API_CONFIG } from "@/config/api";
+import { AdminAuth } from "@/lib/admin-auth";
 import { transformDocumentsForBackend } from "@/utils/documentTransform";
 
 const getAdminHeaders = () => {
-  const token = localStorage.getItem('admin_token');
   return {
     'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...AdminAuth.getAuthHeaders(),
   };
 };
 

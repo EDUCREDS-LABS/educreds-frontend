@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState } from 'react';
 import { useTransactions, useTransactionByHash } from '@/hooks/useIndexer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

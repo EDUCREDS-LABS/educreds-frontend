@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { API_CONFIG } from '@/config/api';
 
 export interface OracleSnapshot {

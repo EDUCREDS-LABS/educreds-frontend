@@ -44,7 +44,6 @@ const CreateTemplatePage = () => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target?.result;
-      console.log(`Imported ${importType} content:`, content); // In real app, store this or pass it
 
       setTimeout(() => {
         setIsImporting(false);

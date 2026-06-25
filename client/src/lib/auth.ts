@@ -129,9 +129,7 @@ export const getAuthHeaders = (): Record<string, string> => {
   const path = typeof window !== 'undefined' ? window.location.pathname : '';
   let token: string | null = null;
 
-  if (path.startsWith('/admin')) {
-    token = localStorage.getItem('admin_token');
-  } else if (path.startsWith('/institution')) {
+  if (path.startsWith('/institution')) {
     token = localStorage.getItem('institution_token');
   } else {
     // Default fallback logic
@@ -147,7 +145,6 @@ export const getAuthHeaders = (): Record<string, string> => {
   if (!token) {
     token = 
       localStorage.getItem('institution_token') || 
-      localStorage.getItem('admin_token') || 
       localStorage.getItem('marketplace_token') ||
       localStorage.getItem('authToken');
   }

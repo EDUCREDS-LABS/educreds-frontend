@@ -74,11 +74,6 @@ export default function CreateCertificateModal({ open, onOpenChange }: CreateCer
 
   const createCertificateMutation = useMutation({
     mutationFn: async (data: CreateCertificateForm) => {
-      console.log('[CreateCertificateModal] Starting certificate issuance with data:', {
-        studentWalletAddress: data.studentWalletAddress,
-        studentName: data.studentName,
-        courseName: data.courseName
-      });
 
       // Privacy-First Flow (Backend auto-generates DID):
       // 1. Backend generates Student DID from wallet: did:educreds:student:hash(walletAddress)
@@ -100,10 +95,8 @@ export default function CreateCertificateModal({ open, onOpenChange }: CreateCer
       };
 
       try {
-        console.log('[CreateCertificateModal] Calling certificateService.issueCertificatePrivacyFirst');
         // Use privacy-first service (backend handles DID generation)
         const certificateResponse = await certificateService.issueCertificatePrivacyFirst(privacyFirstRequest);
-        console.log('[CreateCertificateModal] Certificate issued successfully:', certificateResponse);
 
         return certificateResponse;
       } catch (error: any) {
@@ -117,7 +110,6 @@ export default function CreateCertificateModal({ open, onOpenChange }: CreateCer
       }
     },
     onSuccess: (data) => {
-      console.log('[CreateCertificateModal] onSuccess callback triggered');
       toast({
         title: "Certificate issued successfully!",
         description: `Student DID auto-generated from wallet. Data stored securely on IPFS.`,

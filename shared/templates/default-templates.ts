@@ -7,6 +7,8 @@ export const defaultTemplates: Template[] = [
       name: 'Academic Classic',
       category: 'academic',
       description: 'A traditional academic certificate with elegant typography and formal design',
+      price: 0,
+      currency: 'USD',
       fields: [
         { name: 'studentName', type: 'text', required: true, placeholder: 'Student Name' },
         { name: 'courseTitle', type: 'text', required: true, placeholder: 'Course Title' },
@@ -74,6 +76,8 @@ export const defaultTemplates: Template[] = [
       name: 'Training Modern',
       category: 'training',
       description: 'A modern, clean design perfect for corporate training certificates',
+      price: 0,
+      currency: 'USD',
       fields: [
         { name: 'studentName', type: 'text', required: true, placeholder: 'Student Name' },
         { name: 'courseTitle', type: 'text', required: true, placeholder: 'Course Title' },
@@ -145,6 +149,8 @@ export const defaultTemplates: Template[] = [
       name: 'Corporate Award',
       category: 'corporate',
       description: 'A prestigious design for corporate awards and recognition certificates',
+      price: 0,
+      currency: 'USD',
       fields: [
         { name: 'studentName', type: 'text', required: true, placeholder: 'Recipient Name' },
         { name: 'courseTitle', type: 'text', required: true, placeholder: 'Award Title' },
@@ -211,6 +217,8 @@ export const defaultTemplates: Template[] = [
       name: 'Hackathon Badge',
       category: 'hackathon',
       description: 'A vibrant, tech-inspired design for hackathon and bootcamp certificates',
+      price: 0,
+      currency: 'USD',
       fields: [
         { name: 'studentName', type: 'text', required: true, placeholder: 'Participant Name' },
         { name: 'courseTitle', type: 'text', required: true, placeholder: 'Hackathon/Bootcamp Name' },
@@ -282,6 +290,8 @@ export const defaultTemplates: Template[] = [
       name: 'Workshop Minimal',
       category: 'workshop',
       description: 'A clean, minimal design perfect for workshop and seminar certificates',
+      price: 0,
+      currency: 'USD',
       fields: [
         { name: 'studentName', type: 'text', required: true, placeholder: 'Participant Name' },
         { name: 'courseTitle', type: 'text', required: true, placeholder: 'Workshop Title' },

@@ -73,7 +73,7 @@ export class FirebaseAuth {
       }
       localStorage.removeItem('firebase_token');
     } catch (error: any) {
-      // Silently fail if Firebase isn't configured
+      console.error('Firebase logout failed:', error.message);
       localStorage.removeItem('firebase_token');
     }
   }

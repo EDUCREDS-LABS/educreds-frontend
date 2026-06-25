@@ -2,6 +2,7 @@ import { db } from '../lib/db';
 import { templates, templateVariants, issuedCertificates } from '../../shared/schema/templates';
 import { defaultTemplates } from '../../shared/templates/default-templates';
 import { Template, TemplateVariant, IssuedCertificate, CertificateData } from '../../shared/types/template';
+import { eq } from 'drizzle-orm';
 import QRCode from 'qrcode';
 import crypto from 'crypto';
 
@@ -21,7 +22,7 @@ export class TemplateService {
       for (const template of defaultTemplates) {
         console.log('Processing template:', template.metadata.name);
         console.log('Template fields:', template.metadata.fields);
-        const existing = await db.select().from(templates).where({ id: template.metadata.id });
+        const existing = await db.select().from(templates).where(eq(templates.id, template.metadata.id));
         console.log('Existing templates found:', existing.length);
         
         if (existing.length === 0) {
@@ -34,6 +35,8 @@ export class TemplateService {
             fields: template.metadata.fields,
             design: template.design,
             previewImage: template.metadata.previewImage,
+            price: template.metadata.price,
+            currency: template.metadata.currency,
             createdAt: template.metadata.createdAt,
             updatedAt: template.metadata.updatedAt,
           });
@@ -75,6 +78,8 @@ export class TemplateService {
             description: dbTemplate.description,
             fields: dbTemplate.fields as any,
             previewImage: dbTemplate.previewImage,
+            price: dbTemplate.price,
+            currency: dbTemplate.currency,
             createdAt: dbTemplate.createdAt,
             updatedAt: dbTemplate.updatedAt,
           },
@@ -90,7 +95,7 @@ export class TemplateService {
   // Get template by ID
   static async getTemplateById(id: string): Promise<Template | null> {
     try {
-      const [dbTemplate] = await db.select().from(templates).where({ id });
+      const [dbTemplate] = await db.select().from(templates).where(eq(templates.id, id));
       
       if (!dbTemplate) return null;
 
@@ -102,6 +107,8 @@ export class TemplateService {
           description: dbTemplate.description,
           fields: dbTemplate.fields as any,
           previewImage: dbTemplate.previewImage,
+          price: dbTemplate.price,
+          currency: dbTemplate.currency,
           createdAt: dbTemplate.createdAt,
           updatedAt: dbTemplate.updatedAt,
         },
@@ -116,7 +123,7 @@ export class TemplateService {
   // Get templates by category
   static async getTemplatesByCategory(category: string): Promise<Template[]> {
     try {
-      const dbTemplates = await db.select().from(templates).where({ category });
+      const dbTemplates = await db.select().from(templates).where(eq(templates.category, category));
       return dbTemplates.map(dbTemplate => ({
         metadata: {
           id: dbTemplate.id,
@@ -125,6 +132,8 @@ export class TemplateService {
           description: dbTemplate.description,
           fields: dbTemplate.fields as any,
           previewImage: dbTemplate.previewImage,
+          price: dbTemplate.price,
+          currency: dbTemplate.currency,
           createdAt: dbTemplate.createdAt,
           updatedAt: dbTemplate.updatedAt,
         },
@@ -171,7 +180,7 @@ export class TemplateService {
   // Get institution variants
   static async getInstitutionVariants(institutionId: string): Promise<TemplateVariant[]> {
     try {
-      const variants = await db.select().from(templateVariants).where({ institutionId });
+      const variants = await db.select().from(templateVariants).where(eq(templateVariants.institutionId, institutionId));
       return variants.map(variant => ({
         id: variant.id,
         templateId: variant.templateId,
@@ -201,7 +210,7 @@ export class TemplateService {
       // Get variant if specified
       let customizations: TemplateCustomizations = {};
       if (variantId) {
-        const [variant] = await db.select().from(templateVariants).where({ id: variantId });
+        const [variant] = await db.select().from(templateVariants).where(eq(templateVariants.id, variantId));
         if (variant) {
           customizations = variant.customizations as TemplateCustomizations;
         }
@@ -269,11 +278,11 @@ export class TemplateService {
       return {
         id: issuedCert.id,
         templateId: issuedCert.templateId,
-        variantId: issuedCert.variantId,
+        variantId: issuedCert.variantId ?? undefined,
         institutionId: issuedCert.institutionId,
         data: issuedCert.data as any,
         certificateHash: issuedCert.certificateHash,
-        blockchainTxHash: issuedCert.blockchainTxHash,
+        blockchainTxHash: issuedCert.blockchainTxHash ?? undefined,
         issuedAt: issuedCert.issuedAt,
         status: issuedCert.status as any,
       };
@@ -290,7 +299,7 @@ export class TemplateService {
     template?: Template;
   }> {
     try {
-      const [certificate] = await db.select().from(issuedCertificates).where({ id: certificateId });
+      const [certificate] = await db.select().from(issuedCertificates).where(eq(issuedCertificates.id, certificateId));
       
       if (!certificate) {
         return { isValid: false };
@@ -303,11 +312,11 @@ export class TemplateService {
         certificate: {
           id: certificate.id,
           templateId: certificate.templateId,
-          variantId: certificate.variantId,
+          variantId: certificate.variantId ?? undefined,
           institutionId: certificate.institutionId,
           data: certificate.data as any,
           certificateHash: certificate.certificateHash,
-          blockchainTxHash: certificate.blockchainTxHash,
+          blockchainTxHash: certificate.blockchainTxHash ?? undefined,
           issuedAt: certificate.issuedAt,
           status: certificate.status as any,
         },

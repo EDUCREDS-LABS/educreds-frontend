@@ -43,7 +43,11 @@ const DEFAULT_API_BASE = resolveDefaultApiBase();
 const MAIN_API_BASE = getEnvVar('VITE_API_BASE', DEFAULT_API_BASE)?.replace(/\/$/, "") || DEFAULT_API_BASE;
 const CERT_API_BASE = getEnvVar('VITE_CERT_API_BASE', DEFAULT_API_BASE)?.replace(/\/$/, "") || DEFAULT_API_BASE;
 const MARKETPLACE_API_BASE = getEnvVar('VITE_MARKETPLACE_API_BASE', DEFAULT_API_BASE)?.replace(/\/$/, "") || DEFAULT_API_BASE;
-const TRUST_AGENT_API_BASE = getEnvVar('VITE_TRUST_AGENT_API_BASE', 'http://localhost:3010')?.replace(/\/$/, "") || 'http://localhost:3010';
+const TRUST_AGENT_API_BASE = (
+  getEnvVar('VITE_TRUST_AGENT_API_BASE') ||
+  getEnvVar('VITE_TRUST_AGENT_BASE') ||
+  'http://localhost:3010'
+).replace(/\/$/, "");
 
 export const API_CONFIG = {
   // Main backend (admin, oracle, unified services)
@@ -96,7 +100,6 @@ export const API_CONFIG = {
     WALLET: (walletAddress: string) => `${CERT_API_BASE}/api/certificates/wallet/${walletAddress}`,
     MINT: (certificateId: string) => `${CERT_API_BASE}/api/certificates/${certificateId}/mint`,
     ONCHAIN_MINT: (certificateId: string) => `${CERT_API_BASE}/api/certificates/${certificateId}/onchain-mint`,
-    PENDING: `${CERT_API_BASE}/api/certificates/pending`,
     RETRY_MINT: (certificateId: string) => `${CERT_API_BASE}/api/certificates/${certificateId}/retry-mint`,
     RECONCILE: (certificateId: string) => `${CERT_API_BASE}/api/certificates/${certificateId}/reconcile`,
     WALLET_DIRECT_CONFIRM: `${CERT_API_BASE}/api/certificates/issue/wallet-direct/confirm`,
@@ -133,6 +136,21 @@ export const API_CONFIG = {
       STATUS: (institutionId: string) => `${CERT_API_BASE}/api/institutions/${institutionId}/batch-signing/status`,
     },
     VARIANTS: (institutionId: string) => `${MAIN_API_BASE}/api/institutions/${institutionId}/variants`
+  },
+
+  // In-app notifications (institution dashboard)
+  NOTIFICATIONS: {
+    BASE: `${CERT_API_BASE}/api/notifications`,
+    LIST: `${CERT_API_BASE}/api/notifications`,
+    UNREAD_COUNT: `${CERT_API_BASE}/api/notifications/unread-count`,
+    MARK_READ: (notificationId: string) => `${CERT_API_BASE}/api/notifications/${notificationId}/read`,
+    MARK_ALL_READ: `${CERT_API_BASE}/api/notifications/mark-all-read`,
+  },
+
+  // Email diagnostics/ops endpoints
+  EMAIL: {
+    BASE: `${CERT_API_BASE}/api/email`,
+    HEALTH: `${CERT_API_BASE}/api/email/health`,
   },
   
   // LMS Import & Sync endpoints (use CERT backend)
@@ -202,9 +220,4 @@ export const CONNECTION_CONFIG = {
   RETRY_DELAY: 1000 // 1 second
 } as const;
 
-// Log configuration for debugging
-console.log('API Configuration:', {
-  MAIN: API_CONFIG.MAIN,
-  CERT: API_CONFIG.CERT,
-  MARKETPLACE: API_CONFIG.MARKETPLACE
-});
+

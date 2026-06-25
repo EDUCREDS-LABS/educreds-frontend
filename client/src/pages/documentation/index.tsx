@@ -18,13 +18,13 @@ export default function DocumentationPage() {
           { title: "API Reference", icon: Code2, desc: "REST and GraphQL endpoint documentation for automated credential issuance." },
           { title: "Governance Guide", icon: BookOpen, desc: "Understanding PoIC scoring, DAO voting, and consensus mechanics." }
         ].map((item, i) => (
-          <Card key={i} className="border-none shadow-lg shadow-neutral-200/40 bg-neutral-50/50 rounded-3xl overflow-hidden hover:bg-white transition-all duration-300">
+          <Card key={i} className="border-none shadow-lg shadow-neutral-200/40 dark:shadow-black/20 bg-neutral-50/50 dark:bg-neutral-900 rounded-3xl overflow-hidden hover:bg-white dark:hover:bg-neutral-800 transition-all duration-300">
             <CardContent className="p-8 space-y-4">
-              <div className="size-12 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600">
+              <div className="size-12 rounded-2xl bg-blue-100 dark:bg-blue-950 flex items-center justify-center text-blue-600 dark:text-blue-400">
                 <item.icon className="size-6" />
               </div>
-              <h3 className="text-xl font-bold text-neutral-900">{item.title}</h3>
-              <p className="text-neutral-500 font-medium text-sm leading-relaxed">{item.desc}</p>
+              <h3 className="text-xl font-bold text-neutral-900 dark:text-neutral-100">{item.title}</h3>
+              <p className="text-neutral-500 dark:text-neutral-400 font-medium text-sm leading-relaxed">{item.desc}</p>
             </CardContent>
           </Card>
         ))}

@@ -129,9 +129,7 @@ export default function FileUpload({
   }, [handleFiles]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('File input change event triggered', e.target.files);
     if (e.target.files && e.target.files.length > 0) {
-      console.log('Files selected:', e.target.files.length);
       handleFiles(e.target.files);
       // Reset input value to allow uploading the same file again
       e.target.value = '';
@@ -202,7 +200,6 @@ export default function FileUpload({
           data-testid="button-choose-files"
           className="relative z-10"
           onClick={() => {
-            console.log('Choose Files button clicked');
             if (fileInputRef.current) {
               fileInputRef.current.click();
             } else {

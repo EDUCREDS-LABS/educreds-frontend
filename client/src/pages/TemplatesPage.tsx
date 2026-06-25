@@ -23,7 +23,6 @@ export function TemplatesPage() {
 
   const handleIssuanceSuccess = (certificateId: string) => {
     // You can add navigation to a success page or show a modal
-    console.log('Certificate issued:', certificateId);
   };
 
   return (

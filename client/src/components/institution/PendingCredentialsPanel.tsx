@@ -100,7 +100,7 @@ export function PendingCredentialsPanel() {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const pendingQuery = useQuery({
-    queryKey: ["/api/certificates/pending"],
+    queryKey: ["certificates-pending-onchain"],
     queryFn: () => api.getPendingCertificates(100),
   });
 
@@ -109,7 +109,7 @@ export function PendingCredentialsPanel() {
     : [];
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/certificates/pending"] });
+    queryClient.invalidateQueries({ queryKey: ["certificates-pending-onchain"] });
     queryClient.invalidateQueries({ queryKey: ["/api/certificates"] });
   };
 

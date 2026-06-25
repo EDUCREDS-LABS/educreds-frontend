@@ -11,7 +11,7 @@ export const handleValidationErrors = (req: Request, res: Response, next: NextFu
       details: errors.array().map(err => ({
         field: err.type === 'field' ? err.path : 'unknown',
         message: err.msg,
-        value: err.type === 'field' ? err.value : undefined
+        value: err.type === 'field' && !['password', 'currentPassword', 'confirmPassword'].includes(err.path) ? err.value : undefined
       }))
     });
   }

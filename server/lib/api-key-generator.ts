@@ -1,5 +1,7 @@
-import { createHash, randomBytes } from 'crypto';
+import { randomBytes } from 'crypto';
+import bcrypt from 'bcrypt';
 const KEY_PREFIX = process.env.NODE_ENV === 'production' ? 'sk_live_' : 'sk_test_';
+const BCRYPT_SALT_ROUNDS = 12;
 
 export interface GeneratedKey {
     apiKey: string;
@@ -31,12 +33,12 @@ export const generateApiKey = (): GeneratedKey => {
  * Hashes an API key for secure storage
  */
 export const hashApiKey = async (apiKey: string): Promise<string> => {
-    return createHash('sha256').update(apiKey).digest('hex');
+    return bcrypt.hash(apiKey, BCRYPT_SALT_ROUNDS);
 };
 
 /**
  * Compares a plain text API key with a hash
  */
 export const compareApiKey = async (apiKey: string, hash: string): Promise<boolean> => {
-    return createHash('sha256').update(apiKey).digest('hex') === hash;
+    return bcrypt.compare(apiKey, hash);
 };

@@ -40,7 +40,6 @@ const initializeFirebase = () => {
       appInstance = initializeApp(firebaseConfig);
       authInstance = getAuth(appInstance);
       if (import.meta.env.DEV) {
-        console.log('✅ Firebase initialized successfully');
       }
     }
     return appInstance;

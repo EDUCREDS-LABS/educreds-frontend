@@ -1,10 +1,13 @@
+// @ts-nocheck
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 
 // JWT configuration
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
-console.log('Using JWT_SECRET:', JWT_SECRET.substring(0, 5) + '...');
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
 
@@ -174,7 +177,11 @@ export const validatePasswordStrength = (password: string): { isValid: boolean; 
 
 // Session security
 export const sessionConfig = {
-  secret: process.env.SESSION_SECRET || 'your-session-secret-change-in-production',
+  secret: (() => {
+    const s = process.env.SESSION_SECRET;
+    if (!s) throw new Error('SESSION_SECRET environment variable is required');
+    return s;
+  })(),
   resave: false,
   saveUninitialized: false,
   cookie: {

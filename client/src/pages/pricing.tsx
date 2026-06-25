@@ -66,29 +66,29 @@ export default function PricingPage() {
     >
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {tiers.map((tier) => (
-          <Card key={tier.name} className={`flex flex-col relative rounded-[40px] shadow-2xl border-none bg-white transition-all duration-500 hover:-translate-y-2 overflow-hidden ${tier.popular ? 'ring-2 ring-blue-500 ring-offset-4 ring-offset-white' : ''}`}>
+          <Card key={tier.name} className={`flex flex-col relative rounded-[40px] shadow-2xl border-none bg-white dark:bg-neutral-900 transition-all duration-500 hover:-translate-y-2 overflow-hidden ${tier.popular ? 'ring-2 ring-blue-500 ring-offset-4 ring-offset-white dark:ring-offset-neutral-950' : ''}`}>
             {tier.popular && (
               <div className="absolute top-0 right-0 p-6">
                 <Badge className="bg-blue-600 text-white border-none px-3 py-1 font-black uppercase text-[8px] tracking-widest">Recommended</Badge>
               </div>
             )}
-            <CardHeader className="p-10 pb-6 border-b border-neutral-50">
-              <div className="size-12 rounded-2xl bg-neutral-50 flex items-center justify-center text-blue-600 mb-4">
+            <CardHeader className="p-10 pb-6 border-b border-neutral-50 dark:border-neutral-800">
+              <div className="size-12 rounded-2xl bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center text-blue-600 dark:text-blue-400 mb-4">
                 <tier.icon className="size-6" />
               </div>
-              <CardTitle className="text-2xl font-black text-neutral-900 leading-none">{tier.name}</CardTitle>
+              <CardTitle className="text-2xl font-black text-neutral-900 dark:text-neutral-100 leading-none">{tier.name}</CardTitle>
               <CardDescription className="text-xs font-bold uppercase tracking-widest text-neutral-400 mt-2">{tier.badge}</CardDescription>
             </CardHeader>
             <CardContent className="p-10 space-y-8 flex-grow">
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-black text-neutral-900 tracking-tighter">{tier.price}</span>
+                <span className="text-4xl font-black text-neutral-900 dark:text-neutral-100 tracking-tighter">{tier.price}</span>
                 <span className="text-sm font-bold text-neutral-400 uppercase tracking-widest">{tier.period}</span>
               </div>
               <ul className="space-y-4">
                 {tier.features.map((feature) => (
-                  <li key={feature} className="flex items-center text-sm font-medium text-neutral-600">
-                    <div className="size-5 rounded-full bg-emerald-50 flex items-center justify-center mr-3 flex-shrink-0">
-                      <Check className="h-3 w-3 text-emerald-500" />
+                  <li key={feature} className="flex items-center text-sm font-medium text-neutral-600 dark:text-neutral-300">
+                    <div className="size-5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center mr-3 flex-shrink-0">
+                      <Check className="h-3 w-3 text-emerald-500 dark:text-emerald-400" />
                     </div>
                     <span>{feature}</span>
                   </li>
