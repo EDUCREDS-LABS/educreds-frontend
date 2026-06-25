@@ -22,8 +22,50 @@ export class ApiError extends Error {
   }
 }
 
+let authRecoveryInProgress = false;
+
+function recoverFromUnauthorized() {
+  if (typeof window === "undefined" || authRecoveryInProgress) {
+    return;
+  }
+
+  authRecoveryInProgress = true;
+  try {
+    // Clear all known auth states so the app can recover cleanly.
+    localStorage.removeItem("institution_token");
+    localStorage.removeItem("institution_user");
+    localStorage.removeItem("marketplace_token");
+    localStorage.removeItem("marketplace_user");
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("auth_type");
+
+    const path = window.location.pathname || "/";
+    const isProtectedPath =
+      path.startsWith("/institution") ||
+      path.startsWith("/admin") ||
+      path.startsWith("/marketplace");
+    const isAlreadyOnLogin =
+      path === "/login" ||
+      path === "/admin/login" ||
+      path === "/marketplace/login";
+
+    if (isProtectedPath && !isAlreadyOnLogin) {
+      window.location.href = "/login";
+    }
+  } finally {
+    // Small delay to prevent immediate re-entry while redirect is occurring.
+    setTimeout(() => {
+      authRecoveryInProgress = false;
+    }, 1000);
+  }
+}
+
 async function handleResponse(response: Response) {
   if (!response.ok) {
+    if (response.status === 401) {
+      recoverFromUnauthorized();
+    }
+
     const text = await response.text();
     let errorMessage = response.statusText;
 
