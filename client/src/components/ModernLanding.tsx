@@ -31,7 +31,7 @@ export const ModernLanding: React.FC = () => {
           >
             <Badge className="mb-6 bg-blue-100 text-blue-700 hover:bg-blue-200">
               <Zap className="w-4 h-4 mr-2" />
-              Blockchain-Powered Certificates
+              Verifiable Digital Credentials
             </Badge>
             
             <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -41,7 +41,7 @@ export const ModernLanding: React.FC = () => {
             </h1>
             
             <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
-              Create, issue, and verify tamper-proof certificates on the blockchain. 
+              Create, issue, and verify tamper-proof credentials that anyone can trust. 
               Trusted by 10,000+ institutions worldwide.
             </p>
             
@@ -98,14 +98,14 @@ export const ModernLanding: React.FC = () => {
             {[
               {
                 icon: Shield,
-                title: "Blockchain Security",
-                description: "Tamper-proof certificates secured by blockchain technology",
+                title: "Tamper-Proof Security",
+                description: "Credentials are cryptographically signed and cannot be altered after issuance",
                 color: "text-blue-600"
               },
               {
                 icon: Zap,
                 title: "Instant Verification",
-                description: "Verify certificates in seconds with QR codes and smart contracts",
+                description: "Verify credentials in seconds with a share link, QR code, or file",
                 color: "text-purple-600"
               },
               {
@@ -157,7 +157,7 @@ export const ModernLanding: React.FC = () => {
               {
                 name: "Harvard University",
                 role: "Registrar",
-                content: "EduCreds has revolutionized how we issue and verify degrees. The blockchain security gives us complete confidence.",
+                content: "EduCreds has revolutionized how we issue and verify degrees. The cryptographic verification gives us complete confidence.",
                 avatar: "H"
               },
               {

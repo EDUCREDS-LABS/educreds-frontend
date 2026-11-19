@@ -1,7 +1,7 @@
-// @ts-nocheck
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRoute, Link } from "wouter";
+import { Link, useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +39,7 @@ import { RiskAssessmentPanel } from "@/components/governance/RiskAssessmentPanel
 import { AssessmentTimeline } from "@/components/governance/AssessmentTimeline";
 
 export default function ProposalDetail() {
-  const [match, params] = useRoute("/institution/governance/proposals/:id");
+  const params = useParams<{ id: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -123,7 +123,7 @@ export default function ProposalDetail() {
         </div>
         <h1 className="text-3xl font-black tracking-tight">Proposal Not Found.</h1>
         <p className="text-neutral-500 font-medium">The requested governance record could not be retrieved from the decentralized registry.</p>
-        <Link href="/institution/governance-workspace">
+        <Link to="/institution/governance-workspace">
           <Button variant="outline" className="rounded-xl h-12 px-8 font-black text-xs uppercase tracking-widest">
             <ArrowLeft className="size-4 mr-2" /> Return to Workspace
           </Button>
@@ -137,7 +137,7 @@ export default function ProposalDetail() {
       {/* Breadcrumb / Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <Link href="/institution/governance-workspace">
+          <Link to="/institution/governance-workspace">
             <Button variant="ghost" size="icon" className="rounded-xl size-12 hover:bg-neutral-100 dark:hover:bg-neutral-800">
               <ArrowLeft className="size-6" />
             </Button>
@@ -298,7 +298,7 @@ export default function ProposalDetail() {
         {/* Sidebar */}
         <div className="lg:col-span-4 space-y-8">
           {/* Voting Card */}
-          {(votingPower && votingPower.votingPower > 0) || (proposal.state === 'ACTIVE' && (user?.isVerified || (governanceInstitution as any)?.poicScore >= 60)) ? (
+          {(votingPower && votingPower.votingPower > 0) || (proposal.state === 'ACTIVE' && user?.isVerified) ? (
             <Card className="border-none shadow-2xl shadow-primary/20 bg-primary rounded-[40px] overflow-hidden text-white">
               <CardHeader className="p-10 pb-6 border-b border-white/10">
                 <div className="flex items-center justify-between mb-4">
@@ -367,7 +367,7 @@ export default function ProposalDetail() {
                       : "You require an active Institution Identity NFT (IIN) to participate in consensus operations."}
                   </p>
                 </div>
-                <Link href="/institution/verification">
+                <Link to="/institution/verification">
                   <Button variant="outline" className="w-full h-12 rounded-xl font-black text-[10px] uppercase tracking-widest border-neutral-200 dark:border-neutral-800">
                     Check Verification Status
                   </Button>
@@ -417,9 +417,9 @@ export default function ProposalDetail() {
 
               <Separator className="bg-neutral-50 dark:bg-neutral-800" />
               
-              <a 
-                href={`https://sepolia.basescan.org/address/${process.env.GOVERNANCE_DAO_ADDRESS || '0x'}`} 
-                target="_blank" 
+              <a
+                href={`https://sepolia.basescan.org/address/${import.meta.env.VITE_GOVERNANCE_DAO_ADDRESS || '0x'}`}
+                target="_blank"
                 rel="noopener noreferrer"
                 className="block"
               >

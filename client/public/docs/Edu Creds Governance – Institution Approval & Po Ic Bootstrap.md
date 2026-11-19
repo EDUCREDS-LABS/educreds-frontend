@@ -1,216 +1,108 @@
-# EduCreds Governance: Institution Approval & PoIC Bootstrap
+# EduCreds Governance: Institution Approval and PoIC Bootstrap
 
-This document records the **canonical governance logic** for how institutions are approved, how initial PoIC scores are assigned, and how voting power works in EduCreds.
-
-This exists to:
-
-* Prevent future design drift
-* Align human contributors and AI agents
-* Serve as a reference for audits, whitepapers, and implementations
+Canonical governance logic for institution approval, initial PoIC score assignment, and voting power in EduCreds.
 
 ---
 
-## 1️⃣ The Approval Body: EduCreds Governance Council
+## 1. The approval body: EduCreds Governance Council
 
-The approval mechanism is **not a public token DAO**.
-It functions more like a **jury**, not a parliament.
+Institution approval is handled by the EduCreds Governance Council, not a public token DAO.
 
-### Eligible Voting Members
+Eligible voting members:
+1. Verified institutions holding an Institution Identity NFT (IIN)
+2. EduCreds Foundation / Core DAO via multisig (bootstrap phase)
+3. Independent verifiers — accreditation bodies, auditors, NGOs (later phase)
 
-Only wallets that meet **at least one** condition may vote on institution approvals:
-
-1. **Verified Institutions**
-
-   * Must already hold an **Institution Identity NFT (IIN)**
-
-2. **EduCreds Foundation / Core DAO**
-
-   * Operates via multisig during bootstrap
-   * Temporary safety + continuity role
-
-3. **Independent Verifiers (optional, later phase)**
-
-   * Accreditation bodies
-   * Auditors
-   * NGOs or regulators
-
-❌ Students do not vote
-❌ Random token holders do not vote
-
-> Institution legitimacy is **not a popularity contest**.
+Students and random token holders do not vote. Institution legitimacy is not a popularity contest.
 
 ---
 
-## 2️⃣ How Voting Power Is Calculated (Reputation-Weighted)
+## 2. Voting power
 
-Voting power is **not**:
-
-* 1 wallet = 1 vote
-* Token-weighted
-
-Voting power is **reputation-weighted**.
-
-### Conceptual Formula
+Voting power is reputation-weighted, not token-weighted.
 
 ```
 Voting Power = Base Weight × Credibility Score × Age Factor
 ```
 
-### A. Base Weight
-
-| Voter Type           | Base Weight     |
-| -------------------- | --------------- |
-| Institution          | 1.0             |
-| Foundation Multisig  | 1.5 (temporary) |
-| Independent Verifier | 1.2             |
+- Base weight — assigned at IIN mint (equal for all initially)
+- Credibility score — derived from PoIC score (0–100)
+- Age factor — time-decay multiplier rewarding established institutions
 
 ---
 
-### B. Credibility Score (PoIC)
+## 3. PoIC bootstrap
 
-* Derived from **PoICRegistry**
-* Updated via:
+New institutions have no historical data. Initial PoIC score is established from:
+1. Trust Agent AI assessment (domain, registration, faculty, infrastructure signals)
+2. Governance Council human review for scores in the 50–84 range
+3. Foundation multisig override during bootstrap phase
 
-  * On-chain behavior
-  * Verified feedback
-  * Educreds Trust Agent risk signals
+Bootstrap score bands:
 
-Example:
-
-* PoIC = 80 / 100 → multiplier = **0.8**
-
----
-
-### C. Age Factor
-
-Prevents newly admitted institutions from dominating governance.
-
-| Institution Age | Factor |
-| --------------- | ------ |
-| < 3 months      | 0.5    |
-| 3–12 months     | 0.8    |
-| > 12 months     | 1.0    |
+| Score | Action |
+|---|---|
+| >= 85 | Auto-approved; IIN minted; full issuance capacity |
+| 60 – 84 | Queued for DAO vote; limited capacity until approved |
+| < 60 | Rejected; institution must remediate and reapply |
 
 ---
 
-## 3️⃣ Institution Approval Flow (End-to-End)
+## 4. PoIC dimensions
 
-### Step-by-Step
+| Dimension | Weight | What it measures |
+|---|---|---|
+| D1 — Legal and accreditation | 25% | Government registration, accreditation credibility and stability, legal risk |
+| D2 — Operational authenticity | 20% | Website longevity, faculty verifiability, registry consistency, student body evidence |
+| D3 — Issuance behaviour | 25% | Issuance volume stability, entropy, anomaly detection, revocation ratio |
+| D4 — Verification and feedback | 15% | Verification rate, verifier diversity, reverification, failure rate |
+| D5 — Governance and disputes | 15% | Base credibility score adjusted for dispute count and severity |
 
-1. **Institution applies** (off-chain)
-
-   * Legal docs
-   * Domains
-   * Accreditation proofs
-
-2. **Educreds Trust Agent analyzes** (off-chain)
-
-   * Consistency checks
-   * Registry verification
-   * Risk assessment
-   * Outputs:
-
-     * Legitimacy score
-     * Recommended initial PoIC
-     * Issuance caps
-
-3. **Governance proposal created**
-
-   * "Approve Institution X"
-   * Includes:
-
-     * IIN minting
-     * Initial PoIC assignment
-     * Issuance limits
-
-4. **Eligible voters vote**
-
-   * Yes / No / Abstain
-
-5. **Threshold met**
-
-   * Example: ≥ 60% weighted approval
-
-6. **Timelock execution**
-
-   * Institution Identity NFT minted
-   * Institution activated
-   * Initial PoIC written on-chain
-
-✅ No manual minting
-✅ No admin buttons
+Note: Institutions do not self-report PoIC dimension values. The Trust Agent computes all dimensions from objective signals.
 
 ---
 
-## 4️⃣ Bootstrap PoIC (Cold Start Resolution)
+## 5. On-chain governance flow
 
-### Important Clarification
-
-* **PoIC is NOT an NFT**
-* PoIC is a **registry-based reputation score**
-
-### Bootstrap Rule
-
-> Initial PoIC is **granted**, not earned.
-> Future PoIC is **earned**, not granted.
-
-For early institutions:
-
-* DAO assigns a **conservative baseline PoIC**
-* Lower issuance caps
-* Lower governance influence
-
-This resolves the reputation cold-start problem safely.
+```
+1. Trust Agent scores institution (PoIC bootstrap)
+2. Score > 60: Governance proposal created on-chain
+3. IIN holders vote (reputation-weighted, 7-day window)
+4. Passed: GovernanceDAO queues execution
+5. After timelock: ExecutionController mints IIN
+6. Institution begins issuing under PoIC capacity tier
+```
 
 ---
 
-## 5️⃣ Why Existing Institutions Can Approve New Ones
+## 6. Ongoing PoIC updates
 
-This is safe because of **self-regulating constraints**:
-
-### Safeguards
-
-* Voting power caps
-* Age factor penalties
-* Collusion detection via Educreds Trust Agent
-* Fraud reports trigger disputes
-* Bad approvals reduce approver PoIC
-
-> If you approve bad actors, **you lose power**.
+- D3 behavioral scoring: recomputed each monitoring cycle (MonitoringService)
+- D5 dispute adjustments: updated automatically when a governance dispute resolves
+- AI behavioral risk: Trust Agent analyzes issuance patterns and emits anomaly alerts for HIGH/CRITICAL deviations
+- On-chain anchoring: PoICRegistry.updateInstitutionScore() called after each update
 
 ---
 
-## 6️⃣ Role of Educreds Trust Agent (Precisely Defined)
+## 7. Issuance capacity tiers
 
-Educreds Trust Agent **does NOT**:
-
-* Vote
-* Mint NFTs
-* Override governance
-
-Educreds Trust Agent **DOES**:
-
-* Analyze applicants
-* Score risk and legitimacy
-* Recommend PoIC ranges
-* Simulate governance outcomes
-* Trigger anomaly alerts
-
-> Think of Educreds Trust Agent as a **super-intelligent advisor**, not a ruler.
+| PoIC Score | Tier | Max issuances / month |
+|---|---|---|
+| 80–100 | EXTENDED | 10 000 |
+| 70–79 | MONITORED | 5 000 |
+| 50–69 | RESTRICTED | 1 000 |
+| < 50 | SUSPENDED | 0 |
 
 ---
 
-## 7️⃣ Canonical Governance Invariants
+## 8. Smart contract addresses (environment variables)
 
-These rules must never be violated:
+| Variable | Contract |
+|---|---|
+| `INSTITUTION_NFT_ADDRESS` | InstitutionIdentityNFT |
+| `CREDENTIAL_ISSUER_ADDRESS` | CredentialIssuer |
+| `POIC_REGISTRY_ADDRESS` | PoICRegistry |
+| `GOVERNANCE_DAO_ADDRESS` | GovernanceDAO |
+| `EXECUTION_CONTROLLER_ADDRESS` | ExecutionController |
 
-1. No issuance without IIN
-2. No IIN without governance approval
-3. No PoIC without registry record
-4. No execution without timelock
-5. No AI authority without DAO execution
-
----
-
-**Status:** Canonical reference document
-**Applies to:** EduCreds V2.0 and later
+Full interface freeze and on-chain data policy: `cert_backend/src/modules/blockchain/contracts/interface-freeze.ts`

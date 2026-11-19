@@ -1,8 +1,10 @@
-// @ts-nocheck
-import axios, { type AxiosInstance } from 'axios';
+
+import axios from 'axios';
 import { ethers } from 'ethers';
 import { walletService } from './walletService';
 import { API_CONFIG } from '../config/api';
+import { handleAuthFailure } from './authFailure';
+import { getAnyAuthToken, getInstitutionToken } from './authStorage';
 
 // Note: For wallet connection in utility functions, we use window.ethereum directly.
 
@@ -242,7 +244,8 @@ export interface RiskAssessmentResponse {
 }
 
 class GovernanceApiService {
-  private client: AxiosInstance;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private client: any;
   private readonly chainConfig: Record<number, {
     chainName: string;
     rpcUrls: string[];
@@ -338,14 +341,11 @@ class GovernanceApiService {
       let token: string | null = null;
 
       if (path.startsWith('/institution')) {
-        token = localStorage.getItem('institution_token');
+        token = getInstitutionToken();
       }
 
       if (!token) {
-        token =
-          localStorage.getItem('institution_token') ||
-          localStorage.getItem('marketplace_token') ||
-          localStorage.getItem('authToken');
+        token = getAnyAuthToken();
       }
 
       if (token) {
@@ -353,6 +353,11 @@ class GovernanceApiService {
       }
       return config;
     });
+
+    this.client.interceptors.response.use(
+      (response: any) => response,
+      (error: any) => Promise.reject(handleAuthFailure(error))
+    );
   }
 
   // ============ PROPOSALS API ============
@@ -542,7 +547,7 @@ class GovernanceApiService {
       localStorage.getItem('walletAddress') ||
       localStorage.getItem('institutionWalletAddress') ||
       '';
-    const hasInstitutionToken = Boolean(localStorage.getItem('institution_token'));
+    const hasInstitutionToken = Boolean(getInstitutionToken());
     const walletDirectEnabled =
       String(import.meta.env.VITE_ENABLE_WALLET_DIRECT_VOTING ?? 'true').toLowerCase() !== 'false';
 
@@ -774,11 +779,6 @@ class GovernanceApiService {
 
   async getBlockchainStatus(): Promise<any> {
     const response = await this.client.get('/admin/blockchain-status');
-    return response.data;
-  }
-
-  async bulkRegisterInstitutions(): Promise<any> {
-    const response = await this.client.post('/admin/blockchain-register-all', {});
     return response.data;
   }
 

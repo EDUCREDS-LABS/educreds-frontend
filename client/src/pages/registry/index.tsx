@@ -13,26 +13,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/loading-skeleton';
-import ModernHeader from '@/components/modern/ModernHeader';
-import ModernFooter from '@/components/modern/ModernFooter';
 import { usePublicSystemMetrics } from '@/hooks/useGovernance';
 import InstitutionsTab from './components/InstitutionsTab';
 import TransactionsTab from './components/TransactionsTab';
 import ProposalsTab from './components/ProposalsTab';
 import AnalyticsTab from './components/AnalyticsTab';
-
-// ── Live indicator ─────────────────────────────────────────────────────────
-function LivePulse() {
-  return (
-    <span className="flex items-center gap-1.5 text-emerald-500 text-[10px] font-black uppercase tracking-widest">
-      <span className="relative flex w-2 h-2">
-        <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
-        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-      </span>
-      Live
-    </span>
-  );
-}
 
 // ── Summary stat ───────────────────────────────────────────────────────────
 interface SumStatProps {
@@ -91,8 +76,6 @@ export default function TrustRegistry() {
 
   return (
     <div className="min-h-screen bg-neutral-50">
-      <ModernHeader onStudentPortalClick={() => {}} />
-
       {/* ── Hero ── */}
       <section className="relative pt-24 pb-10 bg-neutral-900 overflow-hidden text-white">
         {/* Noise texture */}
@@ -111,7 +94,7 @@ export default function TrustRegistry() {
               <Badge className="bg-blue-600 text-white border-none px-4 py-1 font-black uppercase tracking-widest text-[10px] rounded-full">
                 Protocol Transparency
               </Badge>
-              <LivePulse />
+
             </div>
 
             <h1 className="text-4xl sm:text-5xl font-black font-heading tracking-tighter mb-4 italic uppercase">
@@ -213,8 +196,6 @@ export default function TrustRegistry() {
           </TabsContent>
         </Tabs>
       </section>
-
-      <ModernFooter />
     </div>
   );
 }

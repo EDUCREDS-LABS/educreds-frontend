@@ -1,20 +1,11 @@
-// @ts-nocheck
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { API_CONFIG } from '../../config/api';
 
-// Ethereum provider type declaration
-declare global {
-  interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: any[] }) => Promise<any>;
-    };
-  }
-}
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// Ethereum provider type declaration - extends the base Record<string, unknown> declared by wagmi/viem
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -38,30 +29,17 @@ import {
 import { loginSchema, type LoginCredentials } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useWallet } from "@/hooks/useWallet";
+import { getInstitutionTierDestination } from "@/lib/deploymentTier";
+import { jwtDecode } from "jwt-decode";
+import { setAuthItem } from "@/lib/authStorage";
 
 const CERT_API_BASE = (API_CONFIG.CERT).replace(/\/$/, "");
 
 const features = [
-  {
-    icon: Shield,
-    title: "Secure & Fraud-Proof",
-    description: "Blockchain technology ensures certificates cannot be forged"
-  },
-  {
-    icon: Zap,
-    title: "Instant Verification",
-    description: "Verify certificates in seconds, anywhere in the world"
-  },
-  {
-    icon: Users,
-    title: "Trusted by 500+ Institutions",
-    description: "Join thousands of educational institutions worldwide"
-  },
-  {
-    icon: Globe,
-    title: "Global Recognition",
-    description: "Certificates recognized internationally"
-  }
+  { icon: Shield, title: "Signed at issuance", description: "Every credential carries your institution's cryptographic signature and DID." },
+  { icon: Zap, title: "Independent verification", description: "Employers check authenticity and status without contacting your registry." },
+  { icon: Users, title: "Your team, your controls", description: "Invite staff with scoped access to issuance, records and settings." },
+  { icon: Globe, title: "Open standards", description: "W3C Verifiable Credentials that travel with the graduate." },
 ];
 
 interface WalletLoginData {
@@ -69,7 +47,7 @@ interface WalletLoginData {
   message: string;
 }
 
-export default function ModernAuthUnified() {
+export default function ModernAuthUnified({ embedded = false }: { embedded?: boolean } = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -78,9 +56,27 @@ export default function ModernAuthUnified() {
   const [userEmail, setUserEmail] = useState("");
   const [loginMethod, setLoginMethod] = useState<"wallet" | "email">("email");
   const [rememberMe, setRememberMe] = useState(false);
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { isConnected, walletAddress, connect, disconnect, isLoading: walletLoading } = useWallet();
+
+  // The email+OTP login response omits deploymentTier; the signed token carries it.
+  const tierFromToken = (token?: string): string | undefined => {
+    try { return token ? jwtDecode<{ deploymentTier?: string }>(token).deploymentTier : undefined; } catch { return undefined; }
+  };
+
+  const buildInstitutionUser = (institution: any, token?: string) => ({
+    id: institution.id,
+    email: institution.email,
+    name: institution.name,
+    type: 'institution',
+    walletAddress: institution.walletAddress,
+    did: institution.did,
+    isVerified: institution.isVerified,
+    deploymentTier: institution.deploymentTier ?? tierFromToken(token) ?? 'workspace',
+    connectorApiUrl: institution.connectorApiUrl,
+    connectorEndpoint: institution.connectorEndpoint,
+  });
 
   const signMessage = async (message: string): Promise<string> => {
     if (!window.ethereum) throw new Error("MetaMask not found");
@@ -188,18 +184,10 @@ export default function ModernAuthUnified() {
       const result = await response.json();
 
       // Store authentication data
-      localStorage.setItem('institution_token', result.token);
-      localStorage.setItem('auth_type', 'institution');
+      setAuthItem('institution_token', result.token);
+      setAuthItem('auth_type', 'institution');
       if (result.institution) {
-        localStorage.setItem('institution_user', JSON.stringify({
-          id: result.institution.id,
-          email: result.institution.email,
-          name: result.institution.name,
-          type: 'institution',
-          walletAddress: result.institution.walletAddress,
-          did: result.institution.did,
-          isVerified: result.institution.isVerified
-        }));
+        setAuthItem('institution_user', JSON.stringify(buildInstitutionUser(result.institution, result.token)));
       }
 
       // Dispatch auth state change event
@@ -210,8 +198,10 @@ export default function ModernAuthUnified() {
         description: "Welcome back to EduCreds!",
       });
 
-      // Redirect to dashboard
-      setLocation('/institution/dashboard');
+      // Route through the workspace resolver (Select Workspace). Single-workspace
+      // users are redirected to their home by the resolver; multi-workspace
+      // users see the picker. This keeps the "who" layer as the entry point.
+      navigate("/select-workspace", { replace: true });
     } catch (err: any) {
       setError(err.message || "Wallet login failed. Please try again.");
     } finally {
@@ -247,18 +237,10 @@ export default function ModernAuthUnified() {
       const result = await response.json();
 
       // Store authentication data
-      localStorage.setItem('institution_token', result.token);
-      localStorage.setItem('auth_type', 'institution');
+      setAuthItem('institution_token', result.token);
+      setAuthItem('auth_type', 'institution');
       if (result.institution) {
-        localStorage.setItem('institution_user', JSON.stringify({
-          id: result.institution.id,
-          email: result.institution.email,
-          name: result.institution.name,
-          type: 'institution',
-          walletAddress: result.institution.walletAddress,
-          did: result.institution.did,
-          isVerified: result.institution.isVerified
-        }));
+        setAuthItem('institution_user', JSON.stringify(buildInstitutionUser(result.institution, result.token)));
       }
 
       // Dispatch auth state change event
@@ -269,8 +251,10 @@ export default function ModernAuthUnified() {
         description: "Welcome back to EduCreds!",
       });
 
-      // Redirect to dashboard
-      setLocation('/institution/dashboard');
+      // Route through the workspace resolver (Select Workspace). Single-workspace
+      // users are redirected to their home by the resolver; multi-workspace
+      // users see the picker. This keeps the "who" layer as the entry point.
+      navigate("/select-workspace", { replace: true });
     } catch (err: any) {
       setError(err.message || "Login failed. Please try again.");
     } finally {
@@ -301,89 +285,26 @@ export default function ModernAuthUnified() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Header */}
-      <div className="absolute top-4 left-4">
-        <Link href="/">
-          <Button variant="ghost" className="flex items-center space-x-2">
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back to Home</span>
-          </Button>
-        </Link>
-      </div>
-
-      <div className="flex min-h-screen">
-        {/* Left Side - Features */}
-        <div className="hidden lg:flex lg:w-1/2 flex-col justify-center p-12 bg-gradient-to-br from-primary/10 to-purple-500/10">
-          <div className="max-w-md">
-            <div className="flex items-center space-x-2 mb-8">
-              <img src="/logo.png" alt="EduCreds" className="h-10 w-auto" />
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-500 to-cyan-400 bg-clip-text text-transparent">
-                EduCreds
-              </h1>
-            </div>
-
-            <h2 className="text-3xl font-bold text-neutral-900 mb-4">
-              The Future of Educational Certificates
-            </h2>
-            <p className="text-lg text-neutral-600 mb-8">
-              Issue, verify, and manage educational certificates with blockchain technology.
-              Join the revolution in academic credential verification.
-            </p>
-
-            <div className="space-y-6">
-              {features.map((feature, index) => {
-                const Icon = feature.icon;
-                return (
-                  <div key={index} className="flex items-start space-x-4">
-                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Icon className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-neutral-900 mb-1">{feature.title}</h3>
-                      <p className="text-sm text-neutral-600">{feature.description}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-8 p-4 bg-white/50 rounded-lg border border-white/20">
-              <div className="flex items-center space-x-2 mb-2">
-                <Badge variant="secondary" className="bg-green-100 text-green-800">
-                  <CheckCircle className="w-3 h-3 mr-1" />
-                  Trusted
-                </Badge>
-                <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                  SOC 2 Compliant
-                </Badge>
+  const authCard = (
+          <div className="w-full max-w-md border border-[#E6E2DA] bg-white p-8 sm:p-10">
+            <div className="pb-6">
+              <div className="lg:hidden mb-6 flex items-center gap-2">
+                <img src="/logo.svg" alt="EduCreds" className="h-6 w-auto" />
+                <span className="text-[15px] font-bold text-[#0B1220]">EduCreds</span>
               </div>
-              <p className="text-sm text-neutral-600">
-                Enterprise-grade security with 99.9% uptime guarantee
+
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#C9A84C]">
+                Institution
               </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Side - Auth Form */}
-        <div className="flex-1 flex items-center justify-center p-8">
-          <Card className="w-full max-w-md shadow-2xl border-none rounded-[40px] bg-white dark:bg-neutral-900 p-8">
-            <CardHeader className="text-center pb-6">
-              <div className="lg:hidden flex items-center justify-center space-x-2 mb-4">
-                <img src="/logo.png" alt="EduCreds" className="h-6 w-auto" />
-                <span className="text-lg font-bold text-neutral-900">EduCreds</span>
-              </div>
-
-              <CardTitle className="text-3xl font-black text-neutral-900 dark:text-white tracking-tighter">
-                Welcome Back
-              </CardTitle>
-              <p className="text-neutral-600">
+              <h2 className="mt-2 text-[1.75rem] font-semibold tracking-[-0.02em] text-[#0B1220]">
+                Welcome back
+              </h2>
+              <p className="mt-2 text-[14px] text-[#6B7382]">
                 Sign in to your institution dashboard
               </p>
-            </CardHeader>
+            </div>
 
-            <CardContent>
+            <div>
               {showOtp ? (
                 <div className="space-y-4">
                   <OtpInput
@@ -402,7 +323,7 @@ export default function ModernAuthUnified() {
                       setError("");
                     }}
                     variant="outline"
-                    className="w-full h-14 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg"
+                    className="w-full h-12 border border-[#E6E2DA] bg-transparent text-[13px] font-semibold text-[#0B1220]"
                     disabled={isLoading}
                   >
                     Back to Login
@@ -414,12 +335,12 @@ export default function ModernAuthUnified() {
                   setError("");
                   emailForm.reset();
                 }} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 mb-6">
-                    <TabsTrigger value="email" className="flex items-center gap-2">
+                  <TabsList className="mb-6 grid w-full grid-cols-2 rounded-none border border-[#E6E2DA] bg-transparent p-0">
+                    <TabsTrigger value="email" className="flex items-center gap-2 rounded-none data-[state=active]:bg-[#0B1220] data-[state=active]:text-white">
                       <Mail className="w-4 h-4" />
                       <span className="hidden sm:inline">Email</span>
                     </TabsTrigger>
-                    <TabsTrigger value="wallet" className="flex items-center gap-2">
+                    <TabsTrigger value="wallet" className="flex items-center gap-2 rounded-none data-[state=active]:bg-[#0B1220] data-[state=active]:text-white">
                       <Wallet className="w-4 h-4" />
                       <span className="hidden sm:inline">Wallet</span>
                     </TabsTrigger>
@@ -447,7 +368,7 @@ export default function ModernAuthUnified() {
                                   type="email"
                                   placeholder="admin@university.edu"
                                   {...field}
-                                  className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner"
+                                  className="h-12 rounded-none border-[#E6E2DA] bg-transparent"
                                 />
                               </FormControl>
                               <FormMessage />
@@ -467,7 +388,7 @@ export default function ModernAuthUnified() {
                                     type={showPassword ? "text" : "password"}
                                     placeholder="Enter your password"
                                     {...field}
-                                    className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner pr-10"
+                                    className="h-12 rounded-none border-[#E6E2DA] bg-transparent pr-10"
                                   />
                                   <button
                                     type="button"
@@ -493,14 +414,14 @@ export default function ModernAuthUnified() {
                             />
                             <span className="text-neutral-600 group-hover:text-neutral-900 transition-colors">Remember me</span>
                           </label>
-                          <Link href="/forgot-password">
+                          <Link to="/forgot-password">
                             <button type="button" className="text-primary hover:underline font-medium transition-all">
                               Forgot password?
                             </button>
                           </Link>
                         </div>
 
-                        <Button type="submit" className="w-full h-14 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all" disabled={isLoading}>
+                        <Button type="submit" className="h-12 w-full rounded-none bg-[#0B1220] text-[13px] font-semibold tracking-tight text-white hover:bg-[#162033]" disabled={isLoading}>
                           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                           Send OTP & Sign In
                         </Button>
@@ -587,7 +508,7 @@ export default function ModernAuthUnified() {
                             ) : (
                               <Zap className="mr-2 h-5 w-5" />
                             )}
-                            {walletLoading ? "Connecting..." : "Initialize Protocol"}
+                            {walletLoading ? "Connecting..." : "Connect wallet"}
                           </Button>
                         </div>
                       )}
@@ -602,13 +523,83 @@ export default function ModernAuthUnified() {
                     Authorized Access Only
                   </p>
                   <div className="flex justify-center gap-6">
-                    <Link href="/register" className="text-[10px] font-black uppercase tracking-widest text-primary hover:opacity-70 transition-opacity">Register Institution</Link>
-                    <Link href="/student-portal" className="text-[10px] font-black uppercase tracking-widest text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors">Student Access</Link>
+                    <Link to="/register" className="text-[10px] font-black uppercase tracking-widest text-primary hover:opacity-70 transition-opacity">Register Institution</Link>
+                    <Link to="/student/login" className="text-[10px] font-black uppercase tracking-widest text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors">Student Access</Link>
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+  );
+
+  if (embedded) return authCard;
+
+  return (
+    <div className="min-h-screen bg-[#F7F6F2]">
+      <div className="absolute left-5 top-5 z-10 sm:left-8 sm:top-6">
+        <Link
+          to="https://educreds.xyz"
+          className="inline-flex items-center gap-2 text-[13px] font-medium text-[#6B7382] transition-colors hover:text-[#0B1220]"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          educreds.xyz
+        </Link>
+      </div>
+
+      <div className="flex min-h-screen">
+        <div className="relative hidden w-1/2 flex-col justify-center overflow-hidden bg-[#060B14] p-12 lg:flex xl:p-16">
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(ellipse 60% 50% at 70% 20%, rgba(56,98,168,0.3) 0%, transparent 55%), radial-gradient(ellipse 40% 35% at 10% 90%, rgba(201,168,76,0.08) 0%, transparent 50%)",
+            }}
+          />
+          <div className="relative z-10 max-w-md">
+            <div className="mb-10 flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 ring-1 ring-[#C9A84C]/35">
+                <img src="/logo.svg" alt="" className="h-5 w-5 brightness-0 invert" />
+              </span>
+              <span className="text-[15px] font-bold text-white">EduCreds</span>
+            </div>
+
+            <div className="mb-5 flex items-center gap-3">
+              <span className="h-px w-8 bg-[#C9A84C]/70" />
+              <p className="text-[11px] font-medium tracking-[0.14em] text-[#9AA8BC]">
+                Institution access
+              </p>
+            </div>
+            <h1 className="text-[2.35rem] font-semibold leading-[1.05] tracking-[-0.035em] text-white">
+              Sign in to issue and manage credentials.
+            </h1>
+            <p className="mt-4 text-[15px] leading-relaxed text-[#8B98AB]">
+              Academic credentials any employer or regulator can check independently.
+            </p>
+
+            <ul className="mt-10 space-y-0 border-t border-white/10">
+              {features.map((feature) => {
+                const Icon = feature.icon;
+                return (
+                  <li
+                    key={feature.title}
+                    className="flex items-start gap-3 border-b border-white/10 py-4"
+                  >
+                    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[#C9A84C]" strokeWidth={1.75} />
+                    <div>
+                      <h3 className="text-[14px] font-semibold text-white">{feature.title}</h3>
+                      <p className="mt-1 text-[13px] leading-relaxed text-[#7A8494]">
+                        {feature.description}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+
+        <div className="flex flex-1 items-center justify-center p-6 sm:p-10">
+          {authCard}
         </div>
       </div>
     </div>

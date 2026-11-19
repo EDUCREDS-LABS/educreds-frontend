@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import * as XLSX from 'xlsx';
 import {
   Card,
   CardContent,
@@ -32,6 +33,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BulkSelectionIssuer } from './BulkSelectionIssuer';
 
 interface Template {
   id: string;
@@ -42,6 +45,7 @@ interface Template {
 interface BulkCSVUploaderProps {
   templates: Template[];
   isLimitExceeded: boolean;
+  mode?: 'csv' | 'selection';
 }
 
 interface BulkIssuanceResult {
@@ -77,10 +81,13 @@ interface CsvValidationSummary {
   cleanFile: File;
 }
 
+
 export function BulkCSVUploader({
   templates,
   isLimitExceeded,
+  mode = 'csv',
 }: BulkCSVUploaderProps) {
+  const [activeMode, setActiveMode] = useState<'csv' | 'selection'>(mode);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -113,7 +120,7 @@ export function BulkCSVUploader({
       }
 
       if (char === ',' && !inQuotes) {
-        values.push(current.trim());
+        values.push(current.replace(/\r/g, '').trim());
         current = '';
         continue;
       }
@@ -121,7 +128,7 @@ export function BulkCSVUploader({
       current += char;
     }
 
-    values.push(current.trim());
+    values.push(current.replace(/\r/g, '').trim());
     return values;
   };
 
@@ -181,16 +188,27 @@ export function BulkCSVUploader({
     const dateIndex = findColumnIndex(headers, ['completiondate', 'completion_date', 'date', 'issuedate', 'issue_date']);
     const typeIndex = findColumnIndex(headers, ['certificatetype', 'certificate_type', 'type']);
 
-    if (walletIndex === -1) {
-      throw new Error('CSV must contain a wallet address column. Accepted names: wallet, walletAddress, studentWalletAddress, recipientWalletAddress.');
-    }
+    // walletIndex === -1 is allowed: embedded wallets are auto-generated when no wallet column present
 
     if (nameIndex === -1) {
-      throw new Error('CSV must contain a name column. Accepted names: name, studentName, recipientName, full_name.');
+      throw new Error(
+        `Column "name" could not be recognized. The detected headers were: [${headers.join(', ')}]. ` +
+        `Accepted column names: name, studentName, recipientName, student_name, full_name.`
+      );
     }
 
     if (courseIndex === -1) {
-      throw new Error('CSV must contain a course column. Accepted names: course, courseName, course_name, courseId.');
+      throw new Error(
+        `Column "course" could not be recognized. The detected headers were: [${headers.join(', ')}]. ` +
+        `Accepted column names: course, courseName, course_name, courseId.`
+      );
+    }
+
+    if (emailIndex === -1) {
+      throw new Error(
+        `Column "email" could not be recognized. The detected headers were: [${headers.join(', ')}]. ` +
+        `Accepted column names: email, studentEmail, recipientEmail, student_email.`
+      );
     }
 
     const duplicateRows: CsvValidationError[] = [];
@@ -212,7 +230,8 @@ export function BulkCSVUploader({
 
       rowCount++;
       const values = parseCsvLine(line);
-      const wallet = values[walletIndex]?.trim() || '';
+      // wallet is optional — embedded wallets are auto-generated when absent
+      const wallet = walletIndex >= 0 ? (values[walletIndex]?.trim() || '') : '';
       const name = values[nameIndex]?.trim() || '';
       const course = values[courseIndex]?.trim() || '';
       const email = emailIndex >= 0 ? (values[emailIndex]?.trim() || '') : '';
@@ -220,18 +239,28 @@ export function BulkCSVUploader({
       const completionDate = dateIndex >= 0 ? (values[dateIndex]?.trim() || '') : '';
       const certificateType = typeIndex >= 0 ? (values[typeIndex]?.trim() || '') : '';
 
-      if (!wallet || !name || !course) {
+      if (!name || !course) {
         invalidRows.push({
           lineNumber: i + 1,
-          message: `Missing required field(s): wallet, name, and course are required`,
+          message: `Missing required field(s): name and course are required`,
         });
         continue;
       }
 
-      if (!isValidWalletAddress(wallet)) {
+      // Validate wallet address only when a wallet value was actually provided
+      if (wallet && !isValidWalletAddress(wallet)) {
         invalidRows.push({
           lineNumber: i + 1,
           message: `Invalid wallet address format: ${wallet}`,
+        });
+        continue;
+      }
+
+      // Email is required as the primary student identifier
+      if (!email) {
+        invalidRows.push({
+          lineNumber: i + 1,
+          message: `Row ${i + 1}: Email is required to identify the student`,
         });
         continue;
       }
@@ -245,7 +274,7 @@ export function BulkCSVUploader({
       }
 
       const rowKey = [
-        wallet.toLowerCase(),
+        (wallet || email).toLowerCase(),
         course.trim().toLowerCase(),
         normalizeDateForKey(completionDate),
         (certificateType.trim() || 'Academic').toLowerCase(),
@@ -333,9 +362,10 @@ export function BulkCSVUploader({
         const options = {
           batchSize: 10,
           continueOnError: true,
+          templateId: data.templateId,
         };
 
-        // Call the new bulk issuance CSV endpoint via API service
+        // Start a real bulk job (backend handles parsing + validation + queue)
         const result = await api.bulkIssueCertificatesFromCSV(data.file, options);
         clearInterval(progressInterval);
         setUploadProgress(100);
@@ -419,25 +449,65 @@ export function BulkCSVUploader({
     setSigningAll(false);
   }, [pendingIssuances, signPendingIssuance]);
 
+  /**
+   * Normalise any uploaded file (CSV or Excel) into a CSV File object so the
+   * rest of the validation pipeline can treat all formats uniformly.
+   */
+  const normaliseToCSV = useCallback(async (file: File): Promise<File> => {
+    const isExcel =
+      file.name.endsWith('.xlsx') ||
+      file.name.endsWith('.xls') ||
+      file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      file.type === 'application/vnd.ms-excel';
+
+    if (!isExcel) {
+      // CSV — return as-is
+      return file;
+    }
+
+    // Excel → read with SheetJS → convert to CSV text
+    const buffer = await file.arrayBuffer();
+    const wb = XLSX.read(buffer, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const csvText = XLSX.utils.sheet_to_csv(ws);
+    return new File([csvText], file.name.replace(/\.xlsx?$/i, '.csv'), { type: 'text/csv' });
+  }, []);
+
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.name.endsWith('.csv')) {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      const allowed = ['csv', 'xlsx', 'xls'];
+      if (!ext || !allowed.includes(ext)) {
         toast({
           title: 'Invalid File Type',
-          description: 'Please upload a CSV file',
+          description: 'Please upload a CSV or Excel (.xlsx, .xls) file',
           variant: 'destructive',
         });
         return;
       }
 
-      setCSVFile(file);
+      // Reset state for new file — prevents stale validation carrying over
       setBulkResult(null);
       setUploadProgress(0);
       setCsvValidation(null);
 
+      let csvFile: File;
       try {
-        const validation = await validateCsvFile(file);
+        csvFile = await normaliseToCSV(file);
+      } catch {
+        toast({
+          title: 'File Conversion Failed',
+          description: 'Could not read the spreadsheet file. Please save it as CSV and try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      setCSVFile(csvFile);
+
+      try {
+        const validation = await validateCsvFile(csvFile);
         setCsvValidation(validation);
 
         if (validation.duplicateCount > 0 || validation.invalidRowCount > 0) {
@@ -457,7 +527,7 @@ export function BulkCSVUploader({
         });
       }
     }
-  }, [toast]);
+  }, [toast, normaliseToCSV]);
 
   const handleSubmit = useCallback(() => {
     if (!csvFile) {
@@ -501,10 +571,10 @@ export function BulkCSVUploader({
   }, [csvFile, selectedTemplate, isLimitExceeded, bulkIssueMutation, toast, csvValidation]);
 
   const handleDownloadTemplate = useCallback(() => {
-    const csvContent = `wallet,name,email,course,grade,completionDate,certificateType
-0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1,John Doe,john@example.com,Mathematics 101,A,2024-01-15,Course Completion
-0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb2,Jane Smith,jane@example.com,Physics 201,B+,2024-01-15,Course Completion
-0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb3,Bob Johnson,bob@example.com,Chemistry 301,A-,2024-01-15,Course Completion`;
+    const csvContent = `email,name,course,grade,completionDate,certificateType
+student@example.com,John Mukasa,Bachelor of Computer Science,First Class,2024-06-15,Degree
+jane@example.com,Jane Smith,Physics 201,B+,2024-01-15,Course Completion
+bob@example.com,Bob Johnson,Chemistry 301,A-,2024-01-15,Course Completion`;
     
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -518,7 +588,7 @@ export function BulkCSVUploader({
     
     toast({
       title: 'Template Downloaded',
-      description: 'CSV template downloaded. Replace example wallet addresses with real ones. Wallet, name, and course columns are required.',
+      description: 'CSV template downloaded. Email is the primary identifier — wallet is auto-generated. Name and course are required.',
     });
   }, [toast]);
 
@@ -535,26 +605,38 @@ export function BulkCSVUploader({
       <CardHeader className="pb-4">
         <CardTitle>Bulk Certificate Issuance</CardTitle>
         <CardDescription>
-          Upload a CSV file to issue multiple certificates at once
+          Upload a CSV file or issue by selecting a cohort/program
         </CardDescription>
       </CardHeader>
+
       <CardContent className="space-y-6">
+        <Tabs value={activeMode} onValueChange={(v) => setActiveMode(v as any)}>
+          <TabsList className="grid grid-cols-2 w-full rounded-2xl">
+            <TabsTrigger value="csv" className="rounded-xl">Upload CSV</TabsTrigger>
+            <TabsTrigger value="selection" className="rounded-xl">Cohort/Program</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="selection" className="mt-6">
+            <BulkSelectionIssuer templates={templates} />
+          </TabsContent>
+
+          <TabsContent value="csv" className="mt-6">
         <Alert className="border-blue-200 bg-blue-50">
           <Info className="h-4 w-4 text-blue-600" />
           <AlertTitle className="text-blue-900">CSV Format Requirements</AlertTitle>
           <AlertDescription className="text-blue-800 mt-2">
             <ul className="list-disc list-inside space-y-1 text-sm">
               <li>
-                <strong>Required columns:</strong> wallet (or walletAddress), name (or studentName), course (or courseName)
+                <strong>Required columns:</strong> email (or studentEmail), name (or studentName), course (or courseName)
               </li>
               <li>
-                <strong>Optional columns:</strong> email, grade, completionDate (YYYY-MM-DD), certificateType
+                <strong>Optional columns:</strong> wallet (or walletAddress), grade, completionDate (YYYY-MM-DD), certificateType
               </li>
               <li>
-                Wallet addresses must be valid Ethereum addresses (0x followed by 40 hex characters)
+                Email is the primary student identifier — an embedded wallet is auto-generated when no wallet is provided
               </li>
-              <li>Column names are flexible - see examples for accepted variations</li>
-              <li>The CSV parser on the server handles quoted values and special characters</li>
+              <li>Accepts CSV, Excel (.xlsx, .xls) files — column names are flexible</li>
+              <li>The CSV parser handles quoted values and special characters</li>
             </ul>
           </AlertDescription>
         </Alert>
@@ -621,7 +703,7 @@ export function BulkCSVUploader({
           <div className="relative">
             <input
               type="file"
-              accept=".csv,text/csv"
+              accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
               onChange={handleFileChange}
               className="hidden"
               id="csv-upload-input"
@@ -639,7 +721,7 @@ export function BulkCSVUploader({
                     Click to upload or drag and drop
                   </p>
                   <p className="text-sm text-neutral-600">
-                    CSV files only, maximum 100 recipients
+                    CSV, Excel (.xlsx, .xls) files — maximum 100 recipients
                   </p>
                 </div>
               ) : (
@@ -823,6 +905,8 @@ export function BulkCSVUploader({
             </Button>
           </div>
         )}
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );

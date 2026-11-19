@@ -1,0 +1,12 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="EduCreds">
+  <defs>
+    <linearGradient id="ec-grad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#ec-grad)"/>
+  <path d="M32 13L50 21L32 29L14 21L32 13Z" fill="#ffffff" fill-opacity="0.95"/>
+  <path d="M22 26V36C22 41.5 26.6 45.5 32 45.5C37.4 45.5 42 41.5 42 36V26" stroke="#ffffff" stroke-opacity="0.95" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="32" cy="36" r="3.5" fill="#ffffff"/>
+</svg>

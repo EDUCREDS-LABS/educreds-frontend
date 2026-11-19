@@ -1,20 +1,19 @@
 import { useState } from "react";
-import { useLocation, Link } from "wouter";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Mail, Loader2, CheckCircle } from "lucide-react";
+import { ArrowLeft, Mail, Loader2 } from "lucide-react";
 import { API_CONFIG } from "@/config/api";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ForgotPassword() {
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,15 +33,15 @@ export default function ForgotPassword() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new Error(data?.message || "Failed to send reset link.");
+        throw new Error(data?.message || "Failed to send reset code.");
       }
-      setSubmitted(true);
+      navigate(`/reset-password?email=${encodeURIComponent(email.trim())}`);
       toast({
-        title: "Reset link sent",
-        description: "Check your inbox for instructions to reset your password.",
+        title: "Reset code sent",
+        description: "If an account exists, check your inbox for a reset code.",
       });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to send reset link. Please try again.";
+      const message = err instanceof Error ? err.message : "Failed to send reset code. Please try again.";
       setError(message);
     } finally {
       setIsLoading(false);
@@ -63,31 +62,12 @@ export default function ForgotPassword() {
             Reset Password
           </h1>
           <p className="text-neutral-500 dark:text-neutral-400 font-medium mt-2">
-            Enter your email to receive a password reset link.
+            Enter your email to receive a password reset code.
           </p>
         </div>
 
         <Card className="border-none shadow-2xl shadow-neutral-200/60 dark:shadow-black/30 rounded-[32px] dark:bg-neutral-900">
           <CardContent className="p-8">
-            {submitted ? (
-              <div className="text-center space-y-4 py-4">
-                <div className="size-16 rounded-2xl bg-green-50 dark:bg-green-950/50 flex items-center justify-center mx-auto">
-                  <CheckCircle className="size-8 text-green-500" />
-                </div>
-                <CardTitle className="text-xl font-black text-neutral-900 dark:text-neutral-100">Check Your Email</CardTitle>
-                <CardDescription className="text-neutral-500 dark:text-neutral-400 font-medium">
-                  If an account exists for <span className="font-bold text-neutral-700 dark:text-neutral-300">{email}</span>,
-                  you will receive password reset instructions shortly.
-                </CardDescription>
-                <Button
-                  variant="outline"
-                  className="mt-4 rounded-xl h-12 font-bold"
-                  onClick={() => setLocation("/login")}
-                >
-                  <ArrowLeft className="size-4 mr-2" /> Back to Login
-                </Button>
-              </div>
-            ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
                 {error && (
                   <Alert variant="destructive" className="rounded-xl">
@@ -125,12 +105,12 @@ export default function ForgotPassword() {
                   {isLoading ? (
                     <Loader2 className="size-4 animate-spin mr-2" />
                   ) : null}
-                  Send Reset Link
+                  Send Reset Code
                 </Button>
 
                 <div className="text-center">
                   <Link
-                    href="/login"
+                    to="/login"
                     className="text-sm font-bold text-blue-600 hover:text-blue-700"
                   >
                     <ArrowLeft className="inline size-3 mr-1" />
@@ -138,7 +118,6 @@ export default function ForgotPassword() {
                   </Link>
                 </div>
               </form>
-            )}
           </CardContent>
         </Card>
       </div>

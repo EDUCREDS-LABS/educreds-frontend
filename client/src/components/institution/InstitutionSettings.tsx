@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,8 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { Shield, Key, Bell, Mail, Smartphone, Globe, AlertTriangle, Check, X } from "lucide-react";
+import { Shield, Key, Bell, Mail, Smartphone, Globe, AlertTriangle, Check, X, ShieldCheck, ExternalLink, Palette } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthHeaders } from "@/lib/auth";
@@ -20,7 +20,7 @@ import {
   useInstitutionNotificationPreferences,
   useUpdateInstitutionNotificationPreferences,
 } from "@/hooks/useNotifications";
-import BatchSigningSettings from "./BatchSigningSettings";
+
 
 // Notification setting item with enhanced visual feedback
 const NotificationItem = ({ 
@@ -65,7 +65,9 @@ const NotificationItem = ({
 
 export default function InstitutionSettings() {
   const { user } = useAuth();
-  const institutionId = user?.institutionId || user?.id;
+  const institutionId = user?.organizationId || user?.id;
+  const tier = (user as any)?.deploymentTier ?? (user as any)?.tier ?? 'workspace';
+  const hasApiAccess = tier === 'connector' || tier === 'enterprise' || (user as any)?.plan?.apiAccess === true;
   const { toast } = useToast();
   const [settings, setSettings] = useState({
     emailNotifications: true,
@@ -418,8 +420,24 @@ export default function InstitutionSettings() {
         <p className="text-neutral-500 dark:text-neutral-400 mt-3 text-lg font-medium">Manage your account preferences and security parameters.</p>
       </div>
 
-      {/* Batch Signing Settings */}
-      <BatchSigningSettings />
+      {/* Credential Signing Authority */}
+      <div className="p-8 bg-neutral-50 dark:bg-neutral-900 rounded-[32px] border border-neutral-100 dark:border-neutral-800">
+        <div className="flex items-start gap-4">
+          <div className="size-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <ShieldCheck className="size-6" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-lg font-black text-neutral-900 dark:text-neutral-100">Credential Signing Authority</h3>
+            <p className="text-sm text-neutral-500 font-medium leading-relaxed">
+              All credentials issued by your institution are cryptographically signed by EduCreds on your behalf using your institution's embedded identity. No manual key management is required.
+            </p>
+            <div className="flex items-center gap-2 mt-3">
+              <div className="size-2 rounded-full bg-emerald-500" />
+              <span className="text-xs font-bold text-emerald-700 uppercase tracking-widest">Platform Managed</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Security Settings */}
       <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900">
@@ -487,53 +505,75 @@ export default function InstitutionSettings() {
       </Card>
 ...
 
-      {/* API Access */}
+      {/* API Access - Tier Gated */}
       <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900">
         <CardHeader className="p-10 border-b border-neutral-50 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
           <CardTitle className="flex items-center gap-3 text-2xl font-black text-neutral-900 dark:text-neutral-100">
             <Key className="w-6 h-6 text-primary" />
             API Access
           </CardTitle>
+          <CardDescription className="text-neutral-500 dark:text-neutral-400 font-medium mt-1">Programmatic access to your institution data</CardDescription>
         </CardHeader>
         <CardContent className="p-10 space-y-8">
-          <div className="flex items-center justify-between p-6 rounded-3xl border border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
-            <div className="space-y-1">
-              <Label className="text-sm font-black text-neutral-900 dark:text-neutral-100 uppercase tracking-widest">Enable API Access</Label>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">Allow programmatic access to your institution data</p>
-            </div>
-            <Switch
-              checked={settings.apiAccess}
-              onCheckedChange={handleApiAccessToggle}
-              disabled={isKeyLoading || isKeyAction}
-            />
-          </div>
-          
-          {settings.apiAccess && (
-            <div className="space-y-4 pt-6 border-t border-neutral-100 dark:border-neutral-800">
-                <Label className="text-xs font-black uppercase tracking-widest text-neutral-400">API Key</Label>
-                <div className="flex gap-4">
-                  <Input
-                    value={
-                      apiKeyValue
-                        ? apiKeyValue
-                        : apiKeyPrefix
-                        ? `${apiKeyPrefix}••••••••`
-                        : ""
-                    }
-                    placeholder={isKeyLoading ? "Loading API key..." : "No API key generated yet"}
-                    readOnly
-                    className="h-14 rounded-2xl font-mono text-sm bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner"
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={handleRegenerateKey}
-                    disabled={isKeyLoading || isKeyAction}
-                    className="h-14 rounded-2xl font-black text-xs uppercase tracking-widest"
-                  >
-                    {isKeyAction ? "Working..." : "Regenerate"}
+          {hasApiAccess ? (
+            <>
+              <div className="flex items-center justify-between p-6 rounded-3xl border border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+                <div className="space-y-1">
+                  <Label className="text-sm font-black text-neutral-900 dark:text-neutral-100 uppercase tracking-widest">Enable API Access</Label>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">Allow programmatic access to your institution data</p>
+                </div>
+                <Switch
+                  checked={settings.apiAccess}
+                  onCheckedChange={handleApiAccessToggle}
+                  disabled={isKeyLoading || isKeyAction}
+                />
+              </div>
+              
+              {settings.apiAccess && (
+                <div className="space-y-4 pt-6 border-t border-neutral-100 dark:border-neutral-800">
+                    <Label className="text-xs font-black uppercase tracking-widest text-neutral-400">API Key</Label>
+                    <div className="flex gap-4">
+                      <Input
+                        value={
+                          apiKeyValue
+                            ? apiKeyValue
+                            : apiKeyPrefix
+                            ? `${apiKeyPrefix}••••••••`
+                            : ""
+                        }
+                        placeholder={isKeyLoading ? "Loading API key..." : "No API key generated yet"}
+                        readOnly
+                        className="h-14 rounded-2xl font-mono text-sm bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={handleRegenerateKey}
+                        disabled={isKeyLoading || isKeyAction}
+                        className="h-14 rounded-2xl font-black text-xs uppercase tracking-widest"
+                      >
+                        {isKeyAction ? "Working..." : "Regenerate"}
+                      </Button>
+                    </div>
+                  </div>
+              )}
+            </>
+          ) : (
+            <div className="p-6 rounded-3xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+              <div className="flex items-start gap-4">
+                <div className="size-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="size-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div className="space-y-2">
+                  <h4 className="font-black text-neutral-900 dark:text-neutral-100">API Access Requires Upgrade</h4>
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                    API access is available on Connector and Enterprise tiers. Upgrade your subscription to enable programmatic access to your institution data.
+                  </p>
+                  <Button variant="outline" className="rounded-xl font-black text-xs uppercase tracking-widest mt-2" asChild>
+                    <Link to="/institution/billing">View Plans</Link>
                   </Button>
                 </div>
               </div>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -653,6 +693,163 @@ export default function InstitutionSettings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Identity & Keys - Navigation to DID Management */}
+      <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900">
+        <CardHeader className="p-10 border-b border-neutral-50 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+          <CardTitle className="flex items-center gap-3 text-2xl font-black text-neutral-900 dark:text-neutral-100">
+            <Key className="w-6 h-6 text-primary" />
+            Identity & Keys
+          </CardTitle>
+          <CardDescription className="text-neutral-500 dark:text-neutral-400 font-medium mt-1">Manage your decentralized identity, blockchain registration, and key rotation</CardDescription>
+        </CardHeader>
+        <CardContent className="p-10">
+          <div className="p-6 bg-neutral-50 dark:bg-neutral-800/50 rounded-[24px] border border-neutral-100 dark:border-neutral-800">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-bold text-neutral-900 dark:text-neutral-100">DID Control Panel</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                  View your DID status, blockchain registration, wallet address, and rotate keys.
+                </p>
+              </div>
+              <Link to="/institution/did-management">
+                <Button variant="outline" className="rounded-xl font-black text-xs uppercase tracking-widest gap-2">
+                  Manage Identity <ExternalLink className="w-3.5 h-3.5" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Credential Issuance Settings */}
+      <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900">
+        <CardHeader className="p-10 border-b border-neutral-50 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+          <CardTitle className="flex items-center gap-3 text-2xl font-black text-neutral-900 dark:text-neutral-100">
+            <ShieldCheck className="w-6 h-6 text-primary" />
+            Credential Issuance Defaults
+          </CardTitle>
+          <CardDescription className="text-neutral-500 dark:text-neutral-400 font-medium mt-1">Default settings applied to all newly issued credentials</CardDescription>
+        </CardHeader>
+        <CardContent className="p-10 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Default Credential Expiry (days)</Label>
+              <input
+                type="number"
+                min={0}
+                placeholder="365 (0 = never expires)"
+                className="flex h-14 w-full rounded-2xl border-none bg-neutral-50 dark:bg-neutral-900 px-4 text-sm font-bold shadow-inner outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Batch Size Limit</Label>
+              <div className="flex h-14 items-center px-4 rounded-2xl bg-neutral-50 dark:bg-neutral-900 shadow-inner">
+                <span className="text-sm font-bold text-neutral-500">500 credentials / batch (plan limit)</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-between p-6 rounded-3xl border border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+            <div className="space-y-1">
+              <Label className="text-sm font-black text-neutral-900 dark:text-neutral-100 uppercase tracking-widest">Auto-Issuance</Label>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium mt-1">Automatically issue credentials when student records are verified</p>
+            </div>
+            <Switch />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Branding Settings - Navigation to White-Label */}
+      <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900">
+        <CardHeader className="p-10 border-b border-neutral-50 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+          <CardTitle className="flex items-center gap-3 text-2xl font-black text-neutral-900 dark:text-neutral-100">
+            <Palette className="w-6 h-6 text-primary" />
+            Branding & White-Label
+          </CardTitle>
+          <CardDescription className="text-neutral-500 dark:text-neutral-400 font-medium mt-1">Customize your institution's appearance on EduCreds</CardDescription>
+        </CardHeader>
+        <CardContent className="p-10 space-y-4">
+          {/* Credential Design - PDF Certificate Templates */}
+          <div className="p-6 bg-neutral-50 dark:bg-neutral-800/50 rounded-[24px] border border-neutral-100 dark:border-neutral-800">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-bold text-neutral-900 dark:text-neutral-100">Credential Design Studio</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                  Design how your academic certificates look when downloaded as PDFs. Choose from templates or upload custom layouts.
+                </p>
+              </div>
+              <Link to="/institution/credential-design">
+                <Button variant="outline" className="rounded-xl font-black text-xs uppercase tracking-widest gap-2">
+                  Design Credentials <ExternalLink className="w-3.5 h-3.5" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          {/* White Label - Verification Card Branding */}
+          <div className="p-6 bg-neutral-50 dark:bg-neutral-800/50 rounded-[24px] border border-neutral-100 dark:border-neutral-800">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-bold text-neutral-900 dark:text-neutral-100">White Label Branding</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                  Customize your institution logo, brand colors, and email settings for verification cards and public-facing pages.
+                </p>
+              </div>
+              <Link to="/institution/white-label">
+                <Button variant="outline" className="rounded-xl font-black text-xs uppercase tracking-widest gap-2">
+                  Brand Settings <ExternalLink className="w-3.5 h-3.5" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Connector Settings — only for connector-tier institutions */}
+      {(() => {
+        const tier = (user as any)?.deploymentTier ?? (user as any)?.tier ?? 'workspace';
+        if (tier === 'workspace') return null;
+        return (
+          <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900">
+            <CardHeader className="p-10 border-b border-neutral-50 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+              <CardTitle className="flex items-center gap-3 text-2xl font-black text-neutral-900 dark:text-neutral-100">
+                <AlertTriangle className="w-6 h-6 text-primary" />
+                Connector Settings
+              </CardTitle>
+              <CardDescription className="text-neutral-500 dark:text-neutral-400 font-medium mt-1">
+                Configure your LMS / SIS connector endpoint and sync schedule
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-10 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2 space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Connector API URL</Label>
+                  <input
+                    type="url"
+                    placeholder="https://your-lms.edu/api/educreds-connector"
+                    className="flex h-14 w-full rounded-2xl border-none bg-neutral-50 dark:bg-neutral-900 px-4 text-sm font-bold shadow-inner outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Sync Interval</Label>
+                  <select className="flex h-14 w-full rounded-2xl border-none bg-neutral-50 dark:bg-neutral-900 px-4 text-sm font-bold shadow-inner outline-none">
+                    <option value="manual">Manual</option>
+                    <option value="hourly">Hourly</option>
+                    <option value="daily">Daily</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Connector Status</Label>
+                  <div className="flex h-14 items-center gap-3 px-4 rounded-2xl bg-neutral-50 dark:bg-neutral-900 shadow-inner">
+                    <div className="size-2 rounded-full bg-neutral-300" />
+                    <span className="text-sm font-bold text-neutral-500">Not configured</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Save Changes */}
       <div className="flex justify-end pt-10 border-t border-neutral-100 dark:border-neutral-800">

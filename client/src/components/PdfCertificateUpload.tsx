@@ -132,10 +132,10 @@ export const PdfCertificateUpload: React.FC = () => {
       
       if (result) {
         toast({
-          title: result.onChainStatus === 'minted' ? "✅ Certificate Minted" : "⏳ Transaction Pending",
+          title: result.onChainStatus === 'minted' ? "✅ Credential Issued" : "⏳ Issuance Pending",
           description: result.onChainStatus === 'minted' 
-            ? `Successfully issued and minted to ${studentData.walletAddress.slice(0, 6)}...`
-            : "The issuance process has started. Please confirm the transaction in your wallet if prompted."
+            ? `Successfully issued to ${studentData.walletAddress.slice(0, 6)}...`
+            : "The issuance process has started. Please confirm in your wallet if prompted."
         });
         
         // Reset form

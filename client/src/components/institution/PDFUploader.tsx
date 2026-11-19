@@ -33,14 +33,39 @@ import {
   Loader2,
   CheckCircle,
   Upload,
-  Wallet,
-  Calendar,
   X,
   FileText,
   Plus,
   Trash2,
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
+
+// ── Custom fields editor ──────────────────────────────────────────────────────
+function CustomFieldsEditor({ form, index }: { form: UseFormReturn<any>; index: number }) {
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: `certificates.${index}.customFields`,
+  });
+  return (
+    <div className="space-y-3 pt-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Custom Fields</span>
+        <Button type="button" variant="ghost" size="sm" className="h-7 text-xs gap-1 rounded-lg" onClick={() => append({ key: '', value: '' })}>
+          <Plus className="size-3" /> Add field
+        </Button>
+      </div>
+      {fields.map((f, fi) => (
+        <div key={f.id} className="flex gap-2 items-center">
+          <Input placeholder="Field name" {...form.register(`certificates.${index}.customFields.${fi}.key`)} className="h-9 rounded-lg text-sm flex-1" />
+          <Input placeholder="Value" {...form.register(`certificates.${index}.customFields.${fi}.value`)} className="h-9 rounded-lg text-sm flex-1" />
+          <Button type="button" variant="ghost" size="icon" className="size-9 shrink-0 text-neutral-400 hover:text-red-500" onClick={() => remove(fi)}>
+            <X className="size-3.5" />
+          </Button>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 interface PDFUploaderProps {
   form: UseFormReturn<any>;
@@ -86,14 +111,14 @@ export function PDFUploader({
     <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900">
       <CardHeader className="p-10 border-b border-neutral-50 dark:border-neutral-800">
         <CardTitle className="text-2xl font-black">PDF Asset Issuance</CardTitle>
-        <CardDescription className="font-bold text-[10px] uppercase tracking-widest text-primary">Upload PDF and add recipients (1-10)</CardDescription>
+        <CardDescription className="font-bold text-[10px] uppercase tracking-widest text-primary">Upload PDF (optional) and add recipients (1-10)</CardDescription>
       </CardHeader>
       <CardContent className="p-10">
         <Form {...form}>
           <form onSubmit={onSubmit} className="space-y-10">
             {/* PDF Upload Section */}
             <div className="space-y-6">
-                <h3 className="text-lg font-black tracking-tight">1. Upload Certificate PDF</h3>
+                <h3 className="text-lg font-black tracking-tight">1. Upload Certificate PDF <span className="text-neutral-400 font-medium text-sm">(optional)</span></h3>
                 <FormField
                     control={form.control}
                     name="pdfFile"
@@ -167,8 +192,16 @@ export function PDFUploader({
                             <FormField control={form.control} name={`certificates.${index}.studentName`} render={({ field }) => (
                                 <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Student Name</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem>
                             )}/>
+                            <FormField control={form.control} name={`certificates.${index}.studentEmail`} render={({ field }) => (
+                                <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Email</FormLabel><FormControl><Input type="email" {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem>
+                            )}/>
                             <FormField control={form.control} name={`certificates.${index}.studentAddress`} render={({ field }) => (
-                                <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Wallet Address</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl font-mono" /></FormControl><FormMessage /></FormItem>
+                                <FormItem>
+                                  <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Wallet Address <span className="normal-case font-normal text-neutral-400">(optional if email provided)</span></FormLabel>
+                                  <FormControl><Input {...field} placeholder="0x… or leave blank" className="h-12 rounded-xl font-mono" /></FormControl>
+                                  <FormMessage />
+                                  <p className="text-[10px] text-neutral-400 mt-1">If omitted, an embedded wallet is auto-created from the student's email and EDU-ID.</p>
+                                </FormItem>
                             )}/>
                             <FormField control={form.control} name={`certificates.${index}.completionDate`} render={({ field }) => (
                                 <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Completion Date</FormLabel><FormControl><Input type="date" {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem>
@@ -200,6 +233,8 @@ export function PDFUploader({
                                 <FormItem className="md:col-span-2"><FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Description</FormLabel><FormControl><Textarea {...field} className="rounded-xl" /></FormControl></FormItem>
                             )}/>
                         </div>
+                        {/* Custom fields */}
+                        <CustomFieldsEditor form={form} index={index} />
                     </div>
                 ))}
                 
@@ -214,7 +249,7 @@ export function PDFUploader({
             <div className="flex gap-3 pt-6 border-t border-neutral-100 dark:border-neutral-800">
               <Button
                 type="submit"
-                disabled={isLoading || isLimitExceeded || !pdfFile}
+                disabled={isLoading || isLimitExceeded}
                 className="flex-1 h-14 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all"
               >
                 {isLoading ? <Loader2 className="size-5 mr-2 animate-spin" /> : <CheckCircle className="size-5 mr-2" />}

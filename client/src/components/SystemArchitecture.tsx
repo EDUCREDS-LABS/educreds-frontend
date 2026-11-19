@@ -41,12 +41,12 @@ const layers = [
   {
     id: "governance",
     title: "Governance Layer",
-    subtitle: "DAO + PoIC",
+    subtitle: "Governance + PoIC",
     icon: Scale,
     color: "from-cyan-500 to-teal-600",
     glow: "rgba(13, 148, 136, 0.5)",
     features: [
-      "DAO governs issuer eligibility, disputes, and revocations",
+      "EduCreds governs issuer eligibility, disputes, and revocations",
       "Non-tokenized governance power from institutional credibility",
       "Transparent, auditable decisions via smart contracts"
     ]

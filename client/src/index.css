@@ -3,20 +3,20 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
-  --font-heading: "Space Grotesk", sans-serif;
+  --font-sans: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Sora", ui-sans-serif, system-ui, sans-serif;
   
-  /* Light Mode - Enterprise Blue Primary */
-  --color-primary: #1560BD;
+  /* Light Mode - Enterprise Blue Primary (vision: #0057FF) */
+  --color-primary: #0057FF;
   --color-primary-foreground: #FFFFFF;
-  --color-secondary: #00416A;
+  --color-secondary: #1E293B;
   --color-secondary-foreground: #FFFFFF;
   --color-accent: #15BCA9;
   --color-accent-foreground: #FFFFFF;
   
-  /* Semantic Colors */
-  --color-success: #15803D;
-  --color-warning: #EAB308;
+  /* Semantic Colors (vision palette) */
+  --color-success: #16A34A;
+  --color-warning: #D97706;
   --color-info: #0EA5E9;
   --color-error: #DC2626;
   
@@ -66,9 +66,9 @@
   --card-foreground: #0F172A;
   --border: #E5E7EB;
   --input: #F3F4F6;
-  --primary: #1560BD;
+  --primary: #0057FF;
   --primary-foreground: #FFFFFF;
-  --secondary: #00416A;
+  --secondary: #1E293B;
   --secondary-foreground: #FFFFFF;
   --accent: #15BCA9;
   --accent-foreground: #FFFFFF;

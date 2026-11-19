@@ -45,9 +45,10 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useLocation } from 'wouter';
+import { useNavigate } from 'react-router-dom';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { cn } from '@/lib/utils';
+import DOMPurify from 'dompurify';
 
 interface TemplateSpec {
   id: string;
@@ -55,6 +56,8 @@ interface TemplateSpec {
   category: 'created' | 'purchased' | 'uploaded';
   thumbnail?: string;
   previewUrl?: string;
+  /** Rendered template visual (SVG) produced by the Credential Designer. */
+  htmlContent?: string;
   description?: string;
   createdAt: string;
   usage?: number;
@@ -63,11 +66,16 @@ interface TemplateSpec {
   status: 'active' | 'archived' | 'draft';
 }
 
+/** Safely render a template SVG so the library shows the actual design. */
+function sanitizeVisual(html: string): string {
+  return DOMPurify.sanitize(html, { USE_PROFILES: { html: true, svg: true } });
+}
+
 type ViewMode = 'grid' | 'list';
 type SortOption = 'newest' | 'oldest' | 'name' | 'usage';
 
 export default function ManageSpecs() {
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -162,7 +170,7 @@ export default function ManageSpecs() {
             </p>
           </div>
           <Button
-            onClick={() => setLocation('/institution/templates/designer')}
+            onClick={() => navigate('/institution/templates/designer')}
             className="bg-neutral-900 hover:bg-neutral-800 text-white h-14 px-8 rounded-2xl shadow-2xl shadow-neutral-900/10 transition-all hover:scale-[1.02] active:scale-[0.98] font-bold"
           >
             <Plus className="w-5 h-5 mr-2" />
@@ -329,6 +337,11 @@ export default function ManageSpecs() {
                       alt={template.name}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                     />
+                  ) : template.htmlContent ? (
+                    <div
+                      className="w-full h-full [&_svg]:w-full [&_svg]:h-full p-3"
+                      dangerouslySetInnerHTML={{ __html: sanitizeVisual(template.htmlContent) }}
+                    />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-neutral-300">
                       <LayoutTemplate className="size-16" />
@@ -353,7 +366,7 @@ export default function ManageSpecs() {
                     <Button 
                       size="sm" 
                       className="rounded-xl bg-white text-neutral-900 hover:bg-neutral-100 h-10 px-4 font-bold text-xs"
-                      onClick={() => setLocation(`/institution/templates/${template.id}`)}
+                      onClick={() => navigate(`/institution/manage-specs?templateId=${template.id}`)}
                     >
                       <Eye className="size-3.5 mr-2" /> Quick Preview
                     </Button>
@@ -410,6 +423,11 @@ export default function ManageSpecs() {
                     <div className="size-16 rounded-2xl bg-neutral-100 overflow-hidden flex-shrink-0">
                       {template.thumbnail ? (
                         <img src={template.thumbnail} className="w-full h-full object-cover" />
+                      ) : template.htmlContent ? (
+                        <div
+                          className="w-full h-full [&_svg]:w-full [&_svg]:h-full p-1"
+                          dangerouslySetInnerHTML={{ __html: sanitizeVisual(template.htmlContent) }}
+                        />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-neutral-300">
                           <LayoutTemplate className="size-8" />
@@ -431,7 +449,7 @@ export default function ManageSpecs() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button size="icon" variant="ghost" className="rounded-xl hover:bg-neutral-200" onClick={() => setLocation(`/institution/templates/${template.id}`)}>
+                      <Button size="icon" variant="ghost" className="rounded-xl hover:bg-neutral-200" onClick={() => navigate(`/institution/manage-specs?templateId=${template.id}`)}>
                         <Eye className="size-5 text-neutral-600" />
                       </Button>
                       <Button size="icon" variant="ghost" className="rounded-xl hover:bg-red-50 hover:text-red-600" onClick={() => deleteTemplateMutation.mutate(template.id)}>

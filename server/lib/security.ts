@@ -79,6 +79,8 @@ export const corsOptions = {
       'https://educreds.xyz',
       'https://www.educreds.xyz',
       'https://*.educreds.xyz',
+      // Azure Container Apps default domain (used for testing / internal access)
+      'https://*.azurecontainerapps.io',
       // API subdomain
       'https://api.educreds.xyz'
     ];

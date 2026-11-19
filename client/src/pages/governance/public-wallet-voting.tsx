@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,11 +10,6 @@ import { governanceApiService } from "@/lib/governanceApiService";
 import { Vote, Wallet, CheckCircle, XCircle, Minus, Loader2, AlertCircle } from "lucide-react";
 import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-}
 
 export default function PublicWalletVotingPage() {
   const { toast } = useToast();
@@ -64,7 +58,7 @@ export default function PublicWalletVotingPage() {
         throw new Error("No Web3 wallet detected. Install MetaMask or use WalletConnect.");
       }
 
-      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+      const accounts = await (window.ethereum as any).request({ method: "eth_requestAccounts" });
       if (!accounts || !accounts[0]) {
         throw new Error("No wallet account returned");
       }

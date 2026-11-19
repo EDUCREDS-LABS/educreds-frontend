@@ -22,6 +22,8 @@ interface ImportMetaEnv {
     readonly VITE_FIREBASE_APP_ID: string
 }
 
+declare module 'xlsx';
+
 interface ImportMeta {
     readonly env: ImportMetaEnv
 }

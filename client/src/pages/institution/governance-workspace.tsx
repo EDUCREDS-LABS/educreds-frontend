@@ -1,7 +1,7 @@
-// @ts-nocheck
+
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -65,7 +65,7 @@ import {
   usePoICScores,
 } from "@/hooks/useGovernance";
 import { cn } from "@/lib/utils";
-import AnalyticsPage from "./analytics";
+
 
 export default function GovernanceWorkspace() {
   const { user } = useAuth();
@@ -217,7 +217,7 @@ export default function GovernanceWorkspace() {
               <p className="text-sm font-bold text-neutral-500">Proof of Institutional Credibility (PoIC)</p>
             </div>
             <div className="pt-4">
-              <Link href="/institution/governance-verification">
+              <Link to="/institution/governance-verification">
                 <Button className="h-14 px-10 rounded-2xl font-black text-sm uppercase tracking-wider bg-neutral-900 dark:bg-neutral-900 dark:text-white hover:scale-[1.02] transition-all">
                   Initiate Verification <ArrowRight className="size-4 ml-2" />
                 </Button>
@@ -415,7 +415,7 @@ export default function GovernanceWorkspace() {
                     <div className="group">
                       <p className="text-[9px] font-black text-neutral-400 dark:text-neutral-500 uppercase mb-2 tracking-widest">Decentralized ID (DID)</p>
                       <div className="p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl font-mono text-[10px] text-neutral-600 dark:text-neutral-400 break-all border border-neutral-100 dark:border-neutral-800 group-hover:border-primary/20 transition-colors">
-                        {user?.did || "did:educreds:unregistered"}
+                        {(user as any)?.did || "did:educreds:unregistered"}
                       </div>
                     </div>
                     <div className="group">
@@ -545,7 +545,7 @@ export default function GovernanceWorkspace() {
                           </div>
                         </TableCell>
                         <TableCell className="px-8 text-right">
-                          <Link href={`/institution/governance/proposals/${proposal.id}`}>
+                          <Link to={`/institution/governance/proposals/${proposal.id}`}>
                             <Button variant="outline" className="rounded-xl h-10 px-5 font-black text-[10px] uppercase tracking-widest hover:bg-neutral-100 dark:hover:bg-neutral-800 border-neutral-200 dark:border-neutral-800">
                               View Audit <ArrowRight className="size-3 ml-2" />
                             </Button>
@@ -569,8 +569,153 @@ export default function GovernanceWorkspace() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="analytics" className="pt-10 outline-none">
-          <AnalyticsPage />
+        <TabsContent value="analytics" className="pt-10 outline-none space-y-8">
+          {/* PoIC Score History */}
+          <Card className="border-none shadow-2xl shadow-neutral-200/40 dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[40px] overflow-hidden">
+            <CardHeader className="p-10 border-b border-neutral-100 dark:border-neutral-800">
+              <CardTitle className="text-2xl font-black tracking-tight flex items-center gap-3">
+                <TrendingUp className="size-6 text-blue-500" />
+                PoIC Score & Trust Metrics
+              </CardTitle>
+              <CardDescription className="text-neutral-500 font-medium">Your institution's Proof of Institutional Credibility analytics.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-10 space-y-8">
+              {/* Current PoIC score */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="p-6 bg-blue-50 dark:bg-blue-950/20 rounded-[24px]">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-2">Current PoIC Score</p>
+                  <p className="text-5xl font-black text-blue-700 dark:text-blue-300">
+                    {(governanceInstitution as any)?.poicScore ?? 0}
+                    <span className="text-xl text-blue-300 ml-1">/100</span>
+                  </p>
+                  <p className="text-xs text-blue-500 font-medium mt-2">Institutional Trust Rating</p>
+                </div>
+                <div className="p-6 bg-green-50 dark:bg-green-950/20 rounded-[24px]">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-green-400 mb-2">Governance Status</p>
+                  <p className="text-2xl font-black text-green-700 dark:text-green-300 capitalize">
+                    {(governanceInstitution as any)?.verificationStatus ?? 'Pending'}
+                  </p>
+                  <p className="text-xs text-green-500 font-medium mt-2">
+                    {(governanceInstitution as any)?.isVerified ? 'Verified Institution' : 'Verification in Progress'}
+                  </p>
+                </div>
+                <div className="p-6 bg-violet-50 dark:bg-violet-950/20 rounded-[24px]">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-violet-400 mb-2">IIN Token</p>
+                  <p className="text-2xl font-black text-violet-700 dark:text-violet-300">
+                    {(governanceInstitution as any)?.iinTokenId ? 'Minted' : 'Pending'}
+                  </p>
+                  {(governanceInstitution as any)?.iinTokenId && (
+                    <p className="text-xs font-mono text-violet-400 mt-1 truncate">
+                      {(governanceInstitution as any).iinTokenId}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* PoIC score history */}
+              {Array.isArray(poicScoresData) && poicScoresData.length > 0 && (
+                <div>
+                  <p className="text-sm font-black uppercase tracking-widest text-neutral-400 mb-4">Score History</p>
+                  <div className="space-y-2">
+                    {(poicScoresData as any[]).slice(0, 5).map((entry: any, i: number) => (
+                      <div key={i} className="flex items-center gap-4 p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-2xl">
+                        <div className="size-10 rounded-xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center">
+                          <Shield className="size-4 text-blue-500" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-bold text-neutral-700 dark:text-neutral-300">
+                            Score: {entry.score ?? entry.poicScore ?? '—'}
+                          </p>
+                          <p className="text-xs text-neutral-400">{entry.reason ?? entry.note ?? 'Assessment update'}</p>
+                        </div>
+                        <p className="text-xs text-neutral-400">
+                          {entry.createdAt || entry.timestamp
+                            ? new Date(entry.createdAt || entry.timestamp).toLocaleDateString()
+                            : '—'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Governance Proposal Analytics */}
+          <Card className="border-none shadow-2xl shadow-neutral-200/40 dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[40px] overflow-hidden">
+            <CardHeader className="p-10 border-b border-neutral-100 dark:border-neutral-800">
+              <CardTitle className="text-2xl font-black tracking-tight flex items-center gap-3">
+                <Vote className="size-6 text-primary" />
+                Governance Proposal Activity
+              </CardTitle>
+              <CardDescription className="text-neutral-500 font-medium">Proposal submission, approval, and DAO voting metrics.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-10">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {[
+                  {
+                    label: "Total Proposals",
+                    value: summary.totalProposals,
+                    icon: FileText,
+                    color: "text-primary",
+                    bg: "bg-primary/10",
+                  },
+                  {
+                    label: "Active / Voting",
+                    value: summary.activeProposals,
+                    icon: Vote,
+                    color: "text-blue-600",
+                    bg: "bg-blue-50 dark:bg-blue-950/30",
+                  },
+                  {
+                    label: "Approved",
+                    value: proposals.filter((p: any) => ['APPROVED', 'ACCEPTED', 'PASSED'].includes(p.state?.toUpperCase())).length,
+                    icon: CheckCircle,
+                    color: "text-green-600",
+                    bg: "bg-green-50 dark:bg-green-950/30",
+                  },
+                  {
+                    label: "Rejected",
+                    value: proposals.filter((p: any) => ['REJECTED', 'FAILED', 'DENIED'].includes(p.state?.toUpperCase())).length,
+                    icon: XCircle,
+                    color: "text-red-500",
+                    bg: "bg-red-50 dark:bg-red-950/30",
+                  },
+                ].map((stat, i) => (
+                  <div key={i} className="p-6 bg-neutral-50 dark:bg-neutral-800/30 rounded-[24px] text-center">
+                    <div className={`size-12 ${stat.bg} rounded-2xl flex items-center justify-center mx-auto mb-3`}>
+                      <stat.icon className={`size-5 ${stat.color}`} />
+                    </div>
+                    <p className="text-3xl font-black text-neutral-900 dark:text-neutral-100">{stat.value}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-neutral-400 mt-1">{stat.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* DAO participation rate */}
+              {summary.totalProposals > 0 && (
+                <div className="mt-8 p-6 bg-neutral-50 dark:bg-neutral-800/30 rounded-[24px]">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-black uppercase tracking-widest text-neutral-500">DAO Voting Participation</p>
+                    <p className="text-sm font-black text-neutral-700 dark:text-neutral-300">
+                      {summary.activeProposals > 0
+                        ? `${Math.round((summary.activeProposals / summary.totalProposals) * 100)}% active rate`
+                        : 'No active proposals'}
+                    </p>
+                  </div>
+                  <div className="h-2 rounded-full bg-neutral-200 dark:bg-neutral-700 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-500"
+                      style={{ width: `${summary.totalProposals > 0 ? Math.min(100, Math.round((summary.activeProposals / summary.totalProposals) * 100)) : 0}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-neutral-400 mt-2">
+                    {summary.totalInstitutions} verified institutions in the network
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="poic" className="pt-10 outline-none space-y-10">

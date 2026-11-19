@@ -1,9 +1,8 @@
-// @ts-nocheck
 import * as React from "react";
 import { useForm, type UseFormProps, type FieldValues, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { type ZodSchema, type ZodError } from "zod";
-import { FormProvider } from "@/components/ui/form";
+import { FormProvider } from "react-hook-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";

@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
-  TrendingUp,
   Users,
   Award,
   FileCheck,
@@ -11,14 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/loading-skeleton';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import {
-  AreaChart,
-  Area,
   BarChart,
   Bar,
   XAxis,
   YAxis,
   CartesianGrid,
-  ResponsiveContainer,
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import {
@@ -27,41 +23,7 @@ import {
   usePublicPoICScores,
 } from '@/hooks/useGovernance';
 
-// ── Mock / derived data ────────────────────────────────────────────────────
-const MONTHS = ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'];
-
-function buildIssuanceTrend(total: number) {
-  const base = Math.max(Math.floor(total / 6), 80);
-  return MONTHS.map((month, i) => ({
-    month,
-    issuances: Math.floor(base * (0.55 + i * 0.1 + (i * 3) % 5 * 0.04)),
-    certificates: Math.floor(base * (0.45 + i * 0.09 + (i * 2) % 4 * 0.03)),
-  }));
-}
-
-const MOCK_TREND = [
-  { month: 'Nov', issuances: 420, certificates: 380 },
-  { month: 'Dec', issuances: 590, certificates: 520 },
-  { month: 'Jan', issuances: 780, certificates: 710 },
-  { month: 'Feb', issuances: 650, certificates: 580 },
-  { month: 'Mar', issuances: 920, certificates: 840 },
-  { month: 'Apr', issuances: 1104, certificates: 982 },
-];
-
-const MOCK_POIC_DIST = [
-  { range: '0–20', count: 1 },
-  { range: '21–40', count: 4 },
-  { range: '41–60', count: 11 },
-  { range: '61–80', count: 27 },
-  { range: '81–100', count: 14 },
-];
-
 // ── Chart configs ──────────────────────────────────────────────────────────
-const issuanceChartConfig = {
-  issuances: { label: 'Issuances', color: '#1560BD' },
-  certificates: { label: 'Certificates', color: '#15BCA9' },
-} satisfies ChartConfig;
-
 const poicChartConfig = {
   count: { label: 'Institutions', color: '#1560BD' },
 } satisfies ChartConfig;
@@ -119,13 +81,12 @@ export default function AnalyticsTab() {
   const { data: summary, isLoading: summaryLoading } = usePublicGovernanceSummary();
   const { data: poicScores, isLoading: poicLoading } = usePublicPoICScores();
 
-  const issuanceTrend = useMemo(() => {
-    const total = metrics?.totalVotes ? metrics.totalVotes * 12 : 0;
-    return total > 0 ? buildIssuanceTrend(total) : MOCK_TREND;
-  }, [metrics]);
-
+  // There is no historical issuance endpoint yet. Never infer a time series from votes.
   const poicDistribution = useMemo(() => {
-    if (!poicScores || poicScores.length === 0) return MOCK_POIC_DIST;
+    const validScores = (poicScores ?? []).filter(({ score }) =>
+      Number.isFinite(score) && score >= 0 && score <= 100,
+    );
+    if (validScores.length === 0) return [];
     const buckets = [
       { range: '0–20', count: 0 },
       { range: '21–40', count: 0 },
@@ -133,12 +94,11 @@ export default function AnalyticsTab() {
       { range: '61–80', count: 0 },
       { range: '81–100', count: 0 },
     ];
-    poicScores.forEach(({ score }) => {
-      const idx = Math.min(4, Math.floor(score / 21));
+    validScores.forEach(({ score }) => {
+      const idx = score <= 20 ? 0 : Math.min(4, Math.ceil((score - 20) / 20));
       buckets[idx].count++;
     });
-    const hasData = buckets.some(b => b.count > 0);
-    return hasData ? buckets : MOCK_POIC_DIST;
+    return buckets;
   }, [poicScores]);
 
   const kpiCards: KpiCardProps[] = [
@@ -155,19 +115,16 @@ export default function AnalyticsTab() {
     {
       icon: FileCheck,
       label: 'Total Issuances',
-      value: metrics
-        ? (metrics.totalVotes * 14 + 4200).toLocaleString()
-        : '—',
-      subtitle: 'All-time credential issuances',
+      value: '—',
+      subtitle: 'Issuance data unavailable',
       color: 'text-violet-600',
       bg: 'bg-violet-500/10',
-      isLoading: metricsLoading,
       delay: 0.05,
     },
     {
       icon: Award,
       label: 'Avg PoIC Score',
-      value: metrics?.averagePoICScore
+      value: metrics?.averagePoICScore != null
         ? `${metrics.averagePoICScore.toFixed(1)}`
         : '—',
       subtitle: 'Across all institutions',
@@ -209,69 +166,14 @@ export default function AnalyticsTab() {
             <CardHeader className="p-6 pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-black text-slate-800 uppercase tracking-widest">
-                  Issuance Trend (6 months)
+                  Issuance Trend
                 </CardTitle>
-                <TrendingUp className="w-4 h-4 text-blue-500" />
               </div>
             </CardHeader>
             <CardContent className="p-6 pt-2">
-              <ChartContainer config={issuanceChartConfig} className="w-full h-[220px]">
-                <AreaChart data={issuanceTrend} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="gradIssuances" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#1560BD" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#1560BD" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="gradCertificates" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#15BCA9" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="#15BCA9" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 10, fill: '#94a3b8' }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Area
-                    type="monotone"
-                    dataKey="issuances"
-                    stroke="#1560BD"
-                    strokeWidth={2}
-                    fill="url(#gradIssuances)"
-                    dot={{ fill: '#1560BD', r: 3, strokeWidth: 0 }}
-                    activeDot={{ r: 5 }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="certificates"
-                    stroke="#15BCA9"
-                    strokeWidth={2}
-                    fill="url(#gradCertificates)"
-                    dot={{ fill: '#15BCA9', r: 3, strokeWidth: 0 }}
-                    activeDot={{ r: 5 }}
-                  />
-                </AreaChart>
-              </ChartContainer>
-
-              {/* Legend */}
-              <div className="flex items-center gap-4 mt-3 justify-center">
-                <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                  <span className="w-3 h-0.5 bg-blue-600 rounded" />
-                  Issuances
-                </span>
-                <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                  <span className="w-3 h-0.5 bg-accent rounded" />
-                  Certificates
-                </span>
-              </div>
+              <p className="h-[220px] flex items-center justify-center text-sm text-slate-500" role="status">
+                Insufficient data — historical issuance data is not available.
+              </p>
             </CardContent>
           </Card>
         </motion.div>
@@ -294,6 +196,10 @@ export default function AnalyticsTab() {
             <CardContent className="p-6 pt-2">
               {poicLoading ? (
                 <Skeleton className="h-[220px] w-full rounded-2xl" />
+              ) : poicDistribution.length === 0 ? (
+                <p className="h-[220px] flex items-center justify-center text-sm text-slate-500" role="status">
+                  Insufficient data — no assessed PoIC scores yet.
+                </p>
               ) : (
                 <ChartContainer config={poicChartConfig} className="w-full h-[220px]">
                   <BarChart

@@ -3,6 +3,7 @@ import { auth, getAuthHeaders } from "./auth";
 import { transformDocumentsForBackend } from "@/utils/documentTransform";
 import { ethers, Eip1193Provider } from "ethers";
 import { walletService } from "./walletService";
+import { clearAuthStorage, getInstitutionToken } from "./authStorage";
 
 // Extended EIP-1193 provider interface for wallet providers like MetaMask
 interface EthereumProvider extends Eip1193Provider {
@@ -29,25 +30,25 @@ function recoverFromUnauthorized() {
     return;
   }
 
+  // Local auth bypass must not be kicked to /login by commercial 401/403s.
+  const bypassAuth =
+    import.meta.env.DEV &&
+    String(import.meta.env.VITE_BYPASS_AUTH ?? "false").toLowerCase() === "true";
+  if (bypassAuth) {
+    return;
+  }
+
   authRecoveryInProgress = true;
   try {
-    // Clear all known auth states so the app can recover cleanly.
-    localStorage.removeItem("institution_token");
-    localStorage.removeItem("institution_user");
-    localStorage.removeItem("marketplace_token");
-    localStorage.removeItem("marketplace_user");
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("auth_type");
+    clearAuthStorage();
 
     const path = window.location.pathname || "/";
     const isProtectedPath =
       path.startsWith("/institution") ||
-      path.startsWith("/admin") ||
-      path.startsWith("/marketplace");
+      path.startsWith("/admin");
     const isAlreadyOnLogin =
       path === "/login" ||
-      path === "/admin/login" ||
-      path === "/marketplace/login";
+      path === "/admin/login";
 
     if (isProtectedPath && !isAlreadyOnLogin) {
       window.location.href = "/login";
@@ -62,7 +63,7 @@ function recoverFromUnauthorized() {
 
 async function handleResponse(response: Response) {
   if (!response.ok) {
-    if (response.status === 401) {
+    if (response.status === 401 || response.status === 403) {
       recoverFromUnauthorized();
     }
 
@@ -315,7 +316,69 @@ async function confirmWalletDirectIssuanceIfNeeded(
   };
 }
 
-export const api = {
+const apiBase = {
+  getCredentialPipeline: async (certificateId: string) => {
+    const response = await fetch(`${API_CONFIG.CERT}/api/certificates/${encodeURIComponent(certificateId)}/pipeline`, { headers: getAuthHeaders() });
+    return handleResponse(response);
+  },
+  getPipelineSummary: async () => {
+    const response = await fetch(`${API_CONFIG.CERT}/api/certificates/institution/pipeline-summary`, { headers: getAuthHeaders() });
+    return handleResponse(response);
+  },
+  retryAnchorJob: async (certificateId: string, jobType: string) => {
+    const response = await fetch(`${API_CONFIG.CERT}/api/certificates/${encodeURIComponent(certificateId)}/retry-anchor`, {
+      method: 'POST', headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ jobType }),
+    });
+    return handleResponse(response);
+  },
+  exportVerifierReport: async (format: 'csv' | 'json', from?: string, to?: string) => {
+    const params = new URLSearchParams({ format });
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    const response = await fetch(`${API_CONFIG.CERT}/api/verifier/reports/export?${params}`, { headers: getAuthHeaders() });
+    if (!response.ok) return handleResponse(response);
+    if (format === 'json') return handleResponse(response);
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    try {
+      const link = document.createElement('a'); link.href = url; link.download = 'verification-report.csv';
+      document.body.appendChild(link); link.click(); link.remove();
+    } finally { window.setTimeout(() => URL.revokeObjectURL(url), 1000); }
+  },
+  saveBranding: async (data: { badgeAccentColor?: string | null; badgeLogoUrl?: string | null; badgeTagline?: string | null; badgeDefaultVariant?: string; pdfLayout?: string; pdfSignatureUrl?: string | null }) => {
+    const response = await fetch(`${API_CONFIG.CERT}/api/institutions/branding`, { method: 'PATCH', headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    return handleResponse(response);
+  },
+  uploadBrandingLogo: async (file: File): Promise<{ logoUrl: string }> => {
+    const data = new FormData(); data.append('logo', file);
+    const response = await fetch(`${API_CONFIG.CERT}/api/institutions/profile/logo`, { method: 'POST', headers: getAuthHeaders(), body: data });
+    return handleResponse(response);
+  },
+  getBadgePreview: async (data: { institutionName: string; credentialType: string; issueYear: string; variant?: string; accentColor?: string; logoUrl?: string }): Promise<string> => {
+    const response = await fetch(`${API_CONFIG.CERT}/api/badges/preview`, { method: 'POST', headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    if (!response.ok) await handleResponse(response);
+    const blob = await response.blob();
+    if (!blob.type.startsWith('image/')) throw new Error('Badge preview returned an invalid image');
+    // Convert blob to data URL to avoid CSP blob: restrictions
+    // CSP allows data: URLs in img-src, but not blob: URLs
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Failed to convert badge preview to data URL'));
+      reader.readAsDataURL(blob);
+    });
+  },
+  downloadCredentialPDF: async (certificateId: string): Promise<void> => {
+    const response = await fetch(`${API_CONFIG.CERT}/api/certificates/${encodeURIComponent(certificateId)}/pdf`, { headers: getAuthHeaders() });
+    if (!response.ok) await handleResponse(response);
+    const blob = await response.blob();
+    if (!blob.type.includes('pdf')) throw new Error('Certificate download returned an invalid PDF');
+    const url = URL.createObjectURL(blob);
+    try {
+      const link = document.createElement('a'); link.href = url; link.download = `credential-${certificateId}.pdf`;
+      document.body.appendChild(link); link.click(); link.remove();
+    } finally { window.setTimeout(() => URL.revokeObjectURL(url), 1000); }
+  },
   // Health check
   healthCheck: async () => {
     const response = await fetch(API_CONFIG.HEALTH.CERT);
@@ -369,34 +432,12 @@ export const api = {
     return { statusReport };
   },
 
-  registerInstitutionOnBlockchain: async (institutionId: string) => {
-    const response = await fetch(`${API_CONFIG.ADMIN.BASE}/institutions/${institutionId}/blockchain-register`, {
-      method: "POST",
-      credentials: "include",
-    });
-    return handleResponse(response);
-  },
-
   authorizeInstitutionOnBlockchain: async (institutionId: string) => {
     const response = await fetch(`${API_CONFIG.ADMIN.BASE}/institutions/${institutionId}/blockchain-authorize`, {
       method: "POST",
       credentials: "include",
     });
     return handleResponse(response);
-  },
-
-  bulkRegisterInstitutionsOnBlockchain: async () => {
-    const response = await fetch(`${API_CONFIG.ADMIN.BASE}/blockchain-register-all`, {
-      method: "POST",
-      credentials: "include",
-    });
-    const data = await handleResponse(response);
-    return {
-      ...data,
-      summary: {
-        successful: data.count ?? 0,
-      },
-    };
   },
 
   getBlockchainStatus: async (institutionId: string) => {
@@ -479,6 +520,28 @@ export const api = {
     const response = await fetch(API_CONFIG.INDEXER.SYNC_STATUS, {
       headers: getAuthHeaders(),
     });
+    return handleResponse(response);
+  },
+
+  // Phase C backend follow-up — RBAC matrix (replaces frontend mock grants).
+  getRbacMatrix: async () => {
+    const response = await fetch(`${API_CONFIG.CERT}/api/auth/rbac/matrix`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  // Phase C backend follow-up — institution-scoped trust summary (Verification
+  // Overview / Trust dashboard aggregate).
+  getTrustSummary: async (institutionId?: string) => {
+    const authHeaders = getAuthHeaders();
+    const params = new URLSearchParams();
+    if (institutionId) params.set("institutionId", institutionId);
+    const query = params.toString();
+    const response = await fetch(
+      `${API_CONFIG.CERT}/api/institutions/trust-summary${query ? `?${query}` : ""}`,
+      { headers: authHeaders }
+    );
     return handleResponse(response);
   },
 
@@ -655,7 +718,7 @@ export const api = {
   },
 
   uploadVerificationDocuments: async (formData: FormData) => {
-    const token = localStorage.getItem('institution_token');
+    const token = getInstitutionToken();
 
     if (!token) {
       throw new Error('User not authenticated');
@@ -777,16 +840,18 @@ export const api = {
     };
   },
 
-  // Trust Agent endpoints
+  // Trust Agent endpoints — proxied through cert_backend.
+  // The Trust Agent only accepts service API keys (never browser JWTs),
+  // so the backend bridges admin-JWT auth to service-key auth.
   trustAgent: {
     getObservabilityData: async () => {
-      const response = await fetch(`${API_CONFIG.TRUST_AGENT}/api/trust-agent/observability`, {
+      const response = await fetch(`${API_CONFIG.MAIN}/api/governance/trust-agent/observability`, {
         headers: getAuthHeaders(),
       });
       return handleResponse(response);
     },
     getSystemHealth: async () => {
-      const response = await fetch(`${API_CONFIG.TRUST_AGENT}/api/trust-agent/health`, {
+      const response = await fetch(`${API_CONFIG.MAIN}/api/governance/trust-agent/health`, {
         headers: getAuthHeaders(),
       });
       return handleResponse(response);
@@ -1389,7 +1454,7 @@ export const api = {
         String(import.meta.env.VITE_ENABLE_WALLET_DIRECT_ISSUANCE ?? "true").toLowerCase() !== "false";
 
       try {
-        response = await fetch(`${API_CONFIG.CERT}/api/v1/issue/batch`, {
+        response = await fetch(`${API_CONFIG.CERT}/api/v1/standard/certificates/issue/bulk`, {
           method: "POST",
           headers: {
             ...authHeaders,
@@ -1397,7 +1462,16 @@ export const api = {
           },
           body: JSON.stringify({
             ...(templateId ? { templateId } : {}),
-            recipients,
+            // Transform recipients to backend's expected shape
+            certificates: recipients.map(r => ({
+              student: { id: r.wallet, name: r.name, email: r.email },
+              course: { name: r.customData?.courseName || 'Course', code: '' },
+              achievement: {
+                grade: r.customData?.grade || 'N/A',
+                completionDate: r.customData?.completionDate || new Date().toISOString().split('T')[0],
+                certificateType: r.customData?.certificateType || 'Academic',
+              },
+            })),
             ...(institutionId ? { institutionId } : {}),
             ...(walletDirectEnabled ? {} : { forceBackendSigner: true }),
           }),
@@ -1455,7 +1529,7 @@ export const api = {
       String(import.meta.env.VITE_ENABLE_WALLET_DIRECT_ISSUANCE ?? "true").toLowerCase() !== "false";
 
     try {
-      response = await fetch(`${API_CONFIG.CERT}/api/v1/issue/batch`, {
+      response = await fetch(`${API_CONFIG.CERT}/api/v1/standard/certificates/issue/bulk`, {
         method: "POST",
         headers: {
           ...authHeaders,
@@ -1478,38 +1552,91 @@ export const api = {
     return confirmWalletDirectIssuanceIfNeeded(payload, authHeaders);
   },
 
-  // Bulk issuance via CSV upload endpoint
+  // Bulk issuance via CSV upload — send file to backend bulk issuance pipeline.
+  // This avoids silent 0/0 results caused by calling the legacy bulk-issue-template endpoint.
   bulkIssueCertificatesFromCSV: async (
     csvFile: File,
     options?: {
       batchSize?: number;
       continueOnError?: boolean;
+      templateId?: string; // reserved for future (template binding server-side)
     }
   ) => {
     const authHeaders = getAuthHeaders();
-    
-    // Create FormData for multipart/form-data request
-    const formData = new FormData();
-    formData.append('csvFile', csvFile);
-    
-    const payloadOptions = {
+
+    const form = new FormData();
+    form.append('csvFile', csvFile);
+
+    // The backend expects nested body.options; send as a JSON-string field `options`.
+    // (Multer + Nest will parse this into @Body().options when possible.)
+    form.append('options', JSON.stringify({
       batchSize: options?.batchSize ?? 10,
       continueOnError: options?.continueOnError ?? true,
-    };
-    formData.append('options', JSON.stringify(payloadOptions));
-    
+    }));
+
     try {
-      const response = await fetch(`${API_CONFIG.CERT}/api/certificates/bulk-issue-csv`, {
+      const response = await fetch(`${API_CONFIG.CERT}/api/certificates/bulk/issue-csv`, {
         method: 'POST',
-        headers: authHeaders,
-        body: formData,
+        headers: { ...authHeaders }, // do NOT set content-type for FormData
+        body: form,
       });
-      
       return handleResponse(response);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new ApiError(0, `Failed to upload CSV: ${message}`);
+      throw new ApiError(0, `Failed to start bulk issuance job: ${message}`);
     }
+  },
+
+  // List programs for the current institution
+  listPrograms: async () => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/institutions/programs`, {
+      headers: authHeaders,
+    });
+    return handleResponse(response);
+  },
+
+  // List cohorts, optionally filtered by programId
+  listCohorts: async (programId?: string) => {
+    const authHeaders = getAuthHeaders();
+    const qs = programId ? `?programId=${encodeURIComponent(programId)}` : '';
+    const response = await fetch(`${API_CONFIG.CERT}/api/institutions/cohorts${qs}`, {
+      headers: authHeaders,
+    });
+    return handleResponse(response);
+  },
+
+  // List students for the current institution with optional filters
+  listStudentsForInstitution: async (filters: { programId?: string; cohortId?: string; status?: string; search?: string }) => {
+    const authHeaders = getAuthHeaders();
+    const params = new URLSearchParams();
+    if (filters.programId) params.set('programId', filters.programId);
+    if (filters.cohortId) params.set('cohortId', filters.cohortId);
+    if (filters.status) params.set('status', filters.status);
+    if (filters.search) params.set('search', filters.search);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(`${API_CONFIG.CERT}/api/students${qs}`, {
+      headers: authHeaders,
+    });
+    return handleResponse(response);
+  },
+
+  // Bulk issue by student selection (cohort/program selection mode)
+  bulkIssueSelection: async (payload: {
+    studentIds: string[];
+    courseName?: string;
+    certificateType?: string;
+    completionDate?: string;
+    templateId?: string;
+    options?: { batchSize?: number; continueOnError?: boolean };
+  }) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/certificates/bulk/issue-selection`, {
+      method: 'POST',
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
   },
 
   // Get bulk job status
@@ -1562,20 +1689,66 @@ export const api = {
     return handleResponse(response);
   },
 
-  // Sharing Methods
+  getHybridCredentialProof: async (tokenId: number) => {
+    const response = await fetch(API_CONFIG.W3C.HYBRID_PROOF(tokenId));
+    return handleResponse(response);
+  },
+
+  // Sharing Methods (student JWT required — SEC-04)
   getSharePackage: async (certificateId: string) => {
-    const response = await fetch(API_CONFIG.CERTIFICATES.SHARE_PACKAGE(certificateId));
+    const response = await fetch(API_CONFIG.CERTIFICATES.SHARE_PACKAGE(certificateId), {
+      headers: getAuthHeaders(),
+    });
     return handleResponse(response);
   },
 
   getShareMethods: async (certificateId: string) => {
-    const response = await fetch(API_CONFIG.CERTIFICATES.SHARE_METHODS(certificateId));
+    const response = await fetch(API_CONFIG.CERTIFICATES.SHARE_METHODS(certificateId), {
+      headers: getAuthHeaders(),
+    });
     return handleResponse(response);
   },
 
-  // Get certificates by wallet address
+  // Get certificates by wallet address (student JWT; wallet must match token)
   getCertificatesByWallet: async (walletAddress: string) => {
-    const response = await fetch(`${API_CONFIG.CERT}/api/certificates/wallet/${walletAddress}`);
+    const response = await fetch(`${API_CONFIG.CERT}/api/certificates/wallet/${walletAddress}`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  // EDU-ID session listing — student JWT required; eduCredsId must match token (SEC-06)
+  getCertificatesByEduId: async (eduCredsId: string) => {
+    const response = await fetch(
+      `${API_CONFIG.CERT}/api/certificates/edu-id/${encodeURIComponent(eduCredsId)}`,
+      { headers: getAuthHeaders() },
+    );
+    return handleResponse(response);
+  },
+
+  getCertificatesByEmail: async (email: string) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(
+      `${API_CONFIG.CERT}/api/certificates/by-email?email=${encodeURIComponent(email)}`,
+      { headers: authHeaders }
+    );
+    return handleResponse(response);
+  },
+
+  // fix(DID): institution self-service DID profile
+  getInstitutionDIDProfile: async () => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/institutions/did-profile`, { headers: authHeaders });
+    return handleResponse(response);
+  },
+
+  rotateInstitutionKey: async (payload: { reason: string }) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/api/institutions/rotate-key`, {
+      method: 'POST',
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
     return handleResponse(response);
   },
 
@@ -1866,6 +2039,122 @@ export const api = {
     return handleResponse(response);
   },
 
+  listCommercialPlans: async (workspace: "institution" | "verifier" | "student") => {
+    const params = new URLSearchParams({ workspace });
+    const response = await fetch(`${API_CONFIG.COMMERCIAL.PLANS}?${params}`);
+    return handleResponse(response);
+  },
+
+  getCommercialSubscription: async (workspace?: "institution" | "verifier" | "student") => {
+    const authHeaders = getAuthHeaders();
+    const params = new URLSearchParams();
+    if (workspace) params.set("workspace", workspace);
+    const qs = params.toString();
+    const response = await fetch(
+      `${API_CONFIG.COMMERCIAL.SUBSCRIPTION}${qs ? `?${qs}` : ""}`,
+      { headers: authHeaders },
+    );
+    return handleResponse(response);
+  },
+
+  cancelCommercialSubscription: async (workspace?: "institution" | "verifier" | "student") => {
+    const authHeaders = getAuthHeaders();
+    const params = new URLSearchParams();
+    if (workspace) params.set("workspace", workspace);
+    const qs = params.toString();
+    const response = await fetch(
+      `${API_CONFIG.COMMERCIAL.CANCEL}${qs ? `?${qs}` : ""}`,
+      { method: "POST", headers: authHeaders },
+    );
+    return handleResponse(response);
+  },
+
+  createCommercialCheckout: async (data: {
+    workspace: "institution" | "verifier" | "student";
+    planKey: string;
+  }) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(API_CONFIG.COMMERCIAL.CHECKOUT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  listCommercialInvoices: async (workspace?: "institution" | "verifier" | "student") => {
+    const authHeaders = getAuthHeaders();
+    const params = new URLSearchParams();
+    if (workspace) params.set("workspace", workspace);
+    const qs = params.toString();
+    const response = await fetch(
+      `${API_CONFIG.COMMERCIAL.INVOICES}${qs ? `?${qs}` : ""}`,
+      { headers: authHeaders },
+    );
+    return handleResponse(response);
+  },
+
+  getCommercialUsage: async (workspace?: "institution" | "verifier" | "student") => {
+    const authHeaders = getAuthHeaders();
+    const params = new URLSearchParams();
+    if (workspace) params.set("workspace", workspace);
+    const qs = params.toString();
+    const response = await fetch(
+      `${API_CONFIG.COMMERCIAL.USAGE}${qs ? `?${qs}` : ""}`,
+      { headers: authHeaders },
+    );
+    return handleResponse(response);
+  },
+
+  listCommercialEvents: async (query?: {
+    limit?: number;
+    offset?: number;
+    eventType?: string;
+    tenantId?: string;
+  }) => {
+    const token = typeof localStorage !== "undefined" ? localStorage.getItem("admin_token") : null;
+    const params = new URLSearchParams();
+    if (query?.limit != null) params.set("limit", String(query.limit));
+    if (query?.offset != null) params.set("offset", String(query.offset));
+    if (query?.eventType) params.set("eventType", query.eventType);
+    if (query?.tenantId) params.set("tenantId", query.tenantId);
+    const qs = params.toString();
+    const response = await fetch(
+      `${API_CONFIG.COMMERCIAL.EVENTS}${qs ? `?${qs}` : ""}`,
+      {
+        credentials: "include",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      },
+    );
+    return handleResponse(response);
+  },
+
+  verifyCommercialEventChain: async () => {
+    const token = typeof localStorage !== "undefined" ? localStorage.getItem("admin_token") : null;
+    const response = await fetch(API_CONFIG.COMMERCIAL.VERIFY_CHAIN, {
+      credentials: "include",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    return handleResponse(response);
+  },
+
+  listProvisioningJobs: async (query?: { limit?: number; status?: string; subscriptionId?: string }) => {
+    const token = typeof localStorage !== "undefined" ? localStorage.getItem("admin_token") : null;
+    const params = new URLSearchParams();
+    if (query?.limit != null) params.set("limit", String(query.limit));
+    if (query?.status) params.set("status", query.status);
+    if (query?.subscriptionId) params.set("subscriptionId", query.subscriptionId);
+    const qs = params.toString();
+    const response = await fetch(
+      `${API_CONFIG.COMMERCIAL.PROVISIONING_JOBS}${qs ? `?${qs}` : ""}`,
+      {
+        credentials: "include",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      },
+    );
+    return handleResponse(response);
+  },
+
   // Stripe Payment Methods
   createStripePaymentIntent: async (data: { planId: string; amount: number; currency: string }) => {
     const authHeaders = getAuthHeaders();
@@ -2035,3 +2324,191 @@ export const api = {
     },
   },
 };
+
+/* Methods kept in a separate literal so the merged `api` type (via
+   Object.assign) retains full typing for members that would otherwise fall
+   beyond TypeScript's ~100-property object-literal inference cap. All calls go
+   through cert_backend (the BFF), which injects the verifier API key and EVF
+   HMAC secret server-side — no upstream secret reaches the browser. */
+const apiExtra = {
+  getPoICScore: async (institutionId: string) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(`${API_CONFIG.CERT}/governance/poic-score/${institutionId}`, {
+      headers: authHeaders,
+    });
+    return handleResponse(response);
+  },
+
+  verifyCertificate: async (certificateId: string, opts?: { mode?: string; async?: boolean; sharingLinkId?: string; purpose?: string; audience?: string }) => {
+    const response = await fetch(API_CONFIG.VERIFY_PROXY.VERIFY, {
+      method: 'POST',
+      // Include auth headers when available so the backend can attribute this
+      // verification to the logged-in verifier for metrics/stats.
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({
+        certificateId,
+        mode: opts?.mode || 'api',
+        async: opts?.async || false,
+        sharingLinkId: opts?.sharingLinkId,
+        purpose: opts?.purpose,
+        audience: opts?.audience,
+      }),
+    });
+    return handleResponse(response);
+  },
+
+  // Anonymous Public Layer verify (Privacy Architecture). Hits the backend's
+  // unauthenticated /api/certificates/verify/{id} route, which returns ONLY the
+  // minimal PublicVerificationView (existence + issuer + type + issued year +
+  // revoked). Never discloses holder identity or grade. Use this on public,
+  // unauthenticated verify surfaces — NOT the EVF proxy.
+  verifyPublicCertificate: async (id: string) => {
+    const response = await fetch(API_CONFIG.CERTIFICATES.VERIFY(id));
+    return handleResponse(response);
+  },
+
+  verifyBulk: async (certificateIds: string[], mode = 'api') => {
+    const response = await fetch(API_CONFIG.VERIFY_PROXY.VERIFY_BULK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ certificateIds, mode }),
+    });
+    return handleResponse(response);
+  },
+
+  getVerificationResult: async (jobId: string) => {
+    const response = await fetch(API_CONFIG.VERIFY_PROXY.RESULT(jobId));
+    return handleResponse(response);
+  },
+
+  evfVerify: async (certificateId: string, opts?: { mode?: string; verifierDid?: string }) => {
+    const response = await fetch(API_CONFIG.VERIFY_PROXY.EVF, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ certificateId, mode: opts?.mode || 'api', verifierDid: opts?.verifierDid }),
+    });
+    return handleResponse(response);
+  },
+
+  getVerificationStatus: async () => {
+    const response = await fetch(API_CONFIG.VERIFY_PROXY.STATUS);
+    return handleResponse(response);
+  },
+
+  getVerifierAnalytics: async () => {
+    const response = await fetch(`${API_CONFIG.CERT}/api/verifier/analytics`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  },
+
+  getVerifierStats: async () => {
+    const response = await fetch(`${API_CONFIG.CERT}/api/verifier/stats`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  },
+
+  getVerifierChecks: async (limit = 10) => {
+    const response = await fetch(`${API_CONFIG.CERT}/api/verifier/checks?limit=${limit}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  },
+
+  /**
+   * getVerificationHistory — paginated history for /verifier/history page.
+   * Backed by GET /api/verifier/checks with a high limit; filters and pagination
+   * are applied client-side for now (backend endpoint is append-only).
+   */
+  getVerificationHistory: async (opts?: { result?: string; page?: number; limit?: number }) => {
+    // P2-V2: Use dedicated /api/verifier/history endpoint which JOINs certificates table
+    const params = new URLSearchParams();
+    if (opts?.result && opts.result !== 'all') params.set('result', opts.result);
+    if (opts?.page) params.set('page', String(opts.page));
+    if (opts?.limit) params.set('limit', String(opts.limit));
+
+    const historyUrl = `${API_CONFIG.CERT}/api/verifier/history?${params.toString()}`;
+    try {
+      const histResp = await fetch(historyUrl, { headers: getAuthHeaders() });
+      if (histResp.ok) {
+        const data = await histResp.json();
+        const verifications = data.verifications ?? data.results ?? data ?? [];
+        const items = Array.isArray(verifications) ? verifications : [];
+        const mapped = items.map((r: any) => ({
+          ...r,
+          verifiedAt: r.verifiedAt ?? r.createdAt ?? r.timestamp,
+          credentialTitle: r.credentialTitle ?? r.courseName ?? r.credentialId ?? r.id,
+          studentName: r.studentName ?? null,
+          institutionName: r.institutionName ?? r.institution ?? null,
+          result: r.result ?? (r.status === 'verified' ? 'valid' : r.status === 'failed' ? 'failed' : 'flagged'),
+        }));
+        return { results: mapped, total: data.total ?? mapped.length };
+      }
+    } catch { /* fall through */ }
+
+    // Fallback to /api/verifier/checks if history endpoint not available
+    const limit = opts?.limit ?? 100;
+    const response = await fetch(`${API_CONFIG.CERT}/api/verifier/checks?limit=${limit}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const rows: any[] = await response.json();
+    const items = Array.isArray(rows) ? rows : (rows as any)?.checks ?? [];
+    const mapped = items.map((r: any) => ({
+      ...r,
+      verifiedAt: r.verifiedAt ?? r.createdAt ?? r.timestamp,
+      credentialTitle: r.credentialTitle ?? r.credentialId ?? r.id,
+      studentName: r.studentName ?? null,
+      institutionName: r.institutionName ?? r.institution ?? null,
+      result: r.result ?? (r.status === 'verified' ? 'valid' : r.status === 'failed' ? 'failed' : 'flagged'),
+    }));
+    return { results: mapped, total: mapped.length };
+  },
+
+  getCredentialVerifications: async (certificateId: string) => {
+    const response = await fetch(
+      `${API_CONFIG.CERT}/api/certificates/${encodeURIComponent(certificateId)}/verifications`,
+    );
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  },
+
+  /* ---- Trust-agent (governance proxy) ---- */
+  trustAgentHealth: async () => {
+    const response = await fetch(API_CONFIG.TRUST_AGENT_PROXY.HEALTH);
+    return handleResponse(response);
+  },
+
+  trustAgentPoicCompute: async (payload: Record<string, unknown>) => {
+    const authHeaders = getAuthHeaders();
+    const response = await fetch(API_CONFIG.TRUST_AGENT_PROXY.POIC_COMPUTE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+};
+
+/** Authenticated government BFF request; unlike raw fetch, errors reach query error states. */
+export async function governmentRequest(path: string, init?: RequestInit): Promise<any> {
+  const response = await fetch(`${API_CONFIG.CERT}${path}`, {
+    ...init,
+    headers: { ...getAuthHeaders(), ...init?.headers },
+  });
+  return handleResponse(response);
+}
+
+export async function governmentExport(format: "csv" | "pdf"): Promise<Blob> {
+  const response = await fetch(`${API_CONFIG.CERT}/api/government/compliance/export?format=${format}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) await handleResponse(response);
+  return response.blob();
+}
+
+export const api = Object.assign(apiBase, apiExtra);

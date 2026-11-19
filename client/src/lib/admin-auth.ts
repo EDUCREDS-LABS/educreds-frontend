@@ -1,131 +1,61 @@
-import { API_CONFIG } from '@/config/api';
+/**
+ * admin-auth.ts
+ *
+ * Thin wrapper around the EduCreds admin session API.
+ *
+ * The admin panel UI has been moved to the internal trust-agent-dashboard SWA.
+ * This module exists solely so AuthProvider / UnifiedAuthContext can check
+ * whether an admin cookie session is active on the current browser — without
+ * importing the entire admin panel codebase.
+ *
+ * It does NOT expose login UI. Login lives in the trust-agent-dashboard.
+ */
 
-type AdminSession = {
+import { API_CONFIG } from "@/config/api";
+
+export interface AdminSessionInfo {
   email: string;
-  role: string;
-  expiresAt: string | null;
-};
+  role?: string;
+  iat?: number;
+  exp?: number;
+}
 
-type AdminSessionResponse = {
-  user?: {
-    email?: string | null;
-    role?: string | null;
-  };
-  expiresAt?: string | null;
-};
-
-let cachedSession: AdminSession | null = null;
-
-const parseErrorMessage = async (response: Response) => {
-  const text = await response.text();
-  try {
-    const data = JSON.parse(text);
-    return data.message || data.error || data.details || response.statusText;
-  } catch {
-    return text || response.statusText;
-  }
-};
-
-export class AdminAuth {
-  static async login(email: string, password: string): Promise<{ success: boolean; message: string; data?: any }> {
-    const response = await fetch(API_CONFIG.ADMIN.LOGIN, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!response.ok) {
-      return {
-        success: false,
-        message: await parseErrorMessage(response),
-      };
-    }
-
-    const data = await response.json();
-    const session = await this.refreshSession();
-
-    if (!session) {
-      return {
-        success: false,
-        message: 'Admin session could not be established',
-      };
-    }
-
-    return {
-      success: true,
-      message: 'Authentication successful',
-      data: {
-        ...data,
-        user: session,
-      },
-    };
-  }
-
-  static async logout(): Promise<void> {
-    cachedSession = null;
-    localStorage.removeItem('admin_token');
-    await fetch(API_CONFIG.ADMIN.LOGOUT, {
-      method: 'POST',
-      credentials: 'include',
-    }).catch(() => undefined);
-  }
-
-  static getSession(): AdminSession | null {
-    return cachedSession;
-  }
-
-  static async refreshSession(): Promise<AdminSession | null> {
+export const AdminAuth = {
+  /**
+   * Check whether an admin session cookie is active.
+   * Returns null if no session or the request fails.
+   */
+  async getSessionInfo(): Promise<AdminSessionInfo | null> {
     try {
-      const response = await fetch(API_CONFIG.ADMIN.SESSION, {
-        credentials: 'include',
+      const res = await fetch(API_CONFIG.ADMIN.SESSION, {
+        method: "GET",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
       });
-
-      if (!response.ok) {
-        cachedSession = null;
-        localStorage.removeItem('admin_token');
-        return null;
-      }
-
-      const data = (await response.json()) as AdminSessionResponse;
-      const email = data.user?.email?.trim();
-      const role = data.user?.role?.trim();
-
-      if (!email || !role) {
-        cachedSession = null;
-        return null;
-      }
-
-      cachedSession = {
-        email,
-        role,
-        expiresAt: data.expiresAt ?? null,
-      };
-      localStorage.removeItem('admin_token');
-
-      return cachedSession;
+      if (!res.ok) return null;
+      const data = await res.json();
+      // Backend returns { email, role, ... } or { admin: { email, role } }
+      const payload = data?.admin ?? data;
+      if (!payload?.email) return null;
+      return payload as AdminSessionInfo;
     } catch {
-      cachedSession = null;
       return null;
     }
-  }
+  },
 
-  static async getSessionInfo(): Promise<{ email: string; timeRemaining: number } | null> {
-    const session = await this.refreshSession();
-    if (!session) return null;
-
-    const expiresAtMs = session.expiresAt ? Date.parse(session.expiresAt) : NaN;
-    const timeRemaining = Number.isFinite(expiresAtMs)
-      ? Math.max(0, expiresAtMs - Date.now())
-      : 0;
-
-    return {
-      email: session.email,
-      timeRemaining,
-    };
-  }
-
-  static getAuthHeaders(): Record<string, string> {
-    return {};
-  }
-}
+  /**
+   * Sign out the admin session server-side and clear local state.
+   * Safe to call even if no session is active.
+   */
+  async logout(): Promise<void> {
+    try {
+      await fetch(API_CONFIG.ADMIN.LOGOUT, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+    } catch {
+      // Best-effort — ignore network errors
+    }
+  },
+};

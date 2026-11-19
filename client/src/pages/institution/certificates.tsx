@@ -1,7 +1,8 @@
-// @ts-nocheck
+
+import { CredentialDetailSheet } from "@/components/credentials/CredentialDetailSheet";
 import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "wouter";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import {
   Filter, ListFilter, LayoutGrid, CheckCircle2, ChevronRight, Info, XCircle
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+// Sheet import removed — CredentialDetailSheet replaces inline drawer
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
@@ -32,6 +33,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { saveAs } from "file-saver";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
+import { isConnectorTier } from "@/lib/institutionTiers";
 import CreateCertificateModal from "@/components/CreateCertificateModal";
 import { format } from "date-fns";
 import type { Certificate } from "@shared/schema";
@@ -51,7 +53,7 @@ type FilterPreset = {
 
 export default function Certificates() {
   const { user } = useAuth();
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isCertificateModalOpen, setIsCertificateModalOpen] = useState(false);
@@ -65,8 +67,8 @@ export default function Certificates() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [presets, setPresets] = useState<FilterPreset[]>([]);
   const [activePresetId, setActivePresetId] = useState("");
-  const [selectedCertificate, setSelectedCertificate] = useState<Certificate | null>(null);
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedCert, setSelectedCert] = useState<Certificate | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
   const [revokeReason, setRevokeReason] = useState("FRAUD");
   const [revokeDetailsUri, setRevokeDetailsUri] = useState("");
@@ -141,7 +143,7 @@ export default function Certificates() {
     enabled: !!user,
     refetchOnMount: true,
     staleTime: 60_000,
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const certificates = certificatesData?.certificates || [];
@@ -164,7 +166,7 @@ export default function Certificates() {
       const matchesStatus =
         statusFilter === "all" ||
         (statusFilter === "active" && cert.isValid && cert.isMinted && !(cert as any).isArchived) ||
-        (statusFilter === "pending" && (!cert.isMinted || !cert.isValid) && !(cert as any).isArchived) ||
+        (statusFilter === "pending" && cert.isValid && !cert.isMinted && !(cert as any).isArchived) ||
         (statusFilter === "revoked" && !cert.isValid) ||
         (statusFilter === "archived" && (cert as any).isArchived);
 
@@ -223,7 +225,7 @@ export default function Certificates() {
         archived += 1;
       } else if (status === "revoked" || cert.isValid === false) {
         revoked += 1;
-      } else if (status === "pending_wallet_signature" || status === "pending" || cert.isMinted === false) {
+      } else if (status === "pending" || status === "pending" || cert.isMinted === false) {
         pending += 1;
       } else {
         active += 1;
@@ -292,7 +294,7 @@ export default function Certificates() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const allVisibleCertificateIds = pagedCertificates.map(cert => cert.id);
+      const allVisibleCertificateIds = pagedCertificates.map((cert: Certificate) => cert.id);
       setSelectedCertificateIds(allVisibleCertificateIds);
     } else {
       setSelectedCertificateIds([]);
@@ -310,24 +312,24 @@ export default function Certificates() {
   const handleExportCsv = () => {
     const exportSet =
       selectedCertificateIds.length > 0
-        ? filteredCertificates.filter((cert) => selectedCertificateIds.includes(cert.id!))
+        ? filteredCertificates.filter((cert: Certificate) => selectedCertificateIds.includes(cert.id!))
         : filteredCertificates;
 
     if (exportSet.length === 0) {
       toast({
         title: "No data to export",
         description: "There are no certificates matching your current selection to export.",
-        variant: "info",
+        variant: "default",
       });
       return;
     }
 
     const headers = [
       "ID", "Student Name", "Student Address", "Course Name", "Grade",
-      "Certificate Type", "Issued At", "IPFS Hash", "Token ID", "Status"
+      "Certificate Type", "Issued At", "Storage Reference", "Credential ID", "Status"
     ];
 
-    const csvRows = exportSet.map(cert => [
+    const csvRows = exportSet.map((cert: Certificate) => [
       `"${cert.id}"`,
       `"${cert.studentName}"`,
       `"${cert.studentAddress}"`,
@@ -383,8 +385,8 @@ export default function Certificates() {
   };
 
   const handleOpenDetails = (certificate: Certificate) => {
-    setSelectedCertificate(certificate);
-    setDetailsOpen(true);
+    setSelectedCert(certificate);
+    setSheetOpen(true);
   };
 
   const handleBulkArchive = async () => {
@@ -491,7 +493,7 @@ export default function Certificates() {
       await api.bulkApproveRevocations({ certificateIds: ids });
       toast({
         title: "Revocations approved",
-        description: `${ids.length} certificate${ids.length > 1 ? "s" : ""} revoked on-chain.`,
+        description: `${ids.length} certificate${ids.length > 1 ? "s" : ""} revoked.`,
       });
       setSelectedCertificateIds([]);
       queryClient.invalidateQueries({ queryKey: ["/api/certificates/institution"] });
@@ -549,7 +551,7 @@ export default function Certificates() {
             Certificate Operations
           </h1>
           <p className="text-lg text-neutral-500 max-w-2xl leading-relaxed font-sans">
-            Scale your digital credential infrastructure with enterprise-grade controls over issuance, verification, and on-chain lifecycle management.
+            Scale your digital credential infrastructure with enterprise-grade controls over issuance, verification, and credential lifecycle management.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
@@ -569,13 +571,16 @@ export default function Certificates() {
             </Tooltip>
           </TooltipProvider>
 
-          <Button 
-            onClick={() => setLocation('/institution/issue')} 
-            className="bg-primary hover:bg-primary/90 text-white shadow-md hover:shadow-lg transition-all px-6 font-semibold"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            New Certificate
-          </Button>
+          {!isConnectorTier(user?.deploymentTier) && (
+            <Button
+              onClick={() => navigate('/institution/issue')}
+              data-testid="certificates-issue-btn"
+              className="bg-primary hover:bg-primary/90 text-white shadow-md hover:shadow-lg transition-all px-6 font-semibold"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Issue credential
+            </Button>
+          )}
         </div>
       </div>
 
@@ -806,7 +811,14 @@ export default function Certificates() {
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ duration: 0.2 }}
-                      className="group border-b border-neutral-100 hover:bg-blue-50/30 transition-all"
+                      className="group border-b border-neutral-100 hover:bg-blue-50/30 transition-all cursor-pointer"
+                      onClick={(e) => {
+                        // open CredentialDetailSheet on row click (ignore checkbox clicks)
+                        const target = e.target as HTMLElement;
+                        if (target.closest('[data-radix-collection-item]') || target.closest('button') || target.closest('input')) return;
+                        setSelectedCert(certificate);
+                        setSheetOpen(true);
+                      }}
                     >
                       <TableCell>
                         <Checkbox
@@ -818,7 +830,7 @@ export default function Certificates() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10 border border-neutral-200">
-                            <AvatarImage src={`https://i.pravatar.cc/150?u=${certificate.studentAddress}`} />
+                            
                             <AvatarFallback className="bg-blue-50 text-blue-600 font-bold">
                               {certificate.studentName?.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
@@ -896,7 +908,7 @@ export default function Certificates() {
                             <DropdownMenuContent align="end" className="w-48">
                               <DropdownMenuItem onClick={() => certificate.ipfsHash && window.open(`https://ipfs.io/ipfs/${certificate.ipfsHash}`, "_blank")}>
                                 <ExternalLink className="w-4 h-4 mr-2" />
-                                View on IPFS
+                                View Document
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleOpenDetails(certificate)}>
                                 <Info className="w-4 h-4 mr-2" />
@@ -983,197 +995,6 @@ export default function Certificates() {
         </div>
       </motion.div>
 
-      {/* Details Drawer */}
-      <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-xl p-0 overflow-hidden flex flex-col">
-          <SheetHeader className="p-6 bg-neutral-50 border-b border-neutral-200">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <FileText className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <SheetTitle className="text-xl font-bold font-heading">Credential Audit</SheetTitle>
-                <SheetDescription className="text-neutral-500 font-medium">Internal verification and lifecycle record.</SheetDescription>
-              </div>
-            </div>
-          </SheetHeader>
-          
-          <div className="flex-1 overflow-y-auto p-6 space-y-8">
-            {selectedCertificate && (
-              <>
-                {/* Student Info Card */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-bold uppercase tracking-widest text-neutral-400">Recipient Identity</h4>
-                  <div className="flex items-center gap-4 p-4 rounded-2xl bg-neutral-50 border border-neutral-200">
-                    <Avatar className="h-14 w-14 border-2 border-white shadow-sm">
-                      <AvatarImage src={`https://i.pravatar.cc/150?u=${selectedCertificate.studentAddress}`} />
-                      <AvatarFallback className="text-lg font-bold bg-primary text-white">
-                        {selectedCertificate.studentName?.slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-lg font-bold text-neutral-900">{selectedCertificate.studentName}</p>
-                      <p className="text-sm font-mono text-neutral-500 bg-white px-2 py-0.5 rounded border border-neutral-100 inline-block mt-1">
-                        {selectedCertificate.studentAddress}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <Separator className="opacity-50" />
-
-                {/* Credential Details */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-bold uppercase tracking-widest text-neutral-400">Credential Metadata</h4>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-1">
-                      <p className="text-xs text-neutral-500 font-medium">Program Name</p>
-                      <p className="text-sm font-bold text-neutral-900">{selectedCertificate.courseName}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs text-neutral-500 font-medium">Credential Type</p>
-                      <p className="text-sm font-bold text-neutral-900">{selectedCertificate.certificateType}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs text-neutral-500 font-medium">Grade / Standing</p>
-                      <Badge variant="outline" className="font-bold border-primary/20 text-primary bg-primary/5">
-                        {selectedCertificate.grade}
-                      </Badge>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs text-neutral-500 font-medium">Current Status</p>
-                      <div>{getStatusBadge(selectedCertificate)}</div>
-                    </div>
-                  </div>
-                </div>
-
-                <Separator className="opacity-50" />
-
-                {/* Blockchain Evidence */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold uppercase tracking-widest text-neutral-400">Blockchain Evidence</h4>
-                    <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                  </div>
-                  <div className="space-y-3">
-                    <div className="p-4 rounded-xl border border-neutral-200 bg-neutral-50/50 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-neutral-500">IPFS CID</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono text-neutral-900">{selectedCertificate.ipfsHash || "N/A"}</span>
-                          {selectedCertificate.ipfsHash && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-6 w-6" 
-                              onClick={() => navigator.clipboard.writeText(selectedCertificate.ipfsHash!)}
-                            >
-                              <Copy className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-neutral-500">Token ID</span>
-                        <span className="text-sm font-bold font-mono">#{selectedCertificate.tokenId || "PENDING"}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Audit Trail */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-bold uppercase tracking-widest text-neutral-400">Audit Trail</h4>
-                  <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-neutral-200">
-                    <div className="relative">
-                      <div className="absolute -left-6 top-1.5 w-3 h-3 rounded-full bg-primary border-2 border-white" />
-                      <p className="text-sm font-bold text-neutral-900">Credential Issued</p>
-                      <p className="text-xs text-neutral-500">
-                        {selectedCertificate.issuedAt ? format(new Date(selectedCertificate.issuedAt), "PPP p") : "—"}
-                      </p>
-                    </div>
-                    {selectedCertificate.mintedAt && (
-                      <div className="relative">
-                        <div className="absolute -left-6 top-1.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
-                        <p className="text-sm font-bold text-neutral-900">Minted On-Chain</p>
-                        <p className="text-xs text-neutral-500">{format(new Date(selectedCertificate.mintedAt), "PPP p")}</p>
-                      </div>
-                    )}
-                    {(selectedCertificate as any).revocationRequestStatus === "pending" && (
-                      <div className="relative">
-                        <div className="absolute -left-6 top-1.5 w-3 h-3 rounded-full bg-orange-500 border-2 border-white" />
-                        <p className="text-sm font-bold text-orange-700">Revocation Requested</p>
-                        <p className="text-xs text-neutral-500">
-                          {(selectedCertificate as any).revocationRequestedAt
-                            ? format(new Date((selectedCertificate as any).revocationRequestedAt), "PPP p")
-                            : "Pending review"}
-                        </p>
-                        <div className="mt-2 p-3 bg-orange-50 rounded-lg border border-orange-100">
-                          <p className="text-xs font-bold text-orange-800 mb-1">
-                            Reason: {(selectedCertificate as any).revocationRequestReason || (selectedCertificate as any).revocationReason || "—"}
-                          </p>
-                          <p className="text-[10px] text-orange-700">
-                            Record Type: {(selectedCertificate as any).revocationRequestRecordType || "—"}
-                          </p>
-                          <p className="text-[10px] text-orange-700 font-mono">
-                            Proof: {(selectedCertificate as any).revocationRequestDetailsUri || "—"}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    {!selectedCertificate.isValid && (
-                      <div className="relative">
-                        <div className="absolute -left-6 top-1.5 w-3 h-3 rounded-full bg-red-500 border-2 border-white" />
-                        <p className="text-sm font-bold text-red-600">Credential Revoked</p>
-                        <p className="text-xs text-neutral-500">
-                          {(selectedCertificate as any).revokedAt
-                            ? format(new Date((selectedCertificate as any).revokedAt), "PPP p")
-                            : "Manual Action"}
-                        </p>
-                        <div className="mt-2 p-3 bg-red-50 rounded-lg border border-red-100">
-                          <p className="text-xs font-bold text-red-800 mb-1">Reason: {(selectedCertificate as any).revocationReason || "Revoked"}</p>
-                          <p className="text-[10px] text-red-600 font-mono">Proof: {(selectedCertificate as any).revocationDetailsUri || "—"}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className="p-6 bg-neutral-50 border-t border-neutral-200">
-            <div className="flex gap-3">
-              <Button 
-                variant="outline" 
-                className="flex-1 h-11 font-semibold"
-                onClick={() => setDetailsOpen(false)}
-              >
-                Close Audit
-              </Button>
-              {selectedCertificate && (selectedCertificate as any).revocationRequestStatus === "pending" && (
-                <Button
-                  className="flex-1 h-11 font-semibold"
-                  onClick={() => handleApproveRevocation([selectedCertificate.id!])}
-                >
-                  <ShieldCheck className="w-4 h-4 mr-2" />
-                  Approve & Revoke
-                </Button>
-              )}
-              {selectedCertificate?.isValid && !(selectedCertificate as any).isArchived && (selectedCertificate as any).revocationRequestStatus !== "pending" && (
-                <Button 
-                  variant="destructive" 
-                  className="flex-1 h-11 font-semibold"
-                  onClick={() => handleOpenRevokeDialog([selectedCertificate.id!])}
-                >
-                  <AlertTriangle className="w-4 h-4 mr-2" />
-                  Request Revocation
-                </Button>
-              )}
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
 
       {/* Modern Revocation Dialog */}
       <Dialog
@@ -1194,7 +1015,7 @@ export default function Certificates() {
               </DialogTitle>
             </div>
             <DialogDescription className="text-red-700 font-medium">
-              Submit a revocation request for {revokeTargetIds.length} credential{revokeTargetIds.length > 1 ? "s" : ""}. Approval is required before the on-chain revoke is executed.
+              Submit a revocation request for {revokeTargetIds.length} credential{revokeTargetIds.length > 1 ? "s" : ""}. Approval is required before revocation is executed.
             </DialogDescription>
           </div>
           
@@ -1255,7 +1076,7 @@ export default function Certificates() {
                   <p className="text-xs text-neutral-500">Attached: {revokeProofFileName}</p>
                 )}
                 <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-tight">
-                  Required for on-chain verification & transparency
+                  Required for verification & transparency
                 </p>
               </div>
 
@@ -1299,6 +1120,14 @@ export default function Certificates() {
           onOpenChange={setIsCertificateModalOpen}
         />
       )}
+
+      {/* Credential Detail Sheet */}
+      <CredentialDetailSheet
+        credential={selectedCert as any}
+        open={sheetOpen}
+        onClose={() => { setSheetOpen(false); setSelectedCert(null); }}
+        canRevoke={true}
+      />
     </div>
   );
 }

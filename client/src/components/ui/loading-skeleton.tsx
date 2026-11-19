@@ -1,15 +1,12 @@
-import { cn } from "@/lib/utils"
+import React from 'react';
 
-function Skeleton({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+/**
+ * Skeleton loader component for asynchronous data fetching states.
+ * Designed to provide immediate visual feedback and reduce perceived latency
+ * in enterprise-grade interfaces.
+ */
+export const Skeleton: React.FC<{ className?: string }> = ({ className = '' }) => {
   return (
-    <div
-      className={cn("animate-pulse rounded-md bg-muted", className)}
-      {...props}
-    />
-  )
-}
-
-export { Skeleton }
+    <div className={`animate-pulse bg-gray-200 rounded ${className}`}></div>
+  );
+};

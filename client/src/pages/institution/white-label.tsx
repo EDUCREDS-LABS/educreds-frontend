@@ -1,290 +1,354 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { getAuthHeaders } from "@/lib/auth";
-import { API_CONFIG } from "@/config/api";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+/**
+ * Institution White Label — /institution/white-label
+ * Configure branding: logo, color, custom domain, email settings.
+ */
+import { useState, useEffect, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Palette, Upload, Globe, Mail, Image as ImageIcon, Save,
+  RefreshCw, Eye, Check,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Palette,
-  Image,
-  Globe,
-  Type,
-  Eye,
-  Save,
-  RotateCcw,
-  Paintbrush,
-  Layout,
-  Mail,
-  ExternalLink,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { getAuthHeaders } from "@/lib/auth";
+import { API_CONFIG } from "@/config/api";
 
 interface BrandingConfig {
-  institutionName: string;
-  tagline: string;
-  primaryColor: string;
-  secondaryColor: string;
-  accentColor: string;
-  logoUrl: string;
-  faviconUrl: string;
-  customDomain: string;
-  emailFromName: string;
-  emailFooterText: string;
-  showPoweredBy: boolean;
-  customCss: string;
+  logoUrl?: string | null;
+  primaryColor?: string;
+  emailSenderName?: string;
+  customDomain?: string;
+  emailFooter?: string;
 }
 
-const DEFAULT_CONFIG: BrandingConfig = {
-  institutionName: "University of Technology",
-  tagline: "Empowering Academic Excellence with Verifiable Credentials",
-  primaryColor: "#3b82f6",
-  secondaryColor: "#8b5cf6",
-  accentColor: "#06b6d4",
-  logoUrl: "",
-  faviconUrl: "",
+const DEFAULT_BRANDING: BrandingConfig = {
+  logoUrl: null,
+  primaryColor: "#2563eb",
+  emailSenderName: "",
   customDomain: "",
-  emailFromName: "University of Technology Credentials",
-  emailFooterText: "This is an automated message from the University of Technology credential verification system.",
-  showPoweredBy: true,
-  customCss: "",
+  emailFooter: "",
 };
-
-function ColorSwatch({ color, label, onChange }: { color: string; label: string; onChange: (c: string) => void }) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="relative">
-        <div className="size-10 rounded-xl border-2 border-neutral-200 dark:border-neutral-700 overflow-hidden" style={{ backgroundColor: color }}>
-          <input
-            type="color"
-            value={color}
-            onChange={(e) => onChange(e.target.value)}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          />
-        </div>
-      </div>
-      <div>
-        <p className="text-sm font-bold text-neutral-900 dark:text-neutral-100">{label}</p>
-        <p className="text-xs font-mono text-neutral-400">{color}</p>
-      </div>
-    </div>
-  );
-}
 
 export default function WhiteLabelPage() {
   const { toast } = useToast();
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  const { data: brandingData, isLoading } = useQuery({
-    queryKey: ["white-label-config"],
+  const [form, setForm] = useState<BrandingConfig>(DEFAULT_BRANDING);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  // ── Load existing branding ────────────────────────────────────────────────
+  const { data, isLoading } = useQuery<BrandingConfig>({
+    queryKey: ["institution-branding"],
     queryFn: async () => {
-      try {
-        const res = await fetch(`${API_CONFIG.CERT}/api/institutions/branding`, {
-          headers: getAuthHeaders(),
-        });
-        if (!res.ok) throw new Error("Failed to fetch");
-        return await res.json();
-      } catch {
-        return null;
-      }
+      const res = await fetch(`${API_CONFIG.CERT}/api/institutions/me/branding`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) return DEFAULT_BRANDING;
+      return res.json();
     },
-    staleTime: 60000,
+    staleTime: 120_000,
   });
 
-  const [config, setConfig] = useState<BrandingConfig>(brandingData ?? DEFAULT_CONFIG);
-  const [hasChanges, setHasChanges] = useState(false);
+  useEffect(() => {
+    if (data) {
+      setForm({ ...DEFAULT_BRANDING, ...data });
+      if (data.logoUrl) setLogoPreview(data.logoUrl);
+    }
+  }, [data]);
 
-  const updateField = <K extends keyof BrandingConfig>(field: K, value: BrandingConfig[K]) => {
-    setConfig((prev) => ({ ...prev, [field]: value }));
-    setHasChanges(true);
+  // ── Upload logo ───────────────────────────────────────────────────────────
+  const logoMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append("logo", file); // backend FileInterceptor expects field name 'logo'
+      const res = await fetch(`${API_CONFIG.CERT}/api/institutions/profile/logo`, {
+        method: "POST",
+        headers: getAuthHeaders(), // no Content-Type — let browser set multipart boundary
+        body: fd,
+      });
+      if (!res.ok) throw new Error("Logo upload failed");
+      return res.json() as Promise<{ url: string }>;
+    },
+    onSuccess: (result) => {
+      setForm(prev => ({ ...prev, logoUrl: result.url }));
+      setLogoPreview(result.url);
+      toast({ title: "Logo uploaded" });
+    },
+    onError: (err: Error) => toast({ title: "Upload failed", description: err.message, variant: "destructive" }),
+  });
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoFile(file);
+    const reader = new FileReader();
+    reader.onload = ev => setLogoPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+    logoMutation.mutate(file);
   };
 
-  const handleSave = () => {
-    toast({ title: "Branding saved", description: "Your white-label configuration has been updated." });
-    setHasChanges(false);
-  };
+  // ── Save branding ─────────────────────────────────────────────────────────
+  const saveMutation = useMutation({
+    mutationFn: async (config: BrandingConfig) => {
+      const res = await fetch(`${API_CONFIG.CERT}/api/institutions/me/branding`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify(config),
+      });
+      if (!res.ok) throw new Error((await res.json()).message ?? "Failed to save branding");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Branding saved", description: "Your white-label settings have been updated." });
+      qc.invalidateQueries({ queryKey: ["institution-branding"] });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
 
-  const handleReset = () => {
-    setConfig(DEFAULT_CONFIG);
-    setHasChanges(true);
-    toast({ title: "Reset to defaults", description: "All branding settings reset. Save to apply." });
-  };
+  const handleSave = () => saveMutation.mutate(form);
 
   if (isLoading) {
     return (
-      <div className="space-y-8 animate-in fade-in duration-500">
-        <Skeleton className="h-12 w-64 rounded-2xl" />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-64 rounded-[32px]" />)}
-        </div>
+      <div className="max-w-4xl mx-auto space-y-4 animate-in fade-in">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-64 rounded-[24px]" />
+        <Skeleton className="h-48 rounded-[24px]" />
       </div>
     );
   }
 
+  const previewBg = form.primaryColor ?? "#2563eb";
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-neutral-900 dark:text-neutral-100 tracking-tight uppercase">
-            White Label
-          </h1>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 font-medium mt-1">
-            Customize branding, colors, and portal appearance for your institution
+          <div className="flex items-center gap-2 mb-1">
+            <Palette className="size-4 text-primary" />
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Institution</p>
+          </div>
+          <h1 className="text-3xl font-black tracking-tighter">White Label</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Customize how your institution appears to students and verifiers.
           </p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={handleReset} className="rounded-xl border-neutral-200 dark:border-neutral-700 font-bold text-xs uppercase tracking-widest gap-2">
-            <RotateCcw className="size-4" />
-            Reset
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={!hasChanges}
-            className="rounded-xl font-bold text-xs uppercase tracking-widest gap-2 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
-          >
-            <Save className="size-4" />
-            Save Changes
-          </Button>
+        <Button
+          className="rounded-xl h-9 gap-2 shrink-0"
+          onClick={handleSave}
+          disabled={saveMutation.isPending}
+        >
+          {saved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+          {saveMutation.isPending ? "Saving…" : saved ? "Saved!" : "Save Changes"}
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Config form */}
+        <div className="lg:col-span-3 space-y-5">
+          {/* Logo */}
+          <Card className="rounded-[24px] border">
+            <CardHeader className="px-6 py-4 border-b">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <ImageIcon className="w-4 h-4" /> Institution Logo
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-6 py-5 space-y-4">
+              <div className="flex items-center gap-4">
+                {logoPreview ? (
+                  <img
+                    src={logoPreview}
+                    alt="Logo preview"
+                    className="w-20 h-20 object-contain rounded-xl border bg-muted"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-xl border-2 border-dashed border-muted-foreground/30 flex items-center justify-center bg-muted">
+                    <ImageIcon className="w-6 h-6 text-muted-foreground/40" />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                    className="hidden"
+                    onChange={handleLogoChange}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl gap-2"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={logoMutation.isPending}
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    {logoMutation.isPending ? "Uploading…" : "Upload Logo"}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">PNG, JPG, SVG or WebP. Max 2 MB.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Brand color */}
+          <Card className="rounded-[24px] border">
+            <CardHeader className="px-6 py-4 border-b">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Palette className="w-4 h-4" /> Brand Color
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-6 py-5">
+              <div className="flex items-center gap-4">
+                <input
+                  type="color"
+                  value={form.primaryColor ?? "#2563eb"}
+                  onChange={e => setForm(prev => ({ ...prev, primaryColor: e.target.value }))}
+                  className="w-12 h-12 rounded-xl border cursor-pointer"
+                />
+                <div className="flex-1">
+                  <Label className="text-xs font-bold uppercase tracking-widest">Primary Color</Label>
+                  <Input
+                    value={form.primaryColor ?? "#2563eb"}
+                    onChange={e => setForm(prev => ({ ...prev, primaryColor: e.target.value }))}
+                    placeholder="#2563eb"
+                    className="mt-1.5 rounded-xl font-mono text-sm"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Email settings */}
+          <Card className="rounded-[24px] border">
+            <CardHeader className="px-6 py-4 border-b">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Mail className="w-4 h-4" /> Email Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-6 py-5 space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-widest">Sender Name</Label>
+                <Input
+                  value={form.emailSenderName ?? ""}
+                  onChange={e => setForm(prev => ({ ...prev, emailSenderName: e.target.value }))}
+                  placeholder="e.g. KBS Credentials"
+                  className="rounded-xl text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Displayed as the "From" name on credential emails sent to students.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-widest">Email Footer Text</Label>
+                <Textarea
+                  value={form.emailFooter ?? ""}
+                  onChange={e => setForm(prev => ({ ...prev, emailFooter: e.target.value }))}
+                  placeholder="© 2025 Kampala Business School. All rights reserved."
+                  className="rounded-xl text-sm resize-none"
+                  rows={3}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Custom domain */}
+          <Card className="rounded-[24px] border">
+            <CardHeader className="px-6 py-4 border-b">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Globe className="w-4 h-4" /> Custom Domain
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-6 py-5 space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-widest">Student Credential Domain</Label>
+              <Input
+                value={form.customDomain ?? ""}
+                onChange={e => setForm(prev => ({ ...prev, customDomain: e.target.value }))}
+                placeholder="creds.yourinstitution.ac.ug"
+                className="rounded-xl font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Students will see this domain when viewing their credentials. Requires a CNAME record pointing to <code className="bg-muted px-1 rounded">creds.educreds.io</code>.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Preview panel */}
+        <div className="lg:col-span-2">
+          <div className="sticky top-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <Eye className="w-4 h-4 text-muted-foreground" />
+              <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Preview</p>
+            </div>
+
+            {/* Mock credential card */}
+            <div className="rounded-[20px] border bg-white overflow-hidden shadow-sm">
+              {/* Header bar */}
+              <div
+                className="px-5 py-4 flex items-center gap-3"
+                style={{ background: previewBg }}
+              >
+                {logoPreview ? (
+                  <img src={logoPreview} alt="Logo" className="w-10 h-10 object-contain rounded-lg bg-white/20 p-1" />
+                ) : (
+                  <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+                    <ImageIcon className="w-5 h-5 text-white/60" />
+                  </div>
+                )}
+                <div>
+                  <p className="text-white font-bold text-sm">
+                    {form.emailSenderName || "Your Institution"}
+                  </p>
+                  <p className="text-white/70 text-xs">Digital Credential</p>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="px-5 py-4 space-y-3">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Credential</p>
+                  <p className="font-bold text-neutral-800 text-sm">Bachelor of Business Administration</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Issued To</p>
+                  <p className="font-semibold text-neutral-700 text-sm">Jane Nakato</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{ background: previewBg }}
+                  />
+                  <p className="text-xs font-semibold" style={{ color: previewBg }}>Verified on EduCreds</p>
+                </div>
+                {form.customDomain && (
+                  <p className="text-[10px] text-neutral-400 font-mono">{form.customDomain}/credential/abc123</p>
+                )}
+              </div>
+
+              {/* Footer */}
+              {form.emailFooter && (
+                <div className="px-5 pb-4 pt-2 border-t border-neutral-100">
+                  <p className="text-[10px] text-neutral-400">{form.emailFooter}</p>
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-muted-foreground text-center">
+              Approximate preview. Final appearance may vary.
+            </p>
+          </div>
         </div>
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Identity */}
-        <Card className="border-none shadow-xl dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[40px]">
-          <CardHeader className="px-8 pt-8 pb-4">
-            <CardTitle className="text-lg font-black text-neutral-900 dark:text-neutral-100 uppercase tracking-tight flex items-center gap-2">
-              <Type className="size-5" />
-              Institution Identity
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-8 pb-8 space-y-5">
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Institution Name</Label>
-              <Input value={config.institutionName} onChange={(e) => updateField("institutionName", e.target.value)} className="rounded-xl border-neutral-200 dark:border-neutral-700" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Tagline</Label>
-              <Input value={config.tagline} onChange={(e) => updateField("tagline", e.target.value)} className="rounded-xl border-neutral-200 dark:border-neutral-700" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Logo URL</Label>
-              <Input value={config.logoUrl} onChange={(e) => updateField("logoUrl", e.target.value)} placeholder="https://your-institution.edu/logo.png" className="rounded-xl border-neutral-200 dark:border-neutral-700" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Favicon URL</Label>
-              <Input value={config.faviconUrl} onChange={(e) => updateField("faviconUrl", e.target.value)} placeholder="https://your-institution.edu/favicon.ico" className="rounded-xl border-neutral-200 dark:border-neutral-700" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Colors */}
-        <Card className="border-none shadow-xl dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[40px]">
-          <CardHeader className="px-8 pt-8 pb-4">
-            <CardTitle className="text-lg font-black text-neutral-900 dark:text-neutral-100 uppercase tracking-tight flex items-center gap-2">
-              <Palette className="size-5" />
-              Brand Colors
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-8 pb-8 space-y-6">
-            <ColorSwatch color={config.primaryColor} label="Primary Color" onChange={(c) => updateField("primaryColor", c)} />
-            <ColorSwatch color={config.secondaryColor} label="Secondary Color" onChange={(c) => updateField("secondaryColor", c)} />
-            <ColorSwatch color={config.accentColor} label="Accent Color" onChange={(c) => updateField("accentColor", c)} />
-
-            {/* Color Preview */}
-            <div className="p-5 rounded-2xl border border-neutral-100 dark:border-neutral-800 space-y-3">
-              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Preview</p>
-              <div className="flex items-center gap-3">
-                <div className="h-10 flex-1 rounded-xl" style={{ backgroundColor: config.primaryColor }} />
-                <div className="h-10 flex-1 rounded-xl" style={{ backgroundColor: config.secondaryColor }} />
-                <div className="h-10 flex-1 rounded-xl" style={{ backgroundColor: config.accentColor }} />
-              </div>
-              <div className="flex items-center gap-3">
-                <Button size="sm" className="rounded-lg text-xs font-bold" style={{ backgroundColor: config.primaryColor, color: "#fff" }}>
-                  Primary Button
-                </Button>
-                <Button size="sm" variant="outline" className="rounded-lg text-xs font-bold" style={{ borderColor: config.secondaryColor, color: config.secondaryColor }}>
-                  Secondary
-                </Button>
-                <Badge className="text-[9px] font-black uppercase tracking-widest" style={{ backgroundColor: config.accentColor, color: "#fff" }}>
-                  Badge
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Custom Domain */}
-        <Card className="border-none shadow-xl dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[40px]">
-          <CardHeader className="px-8 pt-8 pb-4">
-            <CardTitle className="text-lg font-black text-neutral-900 dark:text-neutral-100 uppercase tracking-tight flex items-center gap-2">
-              <Globe className="size-5" />
-              Custom Domain
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-8 pb-8 space-y-5">
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Verification Portal Domain</Label>
-              <Input value={config.customDomain} onChange={(e) => updateField("customDomain", e.target.value)} placeholder="credentials.your-institution.edu" className="rounded-xl border-neutral-200 dark:border-neutral-700" />
-              <p className="text-xs text-neutral-400">Point a CNAME record to <code className="font-mono bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded">verify.educreds.xyz</code></p>
-            </div>
-            <div className="flex items-center justify-between p-4 rounded-xl border border-neutral-100 dark:border-neutral-800">
-              <div>
-                <p className="text-sm font-bold text-neutral-900 dark:text-neutral-100">Show "Powered by EduCreds"</p>
-                <p className="text-xs text-neutral-400">Display attribution badge on verification pages</p>
-              </div>
-              <Switch checked={config.showPoweredBy} onCheckedChange={(v) => updateField("showPoweredBy", v)} />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Email Branding */}
-        <Card className="border-none shadow-xl dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[40px]">
-          <CardHeader className="px-8 pt-8 pb-4">
-            <CardTitle className="text-lg font-black text-neutral-900 dark:text-neutral-100 uppercase tracking-tight flex items-center gap-2">
-              <Mail className="size-5" />
-              Email Branding
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-8 pb-8 space-y-5">
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-neutral-500 uppercase tracking-widest">From Name</Label>
-              <Input value={config.emailFromName} onChange={(e) => updateField("emailFromName", e.target.value)} className="rounded-xl border-neutral-200 dark:border-neutral-700" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Email Footer Text</Label>
-              <Textarea value={config.emailFooterText} onChange={(e) => updateField("emailFooterText", e.target.value)} rows={3} className="rounded-xl border-neutral-200 dark:border-neutral-700 resize-none" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Custom CSS */}
-      <Card className="border-none shadow-xl dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[40px]">
-        <CardHeader className="px-8 pt-8 pb-4">
-          <CardTitle className="text-lg font-black text-neutral-900 dark:text-neutral-100 uppercase tracking-tight flex items-center gap-2">
-            <Paintbrush className="size-5" />
-            Custom CSS
-          </CardTitle>
-          <CardDescription className="text-xs font-bold text-neutral-400 uppercase tracking-widest">
-            Advanced: override verification portal styles with custom CSS
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-8 pb-8">
-          <Textarea
-            value={config.customCss}
-            onChange={(e) => updateField("customCss", e.target.value)}
-            rows={8}
-            placeholder={`/* Custom styles for your verification portal */\n.credential-card {\n  border-radius: 16px;\n  box-shadow: 0 4px 12px rgba(0,0,0,0.1);\n}`}
-            className="rounded-xl border-neutral-200 dark:border-neutral-700 font-mono text-sm resize-none"
-          />
-        </CardContent>
-      </Card>
     </div>
   );
 }

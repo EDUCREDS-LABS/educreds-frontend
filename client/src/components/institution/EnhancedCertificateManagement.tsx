@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,9 +26,9 @@ export default function EnhancedCertificateManagement() {
   const [revokeReason, setRevokeReason] = useState("");
   const [editFormData, setEditFormData] = useState({ studentName: "", grade: "" });
 
-  const { data: certificatesData, isLoading } = useQuery({
+  const { data: certificatesData, isLoading } = useQuery<{ certificates: Certificate[]; meta?: unknown }>({
     queryKey: ["/api/certificates/institution"],
-    queryFn: api.getCertificates,
+    queryFn: () => api.getCertificates(),
     enabled: !!user,
   });
 
@@ -50,7 +49,7 @@ export default function EnhancedCertificateManagement() {
 
   const revokeCertMutation = useMutation({
     mutationFn: (data: { id: string; reason: string }) =>
-      api.revokeCertificate(data.id, data.reason),
+      api.revokeCertificate(data.id, { reasonCode: 1, reasonText: data.reason, detailsUri: '' }),
     onSuccess: () => {
       toast({ title: "Certificate Revoked", description: "Certificate has been revoked successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/certificates/institution"] });

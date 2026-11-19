@@ -1,5 +1,6 @@
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, User, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { getFirebaseAuth } from './firebase';
+import { getSessionBackedItem, removeSessionBackedItem, setSessionBackedItem } from './authStorage';
 
 export class FirebaseAuth {
   private static getAuth() {
@@ -17,7 +18,7 @@ export class FirebaseAuth {
       const token = await userCredential.user.getIdToken();
       
       // Store token for API calls
-      localStorage.setItem('firebase_token', token);
+      setSessionBackedItem('firebase_token', token);
       
       return {
         user: userCredential.user,
@@ -35,7 +36,7 @@ export class FirebaseAuth {
       const token = await userCredential.user.getIdToken();
       
       // Store token for API calls
-      localStorage.setItem('firebase_token', token);
+      setSessionBackedItem('firebase_token', token);
       
       return {
         user: userCredential.user,
@@ -54,7 +55,7 @@ export class FirebaseAuth {
       const token = await result.user.getIdToken();
       
       // Store token for API calls
-      localStorage.setItem('firebase_token', token);
+      setSessionBackedItem('firebase_token', token);
       
       return {
         user: result.user,
@@ -71,10 +72,10 @@ export class FirebaseAuth {
       if (auth) {
         await signOut(auth);
       }
-      localStorage.removeItem('firebase_token');
+      removeSessionBackedItem('firebase_token');
     } catch (error: any) {
       console.error('Firebase logout failed:', error.message);
-      localStorage.removeItem('firebase_token');
+      removeSessionBackedItem('firebase_token');
     }
   }
 
@@ -84,7 +85,7 @@ export class FirebaseAuth {
   }
 
   static getToken(): string | null {
-    return localStorage.getItem('firebase_token');
+    return getSessionBackedItem('firebase_token');
   }
 
   static onAuthStateChanged(callback: (user: User | null) => void) {
@@ -104,7 +105,7 @@ export class FirebaseAuth {
     const user = auth.currentUser;
     if (user) {
       const token = await user.getIdToken(true);
-      localStorage.setItem('firebase_token', token);
+      setSessionBackedItem('firebase_token', token);
       return token;
     }
     return null;

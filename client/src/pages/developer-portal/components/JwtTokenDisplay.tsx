@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { getInstitutionToken } from "@/lib/authStorage";
 
 interface JwtTokenInfo {
     token: string;
@@ -30,7 +31,7 @@ export function JwtTokenDisplay() {
 
     useEffect(() => {
         try {
-            const token = localStorage.getItem('institution_token');
+            const token = getInstitutionToken();
             if (!token) {
                 setTokenInfo(null);
                 return;

@@ -31,14 +31,17 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { developerPortalApi, ApiKey } from "@/lib/developerPortalApi";
-import { Loader2, Copy, Check, Shield, AlertTriangle, Info } from "lucide-react";
+import { developerPortalApi, ApiKey, DEVELOPER_SCOPES } from "@/lib/developerPortalApi";
+import { rememberSandboxApiKey } from "@/lib/sandboxApiKey";
+import { Loader2, Copy, Check, AlertTriangle, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = z.object({
     name: z.string().min(1, "Name is required").max(50, "Name too long"),
     expiry: z.enum(["12h", "78h", "never"]),
+    environment: z.enum(["production", "sandbox"]),
+    scopes: z.array(z.string()).min(1, "Select at least one scope"),
 });
 
 interface GenerateKeyDialogProps {
@@ -58,6 +61,8 @@ export function GenerateKeyDialog({ onSuccess, trigger }: GenerateKeyDialogProps
         defaultValues: {
             name: "",
             expiry: "12h",
+            environment: "production",
+            scopes: ["verify"],
         },
     });
 
@@ -67,6 +72,9 @@ export function GenerateKeyDialog({ onSuccess, trigger }: GenerateKeyDialogProps
             const newKey = await developerPortalApi.generateKey(values);
             setGeneratedKey(newKey);
             setHasCopied(false);
+            if (values.environment === "sandbox") {
+                rememberSandboxApiKey(newKey.apiKey);
+            }
             onSuccess(); // Refresh list in parent immediately
             toast({
                 title: "API Key Generated",
@@ -175,19 +183,64 @@ export function GenerateKeyDialog({ onSuccess, trigger }: GenerateKeyDialogProps
                                         )}
                                     />
 
-                                    <div className="bg-blue-50/50 dark:bg-blue-900/10 p-5 rounded-xl border border-blue-100 dark:border-blue-800/50 flex items-start gap-4 text-sm text-blue-800 dark:text-blue-300 shadow-sm">
-                                        <div className="bg-blue-100 dark:bg-blue-800/40 p-2 rounded-lg">
-                                            <Shield className="h-5 w-5 shrink-0" />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <p className="font-bold text-base">Scope & Permissions</p>
-                                            <ul className="list-disc list-inside opacity-90 space-y-1">
-                                                <li>Read/Write access to Certificates</li>
-                                                <li>Read-only access to Institution Profile</li>
-                                                <li>Verification API access</li>
-                                            </ul>
-                                        </div>
-                                    </div>
+                                    <FormField
+                                        control={form.control}
+                                        name="environment"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="text-base font-semibold text-neutral-900 dark:text-neutral-100">Environment</FormLabel>
+                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                    <FormControl>
+                                                        <SelectTrigger className="h-11 bg-white dark:bg-neutral-900 border-neutral-300 dark:border-neutral-700">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent className="bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 shadow-xl">
+                                                        <SelectItem value="production">Production</SelectItem>
+                                                        <SelectItem value="sandbox">Sandbox</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    <FormField
+                                        control={form.control}
+                                        name="scopes"
+                                        render={() => (
+                                            <FormItem>
+                                                <FormLabel className="text-base font-semibold text-neutral-900 dark:text-neutral-100">Scopes</FormLabel>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {DEVELOPER_SCOPES.map((scope) => (
+                                                        <FormField
+                                                            key={scope}
+                                                            control={form.control}
+                                                            name="scopes"
+                                                            render={({ field }) => (
+                                                                <FormItem className="flex items-center space-x-2 space-y-0 rounded-lg border px-3 py-2">
+                                                                    <FormControl>
+                                                                        <Checkbox
+                                                                            checked={field.value.includes(scope)}
+                                                                            onCheckedChange={(checked) => {
+                                                                                field.onChange(
+                                                                                    checked
+                                                                                        ? [...field.value, scope]
+                                                                                        : field.value.filter((value) => value !== scope),
+                                                                                );
+                                                                            }}
+                                                                        />
+                                                                    </FormControl>
+                                                                    <FormLabel className="font-mono text-xs font-normal">{scope}</FormLabel>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    ))}
+                                                </div>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
 
                                     <DialogFooter className="gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800 mt-2">
                                         <Button type="button" variant="ghost" onClick={() => setOpen(false)} className="h-11 px-6">

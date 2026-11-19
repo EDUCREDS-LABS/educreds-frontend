@@ -55,13 +55,21 @@ class WalletService extends EventEmitter {
 
   private ensureModal() {
     if (this.modal || !projectId) return;
-    this.modal = createWeb3Modal({
-      ethersConfig,
-      chains: [mainnet, testnet],
-      projectId,
-      enableAnalytics: true,
-    });
-    this.modal.subscribeProvider(this.onProviderChange);
+    
+    // Wrap Web3Modal creation in try-catch to prevent 403 errors from crashing the app
+    // This allows badge preview and credential operations to work even if WalletConnect fails
+    try {
+      this.modal = createWeb3Modal({
+        ethersConfig,
+        chains: [mainnet, testnet],
+        projectId,
+        enableAnalytics: false,
+      });
+      this.modal.subscribeProvider(this.onProviderChange);
+    } catch (error) {
+      console.warn('Failed to initialize Web3Modal (WalletConnect). This is non-critical for credential operations.', error);
+      // Modal remains null - connect() will fall through to injected wallet or throw gracefully
+    }
   }
 
   private async hydrateFromProvider(provider: Eip1193Provider) {
@@ -126,17 +134,30 @@ class WalletService extends EventEmitter {
     // modal conflicts and keep issuance flow responsive.
     const injected = (globalThis as any)?.window?.ethereum as Eip1193Provider | undefined;
     if (injected?.request) {
-      await injected.request({ method: 'eth_requestAccounts' });
-      await this.hydrateFromProvider(injected);
-      return;
+      try {
+        await injected.request({ method: 'eth_requestAccounts' });
+        await this.hydrateFromProvider(injected);
+        return;
+      } catch (injectedError) {
+        console.warn('Injected wallet connection failed:', injectedError);
+        // Continue to WalletConnect fallback
+      }
     }
 
     // Fallback to WalletConnect modal when no injected provider exists.
     this.ensureModal();
     if (!this.modal) {
-      throw new Error('No injected wallet found and WalletConnect projectId is not configured.');
+      // Graceful degradation: no wallet available, but don't crash the app
+      console.warn('No wallet provider available. Wallet features will be disabled.');
+      throw new Error('No wallet provider found. Please install MetaMask, Coinbase Wallet, or another Web3 wallet.');
     }
-    return this.modal.open();
+    
+    try {
+      return await this.modal.open();
+    } catch (modalError) {
+      console.warn('WalletConnect modal failed to open:', modalError);
+      throw new Error('Failed to open wallet connection. Please try again or use a different wallet.');
+    }
   }
 
   public async disconnect() {

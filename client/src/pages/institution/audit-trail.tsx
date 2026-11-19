@@ -1,295 +1,284 @@
-import { useState, useMemo } from "react";
+/**
+ * Institution Audit Trail — Real data from /api/institutions/me/audit-trail
+ *
+ * Table: Timestamp | Action | Actor | Details | IP Address
+ * Filters: action type, date range. Export CSV. Auto-refresh every 30s.
+ */
+
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getAuthHeaders } from "@/lib/auth";
-import { API_CONFIG } from "@/config/api";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { format } from "date-fns";
+import {
+  Shield, Download, RefreshCw, Filter, Clock,
+  ChevronDown, AlertCircle,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Shield,
-  Search,
-  FileText,
-  Download,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  User,
-  Key,
-  Trash2,
-  Edit,
-  Eye,
-  Upload,
-  Lock,
-  Filter,
-} from "lucide-react";
+import { Skeleton } from "@/components/ui/loading-skeleton";
 import { cn } from "@/lib/utils";
+import { API_CONFIG } from "@/config/api";
+import { getAuthHeaders } from "@/lib/auth";
 
-interface AuditEvent {
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface AuditEntry {
   id: string;
-  timestamp: string;
   action: string;
   actor: string;
-  resource: string;
-  resourceId: string;
-  details: string;
-  severity: "info" | "warning" | "critical";
-  ipAddress: string;
+  details: Record<string, any> | null;
+  createdAt: string;
+  ipAddress: string | null;
 }
 
-const MOCK_EVENTS: AuditEvent[] = [
-  { id: "1", timestamp: new Date(Date.now() - 120000).toISOString(), action: "certificate.issued", actor: "admin@university.edu", resource: "Certificate", resourceId: "CERT-2026-0847", details: "Issued BSc Computer Science credential to student wallet 0x7f3a...c4d2", severity: "info", ipAddress: "192.168.1.45" },
-  { id: "2", timestamp: new Date(Date.now() - 3600000).toISOString(), action: "certificate.revoked", actor: "registrar@university.edu", resource: "Certificate", resourceId: "CERT-2026-0291", details: "Revoked credential due to academic misconduct finding", severity: "critical", ipAddress: "192.168.1.12" },
-  { id: "3", timestamp: new Date(Date.now() - 7200000).toISOString(), action: "settings.updated", actor: "admin@university.edu", resource: "Institution Settings", resourceId: "INST-001", details: "Updated institution display name and verification contact email", severity: "info", ipAddress: "192.168.1.45" },
-  { id: "4", timestamp: new Date(Date.now() - 14400000).toISOString(), action: "api_key.created", actor: "dev@university.edu", resource: "API Key", resourceId: "KEY-0092", details: "Generated new developer portal API key with read-only scope", severity: "warning", ipAddress: "10.0.0.88" },
-  { id: "5", timestamp: new Date(Date.now() - 28800000).toISOString(), action: "batch.completed", actor: "system", resource: "Batch Operation", resourceId: "BATCH-0041", details: "Bulk issuance of 127 certificates completed successfully (0 failures)", severity: "info", ipAddress: "internal" },
-  { id: "6", timestamp: new Date(Date.now() - 43200000).toISOString(), action: "user.login", actor: "admin@university.edu", resource: "Session", resourceId: "SESS-8821", details: "Institutional admin login via email/password from Chrome/MacOS", severity: "info", ipAddress: "192.168.1.45" },
-  { id: "7", timestamp: new Date(Date.now() - 86400000).toISOString(), action: "governance.vote", actor: "admin@university.edu", resource: "Proposal", resourceId: "PROP-0015", details: "Voted YES on proposal to update minimum PoIC threshold to 65", severity: "info", ipAddress: "192.168.1.45" },
-  { id: "8", timestamp: new Date(Date.now() - 172800000).toISOString(), action: "certificate.verified", actor: "external-verifier", resource: "Certificate", resourceId: "CERT-2026-0601", details: "External verification request from employer domain hr.techcorp.com", severity: "info", ipAddress: "203.45.12.8" },
-  { id: "9", timestamp: new Date(Date.now() - 259200000).toISOString(), action: "template.created", actor: "designer@university.edu", resource: "Template", resourceId: "TMPL-0033", details: "Created new certificate template 'MSc Data Science 2026'", severity: "info", ipAddress: "192.168.1.67" },
-  { id: "10", timestamp: new Date(Date.now() - 345600000).toISOString(), action: "security.password_changed", actor: "admin@university.edu", resource: "Account", resourceId: "USR-001", details: "Administrative password changed via settings panel", severity: "warning", ipAddress: "192.168.1.45" },
-];
+type ActionFilter = "all" | "credential.issued" | "credential.revoked" | "institution.login" | "student.enrolled" | "api_key";
 
-const ACTION_ICONS: Record<string, typeof Shield> = {
-  "certificate.issued": CheckCircle,
-  "certificate.revoked": Trash2,
-  "certificate.verified": Eye,
-  "settings.updated": Edit,
-  "api_key.created": Key,
-  "batch.completed": Upload,
-  "user.login": User,
-  "governance.vote": FileText,
-  "template.created": FileText,
-  "security.password_changed": Lock,
+// ── Action badge colours ──────────────────────────────────────────────────────
+
+const ACTION_COLOURS: Record<string, string> = {
+  issue:  "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-0",
+  revoke: "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-0",
+  update: "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-0",
+  login:  "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-0",
+  rotate: "bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border-0",
 };
 
-const SEVERITY_STYLES: Record<string, string> = {
-  info: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400",
-  warning: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
-  critical: "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400",
-};
-
-function formatRelativeTime(timestamp: string): string {
-  const diff = Date.now() - new Date(timestamp).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+function actionColour(action: string): string {
+  const lower = (action ?? "").toLowerCase();
+  for (const [key, cls] of Object.entries(ACTION_COLOURS)) {
+    if (lower.includes(key)) return cls;
+  }
+  return "bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border-0";
 }
+
+function actionLabel(action: string): string {
+  return (action ?? "unknown").split(".").pop() ?? action;
+}
+
+// ── CSV export ────────────────────────────────────────────────────────────────
+
+function exportCsv(entries: AuditEntry[]) {
+  const header = ["Timestamp", "Action", "Actor", "Details", "IP Address"];
+  const rows = entries.map((e) => [
+    e.createdAt,
+    e.action,
+    e.actor,
+    e.details ? JSON.stringify(e.details).replace(/"/g, '""') : "",
+    e.ipAddress ?? "",
+  ]);
+  const csv = [header, ...rows]
+    .map((r) => r.map((c) => `"${c}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `audit-trail-${Date.now()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AuditTrailPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [severityFilter, setSeverityFilter] = useState<string>("all");
-  const [actionFilter, setActionFilter] = useState<string>("all");
+  const [actionFilter, setActionFilter] = useState<ActionFilter>("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [limit, setLimit] = useState(50);
 
-  const { data: auditData, isLoading } = useQuery({
-    queryKey: ["audit-trail"],
+  const queryParams = new URLSearchParams({ limit: String(limit) });
+  if (actionFilter !== "all") queryParams.set("action", actionFilter);
+  if (fromDate) queryParams.set("from", fromDate);
+  if (toDate) queryParams.set("to", toDate);
+
+  const { data, isLoading, refetch } = useQuery<AuditEntry[]>({
+    queryKey: ["institution-audit-trail", actionFilter, fromDate, toDate, limit],
     queryFn: async () => {
-      try {
-        const res = await fetch(`${API_CONFIG.CERT}/api/institutions/audit-trail`, {
-          headers: getAuthHeaders(),
-        });
-        if (!res.ok) throw new Error("Failed to fetch");
-        return await res.json();
-      } catch {
-        return null;
-      }
+      const res = await fetch(
+        `${API_CONFIG.CERT}/api/institutions/me/audit-trail?${queryParams.toString()}`,
+        { headers: getAuthHeaders() },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
     },
-    staleTime: 30000,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    retry: 1,
   });
 
-  const events: AuditEvent[] = auditData?.events ?? MOCK_EVENTS;
+  const entries: AuditEntry[] = Array.isArray(data) ? data : [];
 
-  const filteredEvents = useMemo(() => {
-    return events.filter((event) => {
-      const matchesSearch =
-        !searchQuery ||
-        event.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.actor.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.details.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.resourceId.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesSeverity = severityFilter === "all" || event.severity === severityFilter;
-      const matchesAction = actionFilter === "all" || event.action.startsWith(actionFilter);
-      return matchesSearch && matchesSeverity && matchesAction;
-    });
-  }, [events, searchQuery, severityFilter, actionFilter]);
-
-  const severityCounts = useMemo(() => {
-    const counts = { info: 0, warning: 0, critical: 0 };
-    events.forEach((e) => counts[e.severity]++);
-    return counts;
-  }, [events]);
-
-  if (isLoading) {
-    return (
-      <div className="space-y-8 animate-in fade-in duration-500">
-        <Skeleton className="h-12 w-64 rounded-2xl" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-28 rounded-[32px]" />)}
-        </div>
-        <Skeleton className="h-[500px] w-full rounded-[40px]" />
-      </div>
-    );
-  }
+  const ACTION_TABS: { id: ActionFilter; label: string }[] = [
+    { id: "all",                label: "All"      },
+    { id: "credential.issued",  label: "Issued"   },
+    { id: "credential.revoked", label: "Revoked"  },
+    { id: "institution.login",  label: "Logins"   },
+    { id: "student.enrolled",   label: "Enrolled" },
+    { id: "api_key",            label: "API Keys" },
+  ];
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-500">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-neutral-900 dark:text-neutral-100 tracking-tight uppercase">
-            Audit Trail
+          <h1 className="text-3xl font-black text-neutral-900 dark:text-neutral-100 tracking-tight flex items-center gap-3">
+            <Shield className="size-7 text-indigo-500" /> Audit Trail
           </h1>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 font-medium mt-1">
-            Complete activity log for compliance and security monitoring
-          </p>
+          <p className="text-sm text-neutral-500 mt-1">All activity on your institution account</p>
         </div>
-        <Button variant="outline" className="rounded-xl border-neutral-200 dark:border-neutral-700 font-bold text-xs uppercase tracking-widest gap-2">
-          <Download className="size-4" />
-          Export CSV
-        </Button>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <Card className="border-none shadow-lg shadow-blue-100/50 dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[32px]">
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="size-12 rounded-2xl bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
-              <CheckCircle className="size-6" />
-            </div>
-            <div>
-              <p className="text-2xl font-black text-neutral-900 dark:text-neutral-100">{severityCounts.info}</p>
-              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Info Events</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-none shadow-lg shadow-amber-100/50 dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[32px]">
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="size-12 rounded-2xl bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-amber-600 dark:text-amber-400">
-              <AlertTriangle className="size-6" />
-            </div>
-            <div>
-              <p className="text-2xl font-black text-neutral-900 dark:text-neutral-100">{severityCounts.warning}</p>
-              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Warnings</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-none shadow-lg shadow-red-100/50 dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[32px]">
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="size-12 rounded-2xl bg-red-50 dark:bg-red-950/40 flex items-center justify-center text-red-600 dark:text-red-400">
-              <Shield className="size-6" />
-            </div>
-            <div>
-              <p className="text-2xl font-black text-neutral-900 dark:text-neutral-100">{severityCounts.critical}</p>
-              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Critical</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-xl gap-2"
+            disabled={entries.length === 0}
+            onClick={() => exportCsv(entries)}
+          >
+            <Download className="size-3.5" /> Export CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-xl gap-2"
+            onClick={() => refetch()}
+          >
+            <RefreshCw className="size-3.5" /> Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
-      <Card className="border-none shadow-lg dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[32px]">
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400" />
+      <Card className="rounded-[24px] border-none shadow-sm bg-white dark:bg-neutral-900">
+        <CardContent className="p-4 space-y-3">
+          {/* Action tabs */}
+          <div className="flex rounded-xl bg-neutral-100 dark:bg-neutral-800 p-1 gap-1">
+            {ACTION_TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setActionFilter(t.id)}
+                className={cn(
+                  "flex-1 py-1.5 px-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
+                  actionFilter === t.id
+                    ? "bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 shadow"
+                    : "text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300",
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Date range */}
+          <div className="flex gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-1 min-w-[140px]">
+              <label className="text-xs text-neutral-500 whitespace-nowrap font-medium">From</label>
               <Input
-                placeholder="Search events, actors, or resources..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 rounded-xl border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800"
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="rounded-xl h-8 text-xs"
               />
             </div>
-            <Select value={severityFilter} onValueChange={setSeverityFilter}>
-              <SelectTrigger className="w-full sm:w-40 rounded-xl border-neutral-200 dark:border-neutral-700">
-                <SelectValue placeholder="Severity" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Severity</SelectItem>
-                <SelectItem value="info">Info</SelectItem>
-                <SelectItem value="warning">Warning</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={actionFilter} onValueChange={setActionFilter}>
-              <SelectTrigger className="w-full sm:w-48 rounded-xl border-neutral-200 dark:border-neutral-700">
-                <SelectValue placeholder="Action Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Actions</SelectItem>
-                <SelectItem value="certificate">Certificates</SelectItem>
-                <SelectItem value="settings">Settings</SelectItem>
-                <SelectItem value="api_key">API Keys</SelectItem>
-                <SelectItem value="batch">Batch Ops</SelectItem>
-                <SelectItem value="user">Auth</SelectItem>
-                <SelectItem value="governance">Governance</SelectItem>
-                <SelectItem value="security">Security</SelectItem>
-                <SelectItem value="template">Templates</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2 flex-1 min-w-[140px]">
+              <label className="text-xs text-neutral-500 whitespace-nowrap font-medium">To</label>
+              <Input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="rounded-xl h-8 text-xs"
+              />
+            </div>
+            {(fromDate || toDate) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="rounded-xl text-xs"
+                onClick={() => { setFromDate(""); setToDate(""); }}
+              >
+                Clear
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Event List */}
-      <Card className="border-none shadow-xl dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[40px] overflow-hidden">
-        <CardHeader className="px-8 pt-8 pb-4">
-          <CardTitle className="text-lg font-black text-neutral-900 dark:text-neutral-100 uppercase tracking-tight">
-            Activity Log
-          </CardTitle>
-          <CardDescription className="text-xs font-bold text-neutral-400 uppercase tracking-widest">
-            {filteredEvents.length} events{searchQuery || severityFilter !== "all" || actionFilter !== "all" ? " (filtered)" : ""}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-8 pb-8">
-          {filteredEvents.length === 0 ? (
-            <div className="text-center py-16">
-              <Filter className="size-12 mx-auto text-neutral-300 dark:text-neutral-600 mb-4" />
-              <p className="text-neutral-500 dark:text-neutral-400 font-medium">No events match your filters</p>
+      {/* Audit table */}
+      <Card className="rounded-[24px] border-none shadow-md bg-white dark:bg-neutral-900 overflow-hidden">
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-6 space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-12 rounded-xl" />)}
+            </div>
+          ) : entries.length === 0 ? (
+            <div className="py-16 text-center space-y-3">
+              <div className="size-14 rounded-2xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mx-auto">
+                <Clock className="size-6 text-neutral-300 dark:text-neutral-600" />
+              </div>
+              <p className="font-bold text-neutral-500">No audit entries</p>
+              <p className="text-sm text-neutral-400">
+                {actionFilter !== "all" || fromDate || toDate
+                  ? "Try adjusting the filters"
+                  : "No account activity recorded yet"}
+              </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {filteredEvents.map((event) => {
-                const Icon = ACTION_ICONS[event.action] || FileText;
-                return (
+            <>
+              {/* Table header */}
+              <div className="grid grid-cols-[1.4fr_1fr_1fr_2fr_1fr] gap-2 px-5 py-3 bg-neutral-50 dark:bg-neutral-800/50 border-b border-neutral-100 dark:border-neutral-800">
+                {["Timestamp", "Action", "Actor", "Details", "IP"].map((h) => (
+                  <p key={h} className="text-[10px] font-black uppercase tracking-widest text-neutral-400">{h}</p>
+                ))}
+              </div>
+
+              {/* Rows */}
+              <div className="divide-y divide-neutral-50 dark:divide-neutral-800">
+                {entries.map((entry) => (
                   <div
-                    key={event.id}
-                    className="flex items-start gap-4 p-4 rounded-2xl hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors group"
+                    key={entry.id}
+                    className="grid grid-cols-[1.4fr_1fr_1fr_2fr_1fr] gap-2 px-5 py-3 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors items-center"
                   >
-                    <div className={cn("size-10 rounded-xl flex items-center justify-center flex-shrink-0", SEVERITY_STYLES[event.severity])}>
-                      <Icon className="size-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-sm text-neutral-900 dark:text-neutral-100">
-                          {event.action.replace(/\./g, " / ").replace(/_/g, " ")}
-                        </span>
-                        <Badge variant="outline" className={cn("text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full", SEVERITY_STYLES[event.severity])}>
-                          {event.severity}
-                        </Badge>
-                        <span className="text-[10px] font-mono text-neutral-400">{event.resourceId}</span>
-                      </div>
-                      <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1 truncate">{event.details}</p>
-                      <div className="flex items-center gap-4 mt-2 text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
-                        <span className="flex items-center gap-1"><User className="size-3" /> {event.actor}</span>
-                        <span className="flex items-center gap-1"><Clock className="size-3" /> {formatRelativeTime(event.timestamp)}</span>
-                        <span className="hidden sm:flex items-center gap-1">{event.ipAddress}</span>
-                      </div>
-                    </div>
+                    <p className="text-xs text-neutral-500 font-mono">
+                      {entry.createdAt
+                        ? format(new Date(entry.createdAt), "MMM d, HH:mm:ss")
+                        : "—"}
+                    </p>
+                    <Badge className={cn("text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full w-fit", actionColour(entry.action))}>
+                      {actionLabel(entry.action)}
+                    </Badge>
+                    <p className="text-xs text-neutral-700 dark:text-neutral-300 truncate">
+                      {entry.actor || "System"}
+                    </p>
+                    <p className="text-xs text-neutral-500 truncate">
+                      {entry.details
+                        ? Object.entries(entry.details)
+                            .slice(0, 2)
+                            .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`)
+                            .join(", ")
+                        : "—"}
+                    </p>
+                    <p className="text-xs text-neutral-400 font-mono truncate">
+                      {entry.ipAddress || "—"}
+                    </p>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+
+              {/* Load more */}
+              {entries.length >= limit && (
+                <div className="p-4 text-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl text-xs gap-2"
+                    onClick={() => setLimit((l) => l + 50)}
+                  >
+                    <ChevronDown className="size-3.5" /> Load more
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

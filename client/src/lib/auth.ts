@@ -1,5 +1,6 @@
 import { DualAuth, AuthType } from './dualAuth';
 import { FirebaseAuth } from './firebaseAuth';
+import { getAnyAuthToken, getAuthTypeFromStorage, getInstitutionToken, getMarketplaceToken, getStudentToken, getDeveloperToken, getVerifierToken, getGovernmentToken } from './authStorage';
 
 // Custom event for authentication state changes
 const AUTH_STATE_CHANGE_EVENT = "authStateChange";
@@ -129,24 +130,36 @@ export const getAuthHeaders = (): Record<string, string> => {
   const path = typeof window !== 'undefined' ? window.location.pathname : '';
   let token: string | null = null;
 
+  // Path-specific shortcuts for common workspaces
   if (path.startsWith('/institution')) {
-    token = localStorage.getItem('institution_token');
+    token = getInstitutionToken();
+  } else if (path.startsWith('/government')) {
+    token = getGovernmentToken();
+  } else if (path.startsWith('/verifier')) {
+    token = getVerifierToken();
+  } else if (path.startsWith('/developer-portal')) {
+    token = getDeveloperToken();
   } else {
-    // Default fallback logic
-    const authType = localStorage.getItem('auth_type');
+    // General fallback: use whichever auth type is active in storage
+    const authType = getAuthTypeFromStorage();
     if (authType === AuthType.INSTITUTION) {
-      token = localStorage.getItem('institution_token');
+      token = getInstitutionToken();
     } else if (authType === AuthType.MARKETPLACE) {
-      token = localStorage.getItem('marketplace_token');
+      token = getMarketplaceToken();
+    } else if (authType === AuthType.STUDENT) {
+      token = getStudentToken();
+    } else if (authType === AuthType.DEVELOPER) {
+      token = getDeveloperToken();
+    } else if (authType === AuthType.VERIFIER) {
+      token = getVerifierToken();
+    } else if (authType === AuthType.GOVERNMENT) {
+      token = getGovernmentToken();
     }
   }
 
   // Final catch-all for legacy or mixed states
   if (!token) {
-    token = 
-      localStorage.getItem('institution_token') || 
-      localStorage.getItem('marketplace_token') ||
-      localStorage.getItem('authToken');
+    token = getAnyAuthToken();
   }
 
   return token ? { Authorization: `Bearer ${token}` } : {};

@@ -49,12 +49,16 @@ import {
   KeyRound,
   GlobeLock,
   XCircle,
+  ShieldAlert,
+  Cpu,
+  Network,
+  Link2,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { useCallback, useMemo } from "react";
-import { useLocation } from "wouter";
+import { useNavigate } from "react-router-dom";
 import { format, isValid } from "date-fns";
 import { UsageDashboard } from "@/components/UsageDashboard";
 import { NetworkIntegrity } from "./NetworkIntegrity";
@@ -62,7 +66,12 @@ import LmsMigrationPanel from "@/components/institution/LmsMigrationPanel";
 
 export default function ModernDashboard() {
   const { user } = useAuth();
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
+
+  // Tier detection
+  const tier = (user as any)?.deploymentTier ?? 'workspace';
+  const isConnector = tier === 'enterprise-connector' || tier === 'cloud-connector';
+  const isEnterprise = tier === 'enterprise-connector';
 
   const { data: statsData, isLoading: statsLoading } = useQuery({
     queryKey: ["/api/stats", user?.id],
@@ -74,8 +83,15 @@ export default function ModernDashboard() {
   const stats = statsData || {};
 
   const { data: subscription } = useQuery({
-    queryKey: ["/api/subscription/current"],
-    queryFn: api.getCurrentSubscription,
+    queryKey: ["commercial-subscription", "institution"],
+    queryFn: () => api.getCommercialSubscription("institution"),
+    enabled: !!user,
+    refetchOnMount: true,
+  });
+
+  const { data: commercialUsage } = useQuery({
+    queryKey: ["commercial-usage", "institution"],
+    queryFn: () => api.getCommercialUsage("institution"),
     enabled: !!user,
     refetchOnMount: true,
   });
@@ -104,12 +120,45 @@ export default function ModernDashboard() {
   const certificates = (certificatesData as any)?.certificates || [];
   const recentCertificates = certificates.slice(0, 5);
 
-  const handleIssueCertificate = useCallback(() => setLocation("/institution/issue"), [setLocation]);
-  const handleViewCertificates = useCallback(() => setLocation("/institution/certificates"), [setLocation]);
-  const handleBrowseTemplates = useCallback(() => setLocation("/marketplace"), [setLocation]);
-  const handleViewAnalytics = useCallback(() => setLocation("/institution/analytics"), [setLocation]);
+  const handleIssueCertificate = useCallback(() => navigate("/institution/issue"), [navigate]);
+  const handleViewCertificates = useCallback(() => navigate("/institution/certificates"), [navigate]);
+  const handleBrowseTemplates = useCallback(() => navigate("/institution/manage-specs"), [navigate]);
+  const handleViewAnalytics = useCallback(() => navigate("/institution/analytics"), [navigate]);
 
-  const quickActions = [
+  const quickActions = isConnector ? [
+    {
+      title: "Connector Health",
+      description: "Monitor SIS sync status",
+      icon: Activity,
+      color: "text-amber-700",
+      bg: "bg-amber-100 dark:bg-amber-950/30",
+      action: () => navigate("/connect/health-dashboard"),
+    },
+    {
+      title: "SIS Connector",
+      description: "View sync schedule",
+      icon: Link2,
+      color: "text-amber-700",
+      bg: "bg-amber-100 dark:bg-amber-950/30",
+      action: () => navigate("/connect/connector"),
+    },
+    {
+      title: "Delegated Signing",
+      description: "Manage signing keys",
+      icon: Shield,
+      color: "text-amber-700",
+      bg: "bg-amber-100 dark:bg-amber-950/30",
+      action: () => navigate("/connect/delegated-signing"),
+    },
+    {
+      title: "Data Mapping",
+      description: "Field configuration",
+      icon: Network,
+      color: "text-amber-700",
+      bg: "bg-amber-100 dark:bg-amber-950/30",
+      action: () => navigate("/connect/data-mapping"),
+    },
+  ] : [
     {
       title: "Issue Certificate",
       description: "Create a new certificate",
@@ -145,12 +194,24 @@ export default function ModernDashboard() {
     }
   ];
 
+  const usageSnapshot = (commercialUsage as any)?.usage;
+  const commercialSub = (subscription as any)?.subscription;
+  const certificatesUsed = usageSnapshot?.meters?.certificates
+    ?? (subscription as any)?.usage?.certificatesThisMonth
+    ?? 0;
+  const certificateLimitRaw = usageSnapshot?.limits?.certificates
+    ?? (subscription as any)?.subscription?.monthlyLimit
+    ?? 200;
+  const certificateLimit = certificateLimitRaw < 0 ? Number.POSITIVE_INFINITY : certificateLimitRaw;
+  const certificatesRemaining = Number.isFinite(certificateLimit)
+    ? Math.max(certificateLimit - certificatesUsed, 0)
+    : Number.POSITIVE_INFINITY;
+  const subscriptionStatus = commercialSub?.status as string | undefined;
+  const accessBlocked = !!usageSnapshot?.accessBlocked || subscriptionStatus === "suspended";
+
   const getUsagePercentage = () => {
-    const usage = (subscription as any)?.usage?.certificatesThisMonth || 0;
-    const limit = (subscription as any)?.subscription?.monthlyLimit || 
-      ((subscription as any)?.subscription?.planId === 'pro' ? 1000 : 
-       (subscription as any)?.subscription?.planId === 'enterprise' ? 2000 : 200);
-    return Math.min((usage / Math.max(limit, 1)) * 100, 100);
+    if (!Number.isFinite(certificateLimit) || certificateLimit <= 0) return 0;
+    return Math.min((certificatesUsed / certificateLimit) * 100, 100);
   };
 
   const trendChartData = Array.isArray(issuanceTrendData) ? issuanceTrendData : [];
@@ -206,11 +267,6 @@ export default function ModernDashboard() {
     return acc;
   }, {} as ChartConfig);
 
-  const certificateLimit = (subscription as any)?.subscription?.monthlyLimit || 
-    ((subscription as any)?.subscription?.planId === 'pro' ? 1000 : 
-     (subscription as any)?.subscription?.planId === 'enterprise' ? 2000 : 200);
-  const certificatesUsed = (subscription as any)?.usage?.certificatesThisMonth || 0;
-  const certificatesRemaining = Math.max(0, certificateLimit - certificatesUsed);
   const isNearLimit = getUsagePercentage() >= 80;
 
   const isInstitutionVerified = useMemo(() => {
@@ -260,19 +316,52 @@ export default function ModernDashboard() {
           </div>
           
           <div className="flex gap-3">
-            <Button 
-              onClick={() => setLocation("/institution/issue")}
-              className="bg-gradient-to-r from-primary to-purple-600 hover:opacity-90 shadow-md transition-all active:scale-95"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Issue Certificate
-            </Button>
-            <Button variant="outline" onClick={() => setLocation("/institution/certificates")} className="bg-white dark:bg-neutral-900">
+            {!isConnector && (
+              <Button 
+                onClick={() => navigate("/institution/issue")}
+                className="bg-gradient-to-r from-primary to-purple-600 hover:opacity-90 shadow-md transition-all active:scale-95"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Issue Certificate
+              </Button>
+            )}
+            {isConnector && (
+              <Button
+                onClick={() => navigate("/connect/health-dashboard")}
+                className="bg-amber-600 hover:bg-amber-700 shadow-md transition-all active:scale-95 text-white"
+              >
+                <Activity className="w-4 h-4 mr-2" />
+                Connector Health
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => navigate("/institution/certificates")} className="bg-white dark:bg-neutral-900">
               <Eye className="w-4 h-4 mr-2" />
               View All
             </Button>
           </div>
         </div>
+
+        {/* ── Deployment Mode Banner (connector tiers only) ── */}
+        {isEnterprise && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40">
+            <ShieldAlert className="h-5 w-5 text-amber-600 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-amber-800 dark:text-amber-300">Enterprise Connector — On-Premise Deployment</p>
+              <p className="text-xs text-amber-700 dark:text-amber-400">Credentials are issued automatically via your SIS connector. Manual issuance is not available on this tier.</p>
+            </div>
+            <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-xs font-bold">Tier 1</Badge>
+          </div>
+        )}
+        {tier === 'cloud-connector' && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/40">
+            <Cpu className="h-5 w-5 text-purple-600 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-purple-800 dark:text-purple-300">Cloud Connector — API Integration</p>
+              <p className="text-xs text-purple-700 dark:text-purple-400">Credentials sync automatically from your connected SIS. Manage your API connector in Integrations.</p>
+            </div>
+            <Badge className="bg-purple-100 text-purple-800 border-purple-300 text-xs font-bold">Tier 2</Badge>
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -293,7 +382,6 @@ export default function ModernDashboard() {
               value={stats.totalCertificates || 0}
               icon={Award}
               color="blue"
-              trend="+12%"
             />
             <StatCard 
               title="Active Certificates"
@@ -311,7 +399,7 @@ export default function ModernDashboard() {
             />
             <StatCard 
               title="Monthly Usage"
-              value={`${stats.monthlyIssuance || 0}/${certificateLimit}`}
+              value={`${certificatesUsed}/${Number.isFinite(certificateLimit) ? certificateLimit : "∞"}`}
               icon={Target}
               color="amber"
               progress={getUsagePercentage()}
@@ -371,22 +459,42 @@ export default function ModernDashboard() {
           </div>
         </div>
 
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold text-neutral-900 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-primary" />
-            Live Network
-          </h2>
-          <NetworkIntegrity />
-        </div>
+        {/* Blockchain/network section removed — not relevant for institutional UI */}
       </div>
 
+      {accessBlocked && (
+        <Alert className="border-red-200 bg-red-50 shadow-sm rounded-xl">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800 font-medium flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <span>
+              Subscription suspended — new issuance and API calls are blocked. Existing credentials remain verifiable.
+            </span>
+            <Button size="sm" variant="outline" className="shrink-0" onClick={() => navigate("/institution/subscription")}>
+              Restore billing
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {subscriptionStatus === "past_due" && !accessBlocked && (
+        <Alert className="border-amber-200 bg-amber-50 shadow-sm rounded-xl">
+          <AlertCircle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-800 font-medium flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <span>Payment past due. Update billing before the grace period ends.</span>
+            <Button size="sm" variant="outline" className="shrink-0" onClick={() => navigate("/institution/subscription")}>
+              Update payment
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Usage Warnings */}
-      {isNearLimit && (
+      {isNearLimit && !accessBlocked && (
         <Alert className="border-amber-200 bg-amber-50 shadow-sm rounded-xl">
           <AlertCircle className="h-4 w-4 text-amber-600" />
           <AlertDescription className="text-amber-800 font-medium">
-            Approaching Limit: You've used {certificatesUsed} of {certificateLimit} certificates ({Math.round(getUsagePercentage())}%). 
-            {certificatesRemaining < 10 && certificatesRemaining > 0 && ` Only ${certificatesRemaining} remaining.`}
+            Approaching Limit: You've used {certificatesUsed} of {Number.isFinite(certificateLimit) ? certificateLimit : "∞"} certificates ({Math.round(getUsagePercentage())}%). 
+            {Number.isFinite(certificatesRemaining) && certificatesRemaining < 10 && certificatesRemaining > 0 && ` Only ${certificatesRemaining} remaining.`}
             {certificatesRemaining === 0 && " Upgrade your plan to continue issuing."}
           </AlertDescription>
         </Alert>
@@ -417,7 +525,7 @@ export default function ModernDashboard() {
                 <div>
                   <p className="text-blue-100 text-sm font-medium">Total Issued</p>
                   <p className="text-3xl font-black mt-1">{stats.totalCertificates || 0}</p>
-                  <p className="text-blue-200 text-xs mt-2">+12% from last month</p>
+                  <p className="text-blue-200 text-xs mt-2">All time</p>
                 </div>
                 <Award className="w-8 h-8 text-blue-200" />
               </div>
@@ -430,7 +538,7 @@ export default function ModernDashboard() {
                 <div>
                   <p className="text-emerald-100 text-sm font-medium">Active Certificates</p>
                   <p className="text-3xl font-black mt-1">{stats.activeCertificates || 0}</p>
-                  <p className="text-emerald-200 text-xs mt-2">98.5% validity rate</p>
+                  <p className="text-emerald-200 text-xs mt-2">{stats.activeCertificates || 0} currently valid</p>
                 </div>
                 <CheckCircle className="w-8 h-8 text-emerald-200" />
               </div>
@@ -454,9 +562,9 @@ export default function ModernDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-100 text-sm font-medium">Avg. Processing</p>
-                  <p className="text-3xl font-black mt-1">2.3s</p>
-                  <p className="text-purple-200 text-xs mt-2">Industry leading</p>
+                  <p className="text-purple-100 text-sm font-medium">Revoked</p>
+                  <p className="text-3xl font-black mt-1">{stats.revokedCertificates || 0}</p>
+                  <p className="text-purple-200 text-xs mt-2">Requires attention</p>
                 </div>
                 <Activity className="w-8 h-8 text-purple-200" />
               </div>
@@ -637,73 +745,54 @@ export default function ModernDashboard() {
           </Card>
         </div>
 
-        {/* Performance Metrics Bar Chart */}
+        {/* Issuance vs Revocation — derived from real trend data (no fabricated KPIs) */}
         <Card className="border-0 shadow-xl bg-white dark:bg-neutral-900 overflow-hidden">
           <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
             <div>
               <CardTitle className="text-xl font-black text-slate-900 flex items-center gap-3">
                 <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                Performance Metrics
+                Issuance vs Revocation
               </CardTitle>
-              <p className="text-slate-600 mt-1 font-medium">Monthly performance indicators and KPIs</p>
+              <p className="text-slate-600 mt-1 font-medium">Monthly issued and revoked certificate volume</p>
             </div>
           </CardHeader>
           <CardContent className="p-8">
-            <ChartContainer config={{
-              verification: { label: "Verification Rate", color: "hsl(var(--chart-2))" },
-              processing: { label: "Processing Time", color: "hsl(var(--chart-4))" },
-              satisfaction: { label: "User Satisfaction", color: "hsl(var(--chart-5))" },
-            }} className="h-80 w-full">
-              <BarChart 
-                data={[
-                  { month: 'Jan', verification: 98, processing: 2.1, satisfaction: 4.8 },
-                  { month: 'Feb', verification: 97, processing: 2.3, satisfaction: 4.7 },
-                  { month: 'Mar', verification: 99, processing: 1.9, satisfaction: 4.9 },
-                  { month: 'Apr', verification: 98, processing: 2.0, satisfaction: 4.8 },
-                  { month: 'May', verification: 99, processing: 1.8, satisfaction: 4.9 },
-                  { month: 'Jun', verification: 98, processing: 2.2, satisfaction: 4.8 },
-                ]}
-                margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                <XAxis 
-                  dataKey="month"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }}
-                />
-                <YAxis 
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }}
-                />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <ChartLegend content={<ChartLegendContent />} />
-                <Bar 
-                  dataKey="verification" 
-                  fill="hsl(var(--chart-2))"
-                  radius={[4, 4, 0, 0]}
-                  animationDuration={1500}
-                  animationEasing="ease-out"
-                />
-                <Bar 
-                  dataKey="processing" 
-                  fill="hsl(var(--chart-4))"
-                  radius={[4, 4, 0, 0]}
-                  animationDuration={1500}
-                  animationEasing="ease-out"
-                  animationBegin={300}
-                />
-                <Bar 
-                  dataKey="satisfaction" 
-                  fill="hsl(var(--chart-5))"
-                  radius={[4, 4, 0, 0]}
-                  animationDuration={1500}
-                  animationEasing="ease-out"
-                  animationBegin={600}
-                />
-              </BarChart>
-            </ChartContainer>
+            {trendLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-80 w-full" />
+              </div>
+            ) : trendChartData.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-80 text-center">
+                <BarChart3 className="w-16 h-16 text-slate-300 mb-4" />
+                <h3 className="text-lg font-bold text-slate-700 mb-2">No Data Yet</h3>
+                <p className="text-slate-500">Start issuing certificates to populate performance metrics</p>
+              </div>
+            ) : (
+              <ChartContainer config={trendChartConfig} className="h-80 w-full">
+                <BarChart
+                  data={trendChartData}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                  <XAxis
+                    dataKey="month"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar dataKey="issued" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} animationDuration={1500} animationEasing="ease-out" />
+                  <Bar dataKey="revoked" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} animationDuration={1500} animationEasing="ease-out" animationBegin={300} />
+                </BarChart>
+              </ChartContainer>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -713,19 +802,19 @@ export default function ModernDashboard() {
         <div className="xl:col-span-2 space-y-4">
           <h2 className="text-xl font-bold text-neutral-900 flex items-center gap-2">
             <Shield className="w-5 h-5 text-primary" />
-            Blockchain & Trust
+            Trust & Verification
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <TrustFeatureCard 
               icon={CheckCircle}
               title="Instant Verification"
-              description="Verify authenticity in seconds via blockchain"
+              description="Verify authenticity in seconds, anywhere"
               color="blue"
             />
             <TrustFeatureCard 
               icon={Shield}
               title="Tamper-Proof"
-              description="Immutable records secured on decentralized network"
+              description="Records are secured and cannot be altered"
               color="green"
             />
             <TrustFeatureCard 
@@ -750,13 +839,13 @@ export default function ModernDashboard() {
                     Current Subscription
                   </p>
                   <p className="text-sm font-bold text-neutral-900 mt-1">
-                    {(subscription as any)?.subscription?.planId?.toUpperCase() || "STARTER"} PLAN
+                    {(commercialSub?.planKey || commercialSub?.planId || "starter").toString().replace(/_/g, " ").toUpperCase()} PLAN
                   </p>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setLocation("/institution/subscription")}
+                  onClick={() => navigate("/institution/subscription")}
                   className="text-xs font-bold h-8"
                 >
                   Manage
@@ -778,7 +867,7 @@ export default function ModernDashboard() {
             <Award className="w-5 h-5 text-primary" />
             Recent Certificates
           </h2>
-          <Button variant="ghost" size="sm" onClick={() => setLocation("/institution/certificates")} className="text-primary font-bold">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/institution/certificates")} className="text-primary font-bold">
             View All
             <ArrowUpRight className="w-4 h-4 ml-1" />
           </Button>
@@ -791,8 +880,8 @@ export default function ModernDashboard() {
                   <Award className="w-8 h-8 text-neutral-300" />
                 </div>
                 <h3 className="text-lg font-bold text-neutral-900 mb-1">No certificates yet</h3>
-                <p className="text-neutral-500 mb-6 max-w-xs mx-auto">Start issuing verifiable credentials to your students on the blockchain.</p>
-                <Button onClick={() => setLocation("/institution/issue")} className="shadow-md">
+                <p className="text-neutral-500 mb-6 max-w-xs mx-auto">Start issuing verifiable credentials to your students.</p>
+                <Button onClick={() => navigate("/institution/issue")} className="shadow-md">
                   <Plus className="w-4 h-4 mr-2" />
                   Issue First Certificate
                 </Button>
@@ -800,7 +889,7 @@ export default function ModernDashboard() {
             ) : (
               <div className="divide-y divide-neutral-100">
                 {recentCertificates.map((cert: any, index: number) => (
-                  <div key={index} className="flex items-center justify-between p-5 hover:bg-neutral-50 dark:bg-neutral-50 transition-colors group cursor-pointer" onClick={() => setLocation(`/institution/certificates/${cert.id}`)}>
+                  <div key={index} className="flex items-center justify-between p-5 hover:bg-neutral-50 dark:bg-neutral-50 transition-colors group cursor-pointer" onClick={() => navigate(`/institution/certificates/${cert.id}`)}>
                     <div className="flex items-center space-x-4 min-w-0">
                       <div className="p-3 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform">
                         <Award className="w-5 h-5" />

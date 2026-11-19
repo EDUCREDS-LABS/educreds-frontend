@@ -4,16 +4,18 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   Share2, 
-  Download, 
-  QrCode, 
-  ExternalLink, 
+  Download,
+  QrCode,
+  ExternalLink,
   Calendar,
   Award,
   Building,
   Copy,
-  Check
+  Check,
+  Image as ImageIcon
 } from 'lucide-react';
 import { CertificateShare } from './CertificateShare';
+import DOMPurify from 'dompurify';
 
 interface CertificateCardProps {
   certificate: {
@@ -28,8 +30,21 @@ interface CertificateCardProps {
     issuanceStatus?: string;
     tokenId?: number;
     ipfsHash: string;
+    /** Rendered credential visual (SVG markup) produced from the design template. */
+    htmlContent?: string;
+    /** Pre-rendered image URL for the credential (PNG/PDF preview). */
+    imageUrl?: string;
+    /** Rendered credential preview image (IPFS gateway URL) from issuance. */
+    previewImageUrl?: string;
+    /** Template/design name for display when no visual is available. */
+    templateName?: string;
   };
   showActions?: boolean;
+}
+
+/** Safely render a template SVG so students see the designed certificate. */
+function sanitizeVisual(html: string): string {
+  return DOMPurify.sanitize(html, { USE_PROFILES: { html: true, svg: true } });
 }
 
 export function CertificateCard({ certificate, showActions = true }: CertificateCardProps) {
@@ -104,7 +119,42 @@ export function CertificateCard({ certificate, showActions = true }: Certificate
   }
 
   return (
-    <Card className="w-full hover:shadow-lg transition-shadow">
+    <Card className="w-full hover:shadow-lg transition-shadow overflow-hidden">
+      {/* Credential visual — designed template render (image or SVG) */}
+      {(certificate.imageUrl || certificate.previewImageUrl || certificate.htmlContent) && (
+        <div className="relative w-full bg-neutral-50 border-b border-neutral-100 aspect-[1.414/1] overflow-hidden flex items-center justify-center">
+          {certificate.imageUrl || certificate.previewImageUrl ? (
+            <img
+              src={certificate.imageUrl || certificate.previewImageUrl}
+              alt={`${certificate.courseName} certificate`}
+              className="w-full h-full object-contain"
+              loading="lazy"
+            />
+          ) : certificate.htmlContent ? (
+            <div
+              className="w-full h-full [&_svg]:w-full [&_svg]:h-full [&_svg]:object-contain p-2"
+              dangerouslySetInnerHTML={{ __html: sanitizeVisual(certificate.htmlContent) }}
+            />
+          ) : null}
+          <div className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-neutral-600 shadow-sm">
+            <ImageIcon className="h-3 w-3" />
+            Credential
+          </div>
+          {(certificate.imageUrl || certificate.previewImageUrl) && (
+            <a
+              href={certificate.imageUrl || certificate.previewImageUrl}
+              target="_blank"
+              rel="noreferrer"
+              download
+              className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-neutral-600 shadow-sm hover:bg-white"
+              title="Download certificate image"
+            >
+              <Download className="h-3 w-3" />
+            </a>
+          )}
+        </div>
+      )}
+
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="space-y-2">

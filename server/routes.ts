@@ -5,7 +5,6 @@ import multer from 'multer';
 import { rateLimits, requireSecureContext, validateBlockchainOperation } from './lib/security';
 import { verifyToken, requireRole, bruteForceProtection, recordLoginAttempt, AuthenticatedRequest } from './lib/auth-security';
 import { certificateValidation, authValidation, handleValidationErrors } from './lib/validation';
-import marketplaceRouter from './routes/marketplace';
 import developerPortalRouter from './routes/developer-portal';
 
 // Secure multer setup for file uploads
@@ -34,9 +33,6 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Marketplace routes
-  app.use('/api/marketplace', marketplaceRouter);
-
   // Developer Portal routes
   app.use('/api/developer-portal', developerPortalRouter);
 
@@ -68,6 +64,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Proxy issuance to Template Service (NestJS)
   const templateServiceBase = process.env.TEMPLATE_SERVICE_URL || 'http://localhost:4000';
+
+  // Resolved upstream for certificate/analytics data. The cert_backend is the
+  // single source of truth; the frontend dev server proxies to it rather than
+  // fabricating analytics. Override via CERT_BACKEND_URL in dev.
+  const certBackendBase = (
+    process.env.CERT_BACKEND_URL ||
+    process.env.VITE_API_URL ||
+    'http://localhost:5050'
+  ).replace(/\/$/, '');
+
+  const proxyToCertBackend = async (req: any, res: any, path: string) => {
+    try {
+      const upstream = await fetch(`${certBackendBase}${path}`, {
+        method: req.method,
+        headers: { 'Content-Type': 'application/json', ...(req.headers.authorization ? { authorization: req.headers.authorization } : {}) },
+        body: ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body ?? {}),
+      });
+      const text = await upstream.text();
+      res.status(upstream.status);
+      res.set('content-type', upstream.headers.get('content-type') || 'application/json');
+      return res.send(text);
+    } catch (error) {
+      console.error(`Proxy to cert_backend failed (${path}):`, error);
+      return res.status(502).json({ error: 'backend_unreachable', message: 'Certificate backend is unreachable' });
+    }
+  };
 
   // Secure certificate issuance endpoint
   app.post('/api/certificates/issue',
@@ -147,69 +169,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-  // Secure institution certificates endpoint
+  // Secure institution certificates endpoint — proxy to cert_backend (no mock data).
   app.get('/api/certificates/institution',
     verifyToken,
     requireRole(['institution', 'admin']),
     async (req: AuthenticatedRequest, res) => {
-      try {
-        console.log('=== Fetching Institution Certificates ===');
-        console.log('Total certificates in memory:', certificates.length);
-        console.log('Certificates:', certificates);
-        res.json({ certificates });
-      } catch (error) {
-        console.error('Get certificates error:', error);
-        res.status(500).json({
-          error: 'Internal server error while fetching certificates'
-        });
-      }
+      const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+      return proxyToCertBackend(req, res, `/api/certificates/institution${query}`);
     });
 
-  // Get dashboard stats endpoint
+  // Get dashboard stats endpoint — proxy to cert_backend (real analytics).
   app.get('/api/stats', async (req, res) => {
-    try {
-      console.log('Fetching dashboard stats');
-      const stats = {
-        totalCertificates: certificates.length,
-        activeCertificates: certificates.filter(c => c.isValid).length,
-        revokedCertificates: certificates.filter(c => !c.isValid).length,
-        certificatesByType: [
-          { _id: 'Academic', count: certificates.filter(c => c.certificateType === 'Academic').length },
-          { _id: 'Professional', count: certificates.filter(c => c.certificateType === 'Professional').length },
-          { _id: 'Training', count: certificates.filter(c => c.certificateType === 'Training').length }
-        ]
-      };
-      res.json(stats);
-    } catch (error) {
-      console.error('Get stats error:', error);
-      res.status(500).json({
-        error: 'Internal server error while fetching stats'
-      });
-    }
+    const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    return proxyToCertBackend(req, res, `/api/stats${query}`);
   });
 
-  // Get current subscription endpoint
+  app.get('/api/stats/trend', async (req, res) => {
+    const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    return proxyToCertBackend(req, res, `/api/stats/trend${query}`);
+  });
+
+  app.get('/api/stats/distribution', async (req, res) => {
+    const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    return proxyToCertBackend(req, res, `/api/stats/distribution${query}`);
+  });
+
+  // Get current subscription endpoint — proxy to cert_backend (no mock data).
   app.get('/api/subscription/current', async (req, res) => {
-    try {
-      console.log('Fetching current subscription');
-      res.json({
-        subscription: {
-          planId: 'basic',
-          status: 'active',
-          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        usage: {
-          certificatesThisMonth: certificates.length,
-          storageUsed: 0.5,
-          apiCallsThisMonth: 234
-        }
-      });
-    } catch (error) {
-      console.error('Get subscription error:', error);
-      res.status(500).json({
-        error: 'Internal server error while fetching subscription'
-      });
-    }
+    return proxyToCertBackend(req, res, '/api/subscription/current');
   });
 
   const httpServer = createServer(app);

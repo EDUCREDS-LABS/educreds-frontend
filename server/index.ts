@@ -13,12 +13,12 @@ import {
 import cors from 'cors';
 import session from 'express-session';
 import { sessionConfig } from './lib/auth-security';
+import { execSync } from 'child_process';
 
 const app = express();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 
 // Security middleware
 app.use(securityHeaders);
@@ -104,10 +104,29 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5002', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-  }, () => {
-    log(`serving on port ${port}`);
-  });
+
+  const startServer = (listenPort: number) => {
+    server.once("error", (err: NodeJS.ErrnoException) => {
+      if (err.code === "EADDRINUSE") {
+        log(
+          `Port ${listenPort} is already in use (likely a stale dev server). Freeing it and retrying...`,
+          "warn",
+        );
+        try {
+          execSync(`fuser -k ${listenPort}/tcp`, { stdio: "ignore" });
+        } catch {
+          // fuser not available / nothing to kill — fall through to retry anyway
+        }
+        setTimeout(() => startServer(listenPort), 1000);
+        return;
+      }
+      throw err;
+    });
+
+    server.listen({ port: listenPort, host: "0.0.0.0" }, () => {
+      log(`serving on port ${listenPort}`);
+    });
+  };
+
+  startServer(port);
 })();

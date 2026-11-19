@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, isValid } from "date-fns";
@@ -40,20 +39,82 @@ import {
   Search,
   Download,
   Trash2,
-  HardDrive
+  HardDrive,
+  Users,
+  Lock,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { getAuthHeaders } from "@/lib/auth";
+import { API_CONFIG } from "@/config/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/loading-skeleton";
 import { cn } from "@/lib/utils";
+import { Link } from "react-router-dom";
 
 const DATA_TYPES = [
-  { value: "STUDENTS", label: "Student Registry", icon: Users },
-  { value: "CERTIFICATES", label: "Certificate Ledger", icon: FileText },
-  { value: "COURSES", label: "Curriculum Assets", icon: Database },
-  { value: "ENROLLMENTS", label: "Enrollment Matrix", icon: Activity },
+  { value: "STUDENTS", label: "Students", icon: Users },
+  { value: "CERTIFICATES", label: "Certificates", icon: FileText },
+  { value: "COURSES", label: "Courses", icon: Database },
+  { value: "ENROLLMENTS", label: "Enrollments", icon: Activity },
 ];
+
+// CSV Template definitions for each data type (matches backend schema)
+const CSV_TEMPLATES: Record<string, { headers: string[]; example: Record<string, string>; fileName: string }> = {
+  STUDENTS: {
+    headers: ['email', 'walletAddress', 'firstName', 'lastName', 'enrollDate'],
+    example: {
+      email: 'student@example.com',
+      walletAddress: '0x1234567890123456789012345678901234567890',
+      firstName: 'John',
+      lastName: 'Doe',
+      enrollDate: '2024-01-15',
+    },
+    fileName: 'educreds-students-import-template.csv',
+  },
+  CERTIFICATES: {
+    headers: ['studentEmail', 'certificateType', 'completionDate', 'gradescore', 'courseCode', 'courseName'],
+    example: {
+      studentEmail: 'student@example.com',
+      certificateType: 'Academic',
+      completionDate: '2024-03-01',
+      gradescore: '95',
+      courseCode: 'CS101',
+      courseName: 'Intro to Computer Science',
+    },
+    fileName: 'educreds-certificates-import-template.csv',
+  },
+  COURSES: {
+    headers: ['courseCode', 'courseName', 'description', 'credits'],
+    example: {
+      courseCode: 'CS101',
+      courseName: 'Intro to Computer Science',
+      description: 'Fundamentals of programming',
+      credits: '3',
+    },
+    fileName: 'educreds-courses-import-template.csv',
+  },
+  ENROLLMENTS: {
+    headers: ['studentEmail', 'courseCode', 'enrollmentDate', 'completionDate', 'grade'],
+    example: {
+      studentEmail: 'student@example.com',
+      courseCode: 'CS101',
+      enrollmentDate: '2024-01-15',
+      completionDate: '2024-03-01',
+      grade: 'A',
+    },
+    fileName: 'educreds-enrollments-import-template.csv',
+  },
+};
+
+// Generate CSV content from template
+function generateTemplateCsv(dataType: string): { content: string; fileName: string } {
+  const template = CSV_TEMPLATES[dataType] || CSV_TEMPLATES.STUDENTS;
+  const headers = template.headers.join(',');
+  const exampleRow = template.headers.map(h => template.example[h] || '').join(',');
+  const content = [headers, exampleRow].join('\n');
+  return { content, fileName: template.fileName };
+}
 
 export default function LmsMigrationPanel() {
   const { toast } = useToast();
@@ -63,6 +124,7 @@ export default function LmsMigrationPanel() {
   const [dataType, setDataType] = useState(DATA_TYPES[0].value);
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [showPostImportBanner, setShowPostImportBanner] = useState(false);
 
   const { data: batchesResponse, isLoading: batchesLoading } = useQuery({
     queryKey: ["/api/lms-import/batches", user?.id],
@@ -79,29 +141,55 @@ export default function LmsMigrationPanel() {
   const batches = batchesResponse?.data || [];
   const logs = logsResponse?.data || [];
 
-  const uploadMutation = useMutation({
-    mutationFn: (data: FormData) => api.uploadLmsImport(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/lms-import/batches"] });
-      toast({ title: "Protocol Initiated", description: "LMS data batch uploaded for secure ingestion." });
-      setCsvFile(null);
-      setBatchName("");
+  // Step 1: Create import batch
+  const createBatchMutation = useMutation({
+    mutationFn: async (payload: { batchName: string; dataType: string }) => {
+      const response = await api.createLmsImportBatch({
+        batchName: payload.batchName,
+        dataType: payload.dataType.toLowerCase(),
+      });
+      return response;
+    },
+    onSuccess: async (data, variables) => {
+      // Step 2: Upload CSV file to the created batch
+      if (csvFile && data?.id) {
+        try {
+          await api.uploadLmsImportCsv(data.id, csvFile);
+          queryClient.invalidateQueries({ queryKey: ["/api/lms-import/batches"] });
+          toast({ 
+            title: "Import started", 
+            description: "Your file has been uploaded and is being processed." 
+          });
+          if (dataType === "STUDENTS") {
+            setShowPostImportBanner(true);
+          }
+          setCsvFile(null);
+          setBatchName("");
+        } catch (uploadError: any) {
+          toast({ 
+            title: "Upload failed", 
+            description: uploadError?.message || "Failed to upload CSV file.", 
+            variant: "destructive" 
+          });
+        }
+      }
     },
     onError: (error: any) => {
-      toast({ title: "Ingestion Failed", description: error?.message || "Verify CSV schema and retry.", variant: "destructive" });
+      toast({ 
+        title: "Import failed", 
+        description: error?.message || "Check your CSV format and try again.", 
+        variant: "destructive" 
+      });
     },
   });
 
   const handleUpload = () => {
     if (!csvFile || !batchName) {
-      toast({ title: "Missing Assets", description: "Batch name and CSV payload required.", variant: "destructive" });
+      toast({ title: "Missing fields", description: "Batch name and CSV file are both required.", variant: "destructive" });
       return;
     }
-    const formData = new FormData();
-    formData.append("file", csvFile);
-    formData.append("name", batchName);
-    formData.append("dataType", dataType);
-    uploadMutation.mutate(formData);
+    // Start the import process: create batch then upload file
+    createBatchMutation.mutate({ batchName, dataType });
   };
 
   const selectedBatch = useMemo(() => 
@@ -113,33 +201,46 @@ export default function LmsMigrationPanel() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-primary font-black uppercase tracking-[0.2em] text-[10px]">
-            <RefreshCw className="size-4" />
-            Strategic Migration
-          </div>
           <h1 className="text-4xl font-black text-neutral-900 dark:text-neutral-100 tracking-tighter">
-            LMS <span className="text-primary">Bridge</span>.
+            LMS <span className="text-primary">Import</span>.
           </h1>
           <p className="text-neutral-500 font-medium max-w-xl">
-            Synchronize legacy academic records with decentralised protocol infrastructure via secure batch ingestion.
+            Import student records, enrollments, and certificates from your existing system.
           </p>
         </div>
       </div>
+
+      {/* Post-import student assignment banner */}
+      {showPostImportBanner && (
+        <Alert className="rounded-3xl p-6 shadow-xl shadow-emerald-500/10 border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200 [&>svg]:text-emerald-600">
+          <CheckCircle className="size-5" />
+          <AlertTitle className="font-black text-lg">Import complete!</AlertTitle>
+          <AlertDescription className="font-medium opacity-80 flex flex-col sm:flex-row sm:items-center gap-4">
+            <span>Go to Students to assign a program and cohort to the imported students.</span>
+            <Button asChild size="sm" variant="outline" className="rounded-xl font-bold text-xs uppercase tracking-widest shrink-0 border-emerald-400 text-emerald-800 hover:bg-emerald-100">
+              <Link to="/institution/students">
+                <Users className="size-3.5 mr-2" />
+                Go to Students
+              </Link>
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
         {/* Upload Interface */}
         <div className="xl:col-span-5 space-y-8">
           <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900">
             <CardHeader className="p-10 border-b border-neutral-50 dark:border-neutral-800">
-              <CardTitle className="text-2xl font-black">Ingestion Payload</CardTitle>
-              <CardDescription className="font-bold text-[10px] uppercase tracking-widest text-primary">New Migration Batch</CardDescription>
+              <CardTitle className="text-2xl font-black">New Import Batch</CardTitle>
+              <CardDescription className="font-bold text-[10px] uppercase tracking-widest text-primary">Upload a CSV to import records</CardDescription>
             </CardHeader>
             <CardContent className="p-10 space-y-8">
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest ml-1">Batch Identifier</label>
+                  <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest ml-1">Batch Name</label>
                   <Input 
-                    placeholder="Q3 Academic Cycle 2024" 
+                    placeholder="e.g. Q3 Academic Cycle 2024" 
                     value={batchName}
                     onChange={(e) => setBatchName(e.target.value)}
                     className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner"
@@ -147,7 +248,7 @@ export default function LmsMigrationPanel() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest ml-1">Resource Schema</label>
+                  <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest ml-1">Data Type</label>
                   <Select value={dataType} onValueChange={setDataType}>
                     <SelectTrigger className="h-14 rounded-2xl bg-neutral-50 dark:bg-neutral-800 border-none shadow-inner font-bold">
                       <SelectValue />
@@ -163,7 +264,27 @@ export default function LmsMigrationPanel() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest ml-1">CSV Source</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest ml-1">Upload CSV</label>
+                    <button
+                      type="button"
+                      className="flex items-center gap-1.5 text-[10px] font-bold text-primary uppercase tracking-widest hover:text-primary/80 transition-colors"
+                      onClick={() => {
+                        const { content, fileName } = generateTemplateCsv(dataType);
+                        const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = fileName;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      }}
+                    >
+                      <Download className="size-3" /> Download Template
+                    </button>
+                  </div>
                   <div className={cn(
                     "border-2 border-dashed rounded-[32px] p-10 transition-all flex flex-col items-center gap-4 cursor-pointer",
                     csvFile ? "border-primary bg-primary/5" : "border-neutral-200 dark:border-neutral-800 hover:border-primary/50"
@@ -183,7 +304,7 @@ export default function LmsMigrationPanel() {
                     </div>
                     <div className="text-center">
                       <p className="text-sm font-black text-neutral-900 dark:text-neutral-100">
-                        {csvFile ? csvFile.name : "Select CSV payload"}
+                        {csvFile ? csvFile.name : "Select a CSV file"}
                       </p>
                       <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mt-1">
                         {csvFile ? `${(csvFile.size / 1024).toFixed(2)} KB` : "Max file size: 50MB"}
@@ -195,11 +316,11 @@ export default function LmsMigrationPanel() {
 
               <Button 
                 onClick={handleUpload}
-                disabled={uploadMutation.isPending || !csvFile || !batchName}
+                disabled={createBatchMutation.isPending || !csvFile || !batchName}
                 className="w-full h-16 rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all"
               >
-                {uploadMutation.isPending ? <RefreshCw className="size-5 mr-2 animate-spin" /> : <HardDrive className="size-5 mr-2" />}
-                Initiate Synchronisation
+                {createBatchMutation.isPending ? <RefreshCw className="size-5 mr-2 animate-spin" /> : <HardDrive className="size-5 mr-2" />}
+                Start Import
               </Button>
             </CardContent>
           </Card>
@@ -214,7 +335,7 @@ export default function LmsMigrationPanel() {
                 <Lock className="size-6 text-primary" />
               </div>
               <h4 className="text-2xl font-black tracking-tight leading-tight">Integrity Guaranteed.</h4>
-              <p className="text-white/60 text-sm font-medium leading-relaxed">All LMS assets are cryptographically hashed and verified before protocol deployment. Data is encrypted at rest during the ingestion phase.</p>
+              <p className="text-white/60 text-sm font-medium leading-relaxed">All imported data is cryptographically hashed and verified before processing. Data is encrypted at rest during ingestion.</p>
             </div>
           </div>
         </div>
@@ -224,8 +345,8 @@ export default function LmsMigrationPanel() {
           <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900">
             <CardHeader className="p-10 border-b border-neutral-50 dark:border-neutral-800 flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-2xl font-black">Registry State</CardTitle>
-                <CardDescription className="font-bold text-[10px] uppercase tracking-widest text-primary">Active & Historic Batches</CardDescription>
+                <CardTitle className="text-2xl font-black">Import History</CardTitle>
+                <CardDescription className="font-bold text-[10px] uppercase tracking-widest text-primary">All import batches</CardDescription>
               </div>
               <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 text-neutral-400 hover:text-primary">
                 <RefreshCw className="size-4" />
@@ -236,9 +357,9 @@ export default function LmsMigrationPanel() {
                 <table className="w-full">
                   <thead>
                     <tr className="bg-neutral-50/50 dark:bg-neutral-800/50 text-[10px] font-black text-neutral-400 uppercase tracking-widest text-left">
-                      <th className="px-10 py-5">Protocol Batch</th>
-                      <th className="px-10 py-5">Classification</th>
-                      <th className="px-10 py-5">Telemetry</th>
+                      <th className="px-10 py-5">Batch Name</th>
+                      <th className="px-10 py-5">Type</th>
+                      <th className="px-10 py-5">Progress</th>
                       <th className="px-10 py-5">Status</th>
                       <th className="px-10 py-5">Actions</th>
                     </tr>
@@ -253,7 +374,7 @@ export default function LmsMigrationPanel() {
                         <td colSpan={5} className="px-10 py-24 text-center">
                           <div className="flex flex-col items-center gap-4 text-neutral-300">
                             <FileSpreadsheet className="size-16 opacity-20" />
-                            <p className="font-black uppercase tracking-[0.2em] text-[10px]">No active migrations detected</p>
+                            <p className="font-black uppercase tracking-[0.2em] text-[10px]">No imports yet</p>
                           </div>
                         </td>
                       </tr>
@@ -278,10 +399,10 @@ export default function LmsMigrationPanel() {
                             <div className="flex items-center gap-3">
                               <div className="space-y-1 flex-1 min-w-[100px]">
                                 <div className="flex justify-between text-[9px] font-black uppercase tracking-widest mb-1">
-                                  <span>Load</span>
-                                  <span>{Math.round(((batch.processedCount || 0) / (batch.totalCount || 1)) * 100)}%</span>
+                                  <span>Progress</span>
+                                  <span>{Math.round(((batch.processedRecords || batch.processedCount || 0) / (batch.totalRecords || batch.totalCount || 1)) * 100)}%</span>
                                 </div>
-                                <Progress value={((batch.processedCount || 0) / (batch.totalCount || 1)) * 100} className="h-1.5" />
+                                <Progress value={((batch.processedRecords || batch.processedCount || 0) / (batch.totalRecords || batch.totalCount || 1)) * 100} className="h-1.5" />
                               </div>
                             </div>
                           </td>
@@ -305,8 +426,8 @@ export default function LmsMigrationPanel() {
             <Card className="border-none shadow-2xl shadow-neutral-200/50 dark:shadow-black/20 rounded-[40px] overflow-hidden bg-white dark:bg-neutral-900 animate-in slide-in-from-bottom-4 duration-500">
               <CardHeader className="p-10 border-b border-neutral-50 dark:border-neutral-800 flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle className="text-2xl font-black italic tracking-tighter uppercase">Audit Trail: {selectedBatch?.name}</CardTitle>
-                  <CardDescription className="font-bold text-[10px] uppercase tracking-widest text-primary">Item-level ingestion results</CardDescription>
+                  <CardTitle className="text-2xl font-black italic tracking-tighter uppercase">Import Log: {selectedBatch?.name}</CardTitle>
+                  <CardDescription className="font-bold text-[10px] uppercase tracking-widest text-primary">Row-level import results</CardDescription>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" className="rounded-xl font-bold text-[10px] uppercase tracking-widest h-9 px-4">
@@ -322,7 +443,7 @@ export default function LmsMigrationPanel() {
                     ))
                   ) : logs.length === 0 ? (
                     <div className="p-20 text-center text-neutral-400 font-bold uppercase tracking-widest text-[10px]">
-                      No audit logs generated for this registry block.
+                      No log entries for this batch.
                     </div>
                   ) : (
                     logs.map((log: any, i: number) => (
@@ -343,7 +464,7 @@ export default function LmsMigrationPanel() {
                             </p>
                           </div>
                         </div>
-                        <Badge variant="ghost" className="text-[9px] font-black text-neutral-400 group-hover:text-neutral-900">
+                        <Badge variant="outline" className="text-[9px] font-black text-neutral-400 group-hover:text-neutral-900">
                           {log.status}
                         </Badge>
                       </div>
@@ -380,21 +501,3 @@ function StatusBadge({ status }: { status?: string }) {
     </Badge>
   );
 }
-
-const Users = ({ className }: { className?: string }) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-  >
-    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-    <circle cx="9" cy="7" r="4" />
-    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-  </svg>
-);

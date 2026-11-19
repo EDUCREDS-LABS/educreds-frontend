@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -142,7 +141,7 @@ export default function OtpInput({ email, type, onVerify, onResend, isLoading, o
 
       <div className="text-center space-y-3">
         <Button
-          onClick={handleVerify}
+          onClick={() => handleVerify()}
           disabled={otp.join('').length !== 6 || !otpToken || isLoading}
           className="w-full h-11"
         >

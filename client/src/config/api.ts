@@ -5,6 +5,12 @@
 
 // Helper function to safely access environment variables
 const getEnvVar = (key: string, fallback?: string): string | undefined => {
+  const isBrowser = typeof window !== "undefined";
+
+  if (isBrowser && !key.startsWith("VITE_")) {
+    return fallback;
+  }
+
   // Check if we're in browser environment (Vite) - import.meta exists
   try {
     if (import.meta?.env) {
@@ -15,7 +21,7 @@ const getEnvVar = (key: string, fallback?: string): string | undefined => {
   }
 
   // Server environment (Node.js)
-  if (typeof process !== 'undefined' && process.env) {
+  if (!isBrowser && typeof process !== 'undefined' && process.env) {
     return process.env[key] || fallback;
   }
   return fallback;
@@ -23,15 +29,16 @@ const getEnvVar = (key: string, fallback?: string): string | undefined => {
 
 const resolveDefaultApiBase = () => {
   if (typeof window === "undefined") {
-    return "http://localhost:3001";
+    // SSR / test environment — dev backend runs on :5050
+    return "http://localhost:5050";
   }
 
   const { protocol, hostname, origin } = window.location;
   const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
 
-  // Local dev expects backend on :3001. In deployed environments, default to same-origin.
+  // Local dev: backend on :5050. In deployed environments, default to same-origin.
   if (isLocalhost && (protocol === "http:" || protocol === "https:")) {
-    return "http://localhost:3001";
+    return "http://localhost:5050";
   }
 
   return origin;
@@ -40,13 +47,25 @@ const resolveDefaultApiBase = () => {
 const DEFAULT_API_BASE = resolveDefaultApiBase();
 
 // Environment variables with fallbacks
-const MAIN_API_BASE = getEnvVar('VITE_API_BASE', DEFAULT_API_BASE)?.replace(/\/$/, "") || DEFAULT_API_BASE;
 const CERT_API_BASE = getEnvVar('VITE_CERT_API_BASE', DEFAULT_API_BASE)?.replace(/\/$/, "") || DEFAULT_API_BASE;
+
+// IMPORTANT:
+// If VITE_API_BASE is not set, we MUST NOT default MAIN to window.location.origin
+// in production, because that points to the static frontend host (e.g. https://app.educreds.xyz)
+// which will 401/403 on /api/* and trigger the global auth recovery (looks like “instant logout”).
+// Safe fallback: use CERT_API_BASE as the primary API base in deployed environments.
+const MAIN_API_BASE = (
+  getEnvVar('VITE_API_BASE') ||
+  (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
+    ? CERT_API_BASE
+    : DEFAULT_API_BASE)
+)?.replace(/\/$/, "") || CERT_API_BASE;
+
 const MARKETPLACE_API_BASE = getEnvVar('VITE_MARKETPLACE_API_BASE', DEFAULT_API_BASE)?.replace(/\/$/, "") || DEFAULT_API_BASE;
 const TRUST_AGENT_API_BASE = (
   getEnvVar('VITE_TRUST_AGENT_API_BASE') ||
   getEnvVar('VITE_TRUST_AGENT_BASE') ||
-  'http://localhost:3010'
+  'http://localhost:3000'
 ).replace(/\/$/, "");
 
 export const API_CONFIG = {
@@ -61,6 +80,39 @@ export const API_CONFIG = {
   
   // Trust Agent
   TRUST_AGENT: TRUST_AGENT_API_BASE,
+
+  /**
+   * Verification surface (BFF). The browser only ever calls cert_backend
+   * (same-origin in prod, localhost:5050 in dev). cert_backend proxies to the
+   * internal verifier-agent and EVF gateway and injects their secrets
+   * server-side, so no upstream secret reaches the client.
+   */
+  VERIFY_PROXY: {
+    BASE: `${CERT_API_BASE}/api/verify-proxy`,
+    VERIFY: `${CERT_API_BASE}/api/verify-proxy/verify`,
+    VERIFY_BULK: `${CERT_API_BASE}/api/verify-proxy/verify/bulk`,
+    RESULT: (jobId: string) => `${CERT_API_BASE}/api/verify-proxy/result/${encodeURIComponent(jobId)}`,
+    EVF: `${CERT_API_BASE}/api/verify-proxy/evf`,
+    STATUS: `${CERT_API_BASE}/api/verify-proxy/status`,
+  },
+
+  // Trust-agent governance proxy (backend holds the trust-agent URL + key)
+  TRUST_AGENT_PROXY: {
+    BASE: `${MAIN_API_BASE}/api/governance/trust-agent`,
+    HEALTH: `${MAIN_API_BASE}/api/governance/trust-agent/health`,
+    CHAT: `${MAIN_API_BASE}/api/governance/trust-agent/chat`,
+    POIC_COMPUTE: `${MAIN_API_BASE}/api/governance/trust-agent/poic/compute`,
+  },
+
+  // Oracle endpoints (use MAIN backend)
+  ORACLE: {
+    BASE: `${MAIN_API_BASE}/api/oracle`,
+    SNAPSHOTS: `${MAIN_API_BASE}/api/oracle/snapshots`,
+    SNAPSHOT_LATEST: `${MAIN_API_BASE}/api/oracle/snapshots/latest`,
+    INSTITUTION: (walletAddress: string) => `${MAIN_API_BASE}/api/oracle/institution/${walletAddress}`,
+    INGEST: `${MAIN_API_BASE}/api/oracle/ingest`,
+    OVERRIDE: (walletAddress: string) => `${MAIN_API_BASE}/api/oracle/institution/${walletAddress}/override`
+  },
   
   // Health check endpoints
   HEALTH: {
@@ -85,7 +137,26 @@ export const API_CONFIG = {
     AUDIT_LOGS: `${MAIN_API_BASE}/api/admin/audit-logs`,
     PENDING_MINTS: `${MAIN_API_BASE}/api/admin/pending-mints`,
     PENDING_MINT_RECONCILE: (certificateId: string) => `${MAIN_API_BASE}/api/admin/pending-mints/${certificateId}/reconcile`,
-    NOTIFICATIONS_SETTINGS: (email: string) => `${MAIN_API_BASE}/api/admin/notifications/settings/${encodeURIComponent(email)}`
+    NOTIFICATIONS_SETTINGS: (email: string) => `${MAIN_API_BASE}/api/admin/notifications/settings/${encodeURIComponent(email)}`,
+    KEYVAULT_AUDIT: `${MAIN_API_BASE}/api/admin/keyvault/audit`,
+  },
+
+  // Institution admin endpoints (use CERT backend)
+  INSTITUTIONS_ADMIN: {
+    BASE: `${CERT_API_BASE}/api/institutions/admin`,
+    DLQ_SNAPSHOT: (institutionId?: string, dryRun?: boolean) => {
+      const params = new URLSearchParams();
+      if (institutionId) params.set('institutionId', institutionId);
+      if (dryRun) params.set('dryRun', 'true');
+      const qs = params.toString();
+      return `${CERT_API_BASE}/api/institutions/admin/dlq${qs ? `?${qs}` : ''}`;
+    },
+    DLQ_REPLAY: `${CERT_API_BASE}/api/institutions/admin/dlq/replay`,
+    CONNECTOR_ROTATE: (institutionId: string) => `${CERT_API_BASE}/api/institutions/admin/${institutionId}/connector/rotate-secret`,
+    CONNECTOR_ROTATION_STATUS: (institutionId: string) => `${CERT_API_BASE}/api/institutions/admin/${institutionId}/connector/rotation-status`,
+    CONNECTOR_ROTATION_AUDIT: `${CERT_API_BASE}/api/institutions/admin/connector/rotation-audit`,
+    CONNECTOR_SYNC_KEYVAULT: (institutionId: string) => `${CERT_API_BASE}/api/institutions/admin/${institutionId}/connector/sync-keyvault`,
+    CONNECTOR_SYNC_ALL_KEYVAULT: `${CERT_API_BASE}/api/institutions/admin/connector/sync-keyvault`,
   },
   
   
@@ -104,7 +175,8 @@ export const API_CONFIG = {
     RECONCILE: (certificateId: string) => `${CERT_API_BASE}/api/certificates/${certificateId}/reconcile`,
     WALLET_DIRECT_CONFIRM: `${CERT_API_BASE}/api/certificates/issue/wallet-direct/confirm`,
     SHARE_PACKAGE: (certificateId: string) => `${CERT_API_BASE}/api/student/share/${certificateId}/package`,
-    SHARE_METHODS: (certificateId: string) => `${CERT_API_BASE}/api/student/share/${certificateId}/methods`
+    SHARE_METHODS: (certificateId: string) => `${CERT_API_BASE}/api/student/share/${certificateId}/methods`,
+    SHARE: (id: string) => `${CERT_API_BASE}/api/certificates/${id}/share`,
   },
   
   // W3C Verifiable Credentials endpoints
@@ -123,6 +195,9 @@ export const API_CONFIG = {
     LOGIN: `${CERT_API_BASE}/auth/institution/login`,
     REGISTER: `${CERT_API_BASE}/auth/institution/register`,
     PROFILE: `${CERT_API_BASE}/api/institutions/profile`,
+    PROFILE_LOGO: `${CERT_API_BASE}/api/institutions/profile/logo`,
+    API_KEYS: `${CERT_API_BASE}/api/institutions/api-keys`,
+    ISSUANCE_JOBS: `${CERT_API_BASE}/api/v1/issue/jobs`,
     PROFILE_SETTINGS: `${CERT_API_BASE}/api/institutions/profile/settings`,
     NOTIFICATION_PREFERENCES: `${CERT_API_BASE}/api/institutions/notification-preferences`,
     VERIFICATION_STATUS: `${CERT_API_BASE}/api/institutions/verification-status`,
@@ -176,6 +251,20 @@ export const API_CONFIG = {
     PAYMENTS: `${CERT_API_BASE}/api/subscription/payments`
   },
 
+  COMMERCIAL: {
+    BASE: `${CERT_API_BASE}/api/commercial`,
+    PLANS: `${CERT_API_BASE}/api/commercial/plans`,
+    SUBSCRIPTION: `${CERT_API_BASE}/api/commercial/subscription`,
+    CANCEL: `${CERT_API_BASE}/api/commercial/subscription/cancel`,
+    CHECKOUT: `${CERT_API_BASE}/api/commercial/checkout`,
+    INVOICES: `${CERT_API_BASE}/api/commercial/invoices`,
+    INVOICE: (id: string) => `${CERT_API_BASE}/api/commercial/invoices/${id}`,
+    USAGE: `${CERT_API_BASE}/api/commercial/usage`,
+    EVENTS: `${CERT_API_BASE}/api/commercial/events`,
+    VERIFY_CHAIN: `${CERT_API_BASE}/api/commercial/events/verify-chain`,
+    PROVISIONING_JOBS: `${CERT_API_BASE}/api/commercial/admin/provisioning-jobs`,
+  },
+
   // Payment endpoints
   PAYMENTS: {
     BASE: `${CERT_API_BASE}/api/payments`,
@@ -213,11 +302,12 @@ export const API_CONFIG = {
   }
 } as const;
 
+export const API_BASE = API_CONFIG.MAIN;
+
 // Connection test configuration
 export const CONNECTION_CONFIG = {
   TIMEOUT: 15000, // 15 seconds for database operations
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000 // 1 second
 } as const;
-
 

@@ -1,3 +1,6 @@
+// Compat: template selection removed in credential rendering architecture update
+type EnhancedTemplate = { id: string; name: string; category: string };
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,22 +27,12 @@ import {
   Upload
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { EnhancedTemplate } from '@/store/editorStore';
 import { BulkIssuanceForm } from '../issuance/BulkIssuanceForm';
 import { Link } from 'react-router-dom';
 import { API_CONFIG } from '@/config/api';
 
 interface InstitutionDashboardProps {
   institutionId: string;
-}
-
-interface Purchase {
-  id: string;
-  template: EnhancedTemplate;
-  purchasedAt: string;
-  pricePaid: number;
-  usageCount: number;
-  maxUses?: number;
 }
 
 interface IssuanceStats {
@@ -51,7 +44,6 @@ interface IssuanceStats {
 
 export function InstitutionDashboard({ institutionId }: InstitutionDashboardProps) {
   const { toast } = useToast();
-  const [purchasedTemplates, setPurchasedTemplates] = useState<Purchase[]>([]);
   const [issuanceStats, setIssuanceStats] = useState<IssuanceStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
@@ -66,31 +58,6 @@ export function InstitutionDashboard({ institutionId }: InstitutionDashboardProp
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      
-      // Load purchased templates
-      const templatesResponse = await fetch(`${API_CONFIG.MARKETPLACE}/marketplace/institutions/${institutionId}/templates`);
-      const templatesData = await templatesResponse.json();
-      
-      if (templatesResponse.ok) {
-        const rawPurchases = Array.isArray(templatesData)
-          ? templatesData
-          : (templatesData.purchases || templatesData.templates || []);
-        const normalized = rawPurchases.map((purchase: any) => {
-          const template = purchase.template || purchase;
-          return {
-            id: purchase.id,
-            template: {
-              ...template,
-              name: template.name || template.title,
-            },
-          purchasedAt: purchase.purchasedAt,
-          pricePaid: Number(purchase.purchasePrice ?? purchase.price ?? 0),
-          usageCount: purchase.usageCount ?? 0,
-          maxUses: purchase.maxUses,
-          };
-        });
-        setPurchasedTemplates(normalized);
-      }
       
       // Load issuance stats
       const statsResponse = await fetch(`${API_CONFIG.CERT}/api/stats?institutionId=${encodeURIComponent(institutionId)}`);
@@ -130,11 +97,6 @@ export function InstitutionDashboard({ institutionId }: InstitutionDashboardProp
       description: `${results.completed} certificates issued successfully`,
     });
   };
-
-  const filteredTemplates = purchasedTemplates.filter(purchase =>
-    purchase.template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    purchase.template.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   if (loading) {
     return (
@@ -302,7 +264,7 @@ export function InstitutionDashboard({ institutionId }: InstitutionDashboardProp
               </Card>
             </Link>
 
-            <Link to="/certificate-management">
+            <Link to="/institution/certificates">
               <Card className="hover:shadow-md transition-shadow cursor-pointer">
                 <CardContent className="p-6 text-center">
                   <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mx-auto mb-4">
@@ -321,124 +283,33 @@ export function InstitutionDashboard({ institutionId }: InstitutionDashboardProp
               <CardTitle>Recent Activity</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {purchasedTemplates.slice(0, 5).map((purchase) => (
-                  <div key={purchase.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-8 bg-gray-100 rounded flex items-center justify-center">
-                        {purchase.template.previewImages?.thumbnail ? (
-                          <img
-                            src={purchase.template.previewImages.thumbnail}
-                            alt={purchase.template.name}
-                            className="w-full h-full object-cover rounded"
-                          />
-                        ) : (
-                          <FileText className="h-4 w-4 text-gray-400" />
-                        )}
-                      </div>
-                      <div>
-                        <h4 className="font-medium">{purchase.template.name}</h4>
-                        <p className="text-sm text-gray-600">
-                          Used {purchase.usageCount} times
-                          {purchase.maxUses && ` of ${purchase.maxUses}`}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline">
-                        {new Date(purchase.purchasedAt).toLocaleDateString()}
-                      </Badge>
-                      <Button variant="ghost" size="sm" onClick={() => handleTemplateSelect(purchase.template)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <p className="text-sm text-gray-600">
+                Issue credentials from the{" "}
+                <Link to="/institution/issue" className="text-blue-600 hover:underline">
+                  issuance workspace
+                </Link>{" "}
+                or design new templates in the{" "}
+                <Link to="/institution/manage-specs" className="text-blue-600 hover:underline">
+                  Credential Designer
+                </Link>
+                .
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="templates" className="space-y-6">
-          {/* Search and Filter */}
-          <div className="flex items-center space-x-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search templates..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
+          {/* Credential Designer entry point */}
+          <div className="text-center py-12">
+            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Design your own credential templates</h3>
+            <p className="text-gray-600 mb-4">
+              Create branded certificate templates in the Credential Designer and issue them directly to students.
+            </p>
+            <Link to="/institution/manage-specs">
+              <Button>Open Credential Designer</Button>
+            </Link>
           </div>
-
-          {/* Templates Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTemplates.map((purchase) => (
-              <Card key={purchase.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-0">
-                  <div className="aspect-[4/3] bg-gray-100 rounded-t-lg overflow-hidden">
-                    {purchase.template.previewImages?.thumbnail ? (
-                      <img
-                        src={purchase.template.previewImages.thumbnail}
-                        alt={purchase.template.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400">
-                        <FileText className="h-12 w-12" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-medium line-clamp-1">{purchase.template.name}</h3>
-                      <Badge variant="outline">
-                        {purchase.usageCount}/{purchase.maxUses || 'âˆž'}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-                      {purchase.template.description}
-                    </p>
-                    <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
-                      <span>Purchased {new Date(purchase.purchasedAt).toLocaleDateString()}</span>
-                      <span>${purchase.pricePaid}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1"
-                        onClick={() => handleTemplateSelect(purchase.template)}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        Use Template
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {filteredTemplates.length === 0 && (
-            <div className="text-center py-12">
-              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No templates found</h3>
-              <p className="text-gray-600 mb-4">
-                {searchQuery ? 'Try adjusting your search criteria' : 'You haven\'t purchased any templates yet'}
-              </p>
-              <Button>Browse Marketplace</Button>
-            </div>
-          )}
         </TabsContent>
 
         <TabsContent value="issuance" className="space-y-6">

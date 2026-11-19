@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import React, { useState, useCallback } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -65,7 +65,7 @@ export default function UnifiedCertificateIssuance() {
 
   const issueMultiMutation = useMutation({
     mutationFn: async (data: MultiCertForm) => {
-        return api.issueMultipleCertificates(data.certificates);
+        return (api as any).issueMultipleCertificates(data.certificates);
     },
     onSuccess: () => {
       toast({ title: "Success", description: "Certificates issued successfully!" });

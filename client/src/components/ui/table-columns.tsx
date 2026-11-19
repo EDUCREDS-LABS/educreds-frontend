@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -114,7 +113,7 @@ export function createDateColumn<T>(
       const value = getValue();
       if (!value) return <span className="text-muted-foreground">—</span>;
 
-      const date = new Date(value);
+      const date = new Date(value as string | number | Date);
       const formatted = format(date, options?.format || "MMM dd, yyyy");
 
       return <span className={options?.className}>{formatted}</span>;

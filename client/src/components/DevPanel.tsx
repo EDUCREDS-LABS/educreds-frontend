@@ -19,7 +19,7 @@ export const DevPanel: React.FC = () => {
           Switch Role
         </button>
         <div>
-          <a href="/dev/marketplace/templates" target="_blank" className="underline">
+          <a href="/templates/browse" target="_blank" className="underline">
             View Templates (No Auth)
           </a>
         </div>

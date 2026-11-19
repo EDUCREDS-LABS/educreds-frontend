@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState } from 'react';
 import { useIndexerStats, useSyncStatus, useFailedEvents, useDLQStats } from '@/hooks/useIndexer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -87,20 +86,20 @@ export const BlockchainIndexerDashboard: React.FC = () => {
         <TelemetryCard 
           title="Latest Block" 
           value={stats?.lastBlockProcessed?.toLocaleString() || 0} 
-          subValue={syncStatus?.estimatedBlocksBehind > 0 ? `${syncStatus.estimatedBlocksBehind} blocks behind` : 'Synchronized'}
+          subValue={(syncStatus?.estimatedBlocksBehind ?? 0) > 0 ? `${syncStatus?.estimatedBlocksBehind} blocks behind` : 'Synchronized'}
           icon={Box}
           color="indigo"
           loading={statsLoading || syncLoading}
-          alert={syncStatus?.estimatedBlocksBehind > 100}
+          alert={(syncStatus?.estimatedBlocksBehind ?? 0) > 100}
         />
         <TelemetryCard 
           title="Pending Jobs" 
-          value={stats?.pendingJobs || 0} 
+          value={stats?.pendingJobs ?? 0} 
           subValue="Consensus Queue"
           icon={Zap}
           color="amber"
           loading={statsLoading}
-          alert={stats?.pendingJobs > 100}
+          alert={(stats?.pendingJobs ?? 0) > 100}
         />
         <TelemetryCard 
           title="Node State" 

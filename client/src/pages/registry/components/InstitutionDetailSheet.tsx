@@ -64,18 +64,6 @@ function PoICSection({ institutionId }: { institutionId: string }) {
     select: data => data.find(s => s.institutionId === institutionId),
   });
 
-  const mockScore = {
-    score: 78,
-    components: { certificateScore: 82, reputationScore: 71, accreditationScore: 80 },
-  };
-  const score = scores ?? mockScore;
-
-  const bars = [
-    { label: 'Certificate Score', value: score.components.certificateScore, color: 'bg-blue-500' },
-    { label: 'Reputation Score', value: score.components.reputationScore, color: 'bg-violet-500' },
-    { label: 'Accreditation Score', value: score.components.accreditationScore, color: 'bg-emerald-500' },
-  ];
-
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -86,6 +74,30 @@ function PoICSection({ institutionId }: { institutionId: string }) {
     );
   }
 
+  if (!scores) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-end justify-between">
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+            PoIC Trust Index
+          </span>
+          <span className="text-sm text-slate-500 italic">
+            Not yet assessed
+          </span>
+        </div>
+        <p className="text-xs text-slate-400">
+          PoIC assessment will be available once this institution has issued verifiable credentials and completed verification workflows.
+        </p>
+      </div>
+    );
+  }
+
+  const bars = [
+    { label: 'Certificate Score', value: scores.components.certificateScore, color: 'bg-blue-500' },
+    { label: 'Reputation Score', value: scores.components.reputationScore, color: 'bg-violet-500' },
+    { label: 'Accreditation Score', value: scores.components.accreditationScore, color: 'bg-emerald-500' },
+  ];
+
   return (
     <div className="space-y-4">
       <div className="flex items-end justify-between">
@@ -95,17 +107,17 @@ function PoICSection({ institutionId }: { institutionId: string }) {
         <span
           className={cn(
             'text-3xl font-black italic tracking-tighter',
-            score.score >= 80 ? 'text-emerald-500' : 'text-blue-500',
+            scores.score >= 80 ? 'text-emerald-500' : 'text-blue-500',
           )}
         >
-          {score.score}
+          {scores.score}
           <span className="text-xs ml-1 opacity-40">/100</span>
         </span>
       </div>
       <Progress
-        value={score.score}
+        value={scores.score}
         className="h-2 bg-neutral-100"
-        indicatorClassName={score.score >= 80 ? 'bg-emerald-500' : 'bg-blue-500'}
+        indicatorClassName={scores.score >= 80 ? 'bg-emerald-500' : 'bg-blue-500'}
       />
 
       <div className="pt-2 space-y-3">
@@ -216,13 +228,12 @@ export default function InstitutionDetailSheet({
 }: InstitutionDetailSheetProps) {
   if (!institution) return null;
 
-  const statusKey = institution.verificationStatus ?? 'verified';
+  const statusKey = institution.verificationStatus ?? 'unknown';
   const status = STATUS_CONFIG[statusKey as keyof typeof STATUS_CONFIG] ?? {
     label: statusKey,
-    className: 'bg-blue-500/10 text-blue-600',
+    className: 'bg-slate-500/10 text-slate-600',
   };
-  const poicScore = institution.poicScore ?? 78;
-  const issuanceCount = institution.issuanceCount ?? 0;
+  const issuanceCount = institution.issuanceCount;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -263,28 +274,28 @@ export default function InstitutionDetailSheet({
                 {
                   icon: Activity,
                   label: 'Certificates Issued',
-                  value: issuanceCount.toLocaleString(),
+                  value: issuanceCount != null ? issuanceCount.toLocaleString() : '—',
                   color: 'text-blue-600',
                   bg: 'bg-blue-500/8',
                 },
                 {
                   icon: Hash,
                   label: 'IIN Token',
-                  value: `#${institution.iinIndex ?? Math.floor(Math.random() * 999) + 1000}`,
-                  color: 'text-violet-600',
-                  bg: 'bg-violet-500/8',
+                  value: institution.iinIndex != null ? `#${institution.iinIndex}` : 'Not yet minted',
+                  color: institution.iinIndex != null ? 'text-violet-600' : 'text-slate-400',
+                  bg: institution.iinIndex != null ? 'bg-violet-500/8' : 'bg-slate-500/8',
                 },
                 {
                   icon: Award,
                   label: 'PoIC Score',
-                  value: `${poicScore}/100`,
-                  color: poicScore >= 80 ? 'text-emerald-600' : 'text-blue-600',
-                  bg: poicScore >= 80 ? 'bg-emerald-500/8' : 'bg-blue-500/8',
+                  value: institution.poicScore != null ? `${institution.poicScore}/100` : 'Not assessed',
+                  color: institution.poicScore != null && institution.poicScore >= 80 ? 'text-emerald-600' : 'text-slate-400',
+                  bg: institution.poicScore != null && institution.poicScore >= 80 ? 'bg-emerald-500/8' : 'bg-slate-500/8',
                 },
                 {
                   icon: Globe,
                   label: 'Network',
-                  value: 'Base Sepolia',
+                  value: '—',
                   color: 'text-slate-600',
                   bg: 'bg-slate-500/8',
                 },

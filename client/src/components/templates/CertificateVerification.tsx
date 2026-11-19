@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,7 +30,7 @@ export function CertificateVerification() {
   const [certificateId, setCertificateId] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
 
-  const { data: verificationResult, refetch, isLoading } = useQuery<VerificationResult>({
+  const { data: verificationResult, refetch, isLoading } = useQuery<VerificationResult | null>({
     queryKey: ['verify', certificateId],
     queryFn: async () => {
       if (!certificateId) return null;

@@ -1,272 +1,165 @@
+/**
+ * AppSidebar — persistent, labelled workspace navigation.
+ * Nav comes from the capability matrix (tier- and staff-aware); no hardcoded routes.
+ */
 import * as React from "react";
-import { Link, useLocation } from "wouter";
-import {
-  LayoutDashboard,
-  FileText,
-  Zap,
-  Palette,
-  Shield,
-  CreditCard,
-  User,
-  LogOut,
-  Award,
-  Wallet,
-  Settings,
-  MoreHorizontal,
-  ShieldCheck,
-  Globe,
-  Database,
-  Cpu,
-  BarChart3,
-  ScrollText,
-  Package,
-  Paintbrush,
-  Webhook,
-} from "lucide-react";
-
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
-  SidebarRail,
-} from "@/components/ui/sidebar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Link, useLocation } from "react-router-dom";
+import { ChevronDown, LogOut, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useActiveWorkspace } from "@/lib/useActiveWorkspace";
 import { cn } from "@/lib/utils";
-import { useSidebar } from "@/components/ui/sidebar";
+import { getCapabilitiesForWorkspace, type NavCapability } from "@/lib/capabilityMatrix";
+import { getStaffAllowedTabs } from "@/lib/authStorage";
+import type { DeploymentTier } from "@/lib/deploymentTier";
+import { getTierInfo } from "@/lib/institutionTiers";
 
-const data = {
-  navMain: [
-    { title: "Dashboard", url: "/institution/dashboard", icon: LayoutDashboard },
-    {
-      title: "Credentialing",
-      url: "#",
-      icon: Award,
-      items: [
-        { title: "Issue Credentials", url: "/institution/issue", icon: Zap },
-        { title: "Issued Credentials", url: "/institution/certificates", icon: FileText },
-        { title: "Templates", url: "/institution/manage-specs", icon: Palette },
-      ],
-    },
-    { title: "Verification", url: "/institution/verification", icon: Shield },
-    { title: "Governance", url: "/institution/governance-workspace", icon: Cpu },
-    {
-      title: "Enterprise",
-      url: "#",
-      icon: Database,
-      items: [
-        { title: "Analytics", url: "/institution/enhanced-analytics", icon: BarChart3 },
-        { title: "Batch Operations", url: "/institution/batch-operations", icon: Package },
-        { title: "Audit Trail", url: "/institution/audit-trail", icon: ScrollText },
-        { title: "Webhooks", url: "/institution/webhooks", icon: Webhook },
-        { title: "White Label", url: "/institution/white-label", icon: Paintbrush },
-      ],
-    },
-  ],
-  navSecondary: [
-    { title: "Institution Profile", url: "/institution/profile", icon: User },
-    { title: "Plan & Billing", url: "/institution/subscription", icon: CreditCard },
-    { title: "System Settings", url: "/institution/settings", icon: Settings },
-  ],
+const WORKSPACE_LABELS: Record<string, string> = {
+  institution: "Institution console",
+  student: "Student wallet",
+  verifier: "Verifier portal",
+  government: "Government oversight",
+  developer: "Developer portal",
+  admin: "EduCreds operations",
 };
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const [location] = useLocation();
+const isPathActive = (pathname: string, url: string) =>
+  url !== "#" && (pathname === url || pathname.startsWith(`${url}/`));
+
+function NavLink({ item, pathname, onNavigate, nested }: {
+  item: NavCapability; pathname: string; onNavigate?: () => void; nested?: boolean;
+}) {
+  const active = isPathActive(pathname, item.path);
+  const Icon = item.icon;
+  return (
+    <Link
+      to={item.path}
+      onClick={onNavigate}
+      data-testid={`nav-${item.id}`}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 text-sm transition-colors",
+        nested ? "h-8 pl-9 text-[13px]" : "h-9 font-medium",
+        active
+          ? "bg-primary/10 text-primary font-semibold"
+          : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100",
+      )}
+    >
+      {!nested && <Icon className="size-4 shrink-0" />}
+      <span className="truncate">{item.label}</span>
+    </Link>
+  );
+}
+
+function NavGroup({ item, pathname, onNavigate }: { item: NavCapability; pathname: string; onNavigate?: () => void }) {
+  const children = item.children ?? [];
+  const containsActive = children.some((c) => isPathActive(pathname, c.path));
+  const [open, setOpen] = React.useState(true);
+  React.useEffect(() => { if (containsActive) setOpen(true); }, [containsActive]);
+  const Icon = item.icon;
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        data-testid={`nav-group-${item.id}`}
+        className={cn(
+          "flex w-full items-center gap-3 rounded-lg px-3 h-9 text-sm font-medium transition-colors",
+          containsActive ? "text-neutral-900 dark:text-neutral-100" : "text-neutral-600 dark:text-neutral-400",
+          "hover:bg-neutral-100 dark:hover:bg-neutral-800",
+        )}
+      >
+        <Icon className="size-4 shrink-0" />
+        <span className="flex-1 text-left truncate">{item.label}</span>
+        <ChevronDown className={cn("size-3.5 transition-transform", !open && "-rotate-90")} />
+      </button>
+      {open && (
+        <div className="mt-0.5 space-y-0.5">
+          {children.map((c) => <NavLink key={c.id} item={c} pathname={pathname} onNavigate={onNavigate} nested />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function AppSidebar({ deploymentTier = "workspace", onNavigate }: {
+  deploymentTier?: DeploymentTier;
+  onNavigate?: () => void;
+}) {
+  const { pathname } = useLocation();
   const { user, logout } = useAuth();
-  const { setOpenMobile, isMobile } = useSidebar();
-  const [isExpanded, setIsExpanded] = React.useState(false);
-  const autoHideTimeoutRef = React.useRef<NodeJS.Timeout>();
+  const { active } = useActiveWorkspace();
+  const workspaceId = active ?? "institution";
+  const isInstitution = workspaceId === "institution";
 
-  const handleNavClick = () => {
-    if (isMobile) {
-      setOpenMobile(false);
-    }
-  };
-
-  const isActive = (url: string) => location === url;
-
-  // Auto-hide functionality
-  const handleMouseEnter = React.useCallback(() => {
-    if (autoHideTimeoutRef.current) {
-      clearTimeout(autoHideTimeoutRef.current);
-    }
-    setIsExpanded(true);
-  }, []);
-
-  const handleMouseLeave = React.useCallback(() => {
-    // Auto-collapse after 3 seconds of not hovering
-    autoHideTimeoutRef.current = setTimeout(() => {
-      if (!isMobile) {
-        setIsExpanded(false);
-      }
-    }, 3000);
-  }, [isMobile]);
-
-  React.useEffect(() => {
-    return () => {
-      if (autoHideTimeoutRef.current) {
-        clearTimeout(autoHideTimeoutRef.current);
-      }
-    };
-  }, []);
+  const caps = getCapabilitiesForWorkspace(
+    workspaceId,
+    isInstitution ? deploymentTier : null,
+    isInstitution ? getStaffAllowedTabs() : null,
+  );
+  const tier = isInstitution ? getTierInfo(deploymentTier) : null;
 
   return (
-    <div
-      className={cn(
-        "fixed left-0 top-0 h-full z-50 border-r border-neutral-200/60 dark:border-neutral-800/60 bg-white dark:bg-neutral-900 shadow-xl transition-all duration-300 ease-in-out",
-        isExpanded ? "w-64" : "w-16",
-        "group"
-      )}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+    <aside
+      className="flex h-full w-64 flex-col border-r border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900"
+      data-testid="app-sidebar"
     >
-      <Sidebar
-        collapsible="none"
-        className="w-full h-full border-0"
-        {...props}
-      >
-      <SidebarHeader className="p-6">
-        <Link href="/institution/dashboard">
-          <div className="flex items-center gap-4 cursor-pointer group">
-            <div className="flex aspect-square size-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform duration-300">
-              <ShieldCheck className="size-6 stroke-[2.5]" />
-            </div>
-            <div className="flex flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
-              <span className="font-black text-neutral-900 dark:text-neutral-100 tracking-tighter text-lg">EduCreds</span>
-              <span className="text-[9px] font-black text-neutral-400 uppercase tracking-[0.2em]">Institutional Node</span>
-            </div>
-          </div>
+      <Link to={caps.primary[0]?.path ?? "/"} onClick={onNavigate} className="flex items-center gap-3 px-5 h-16 border-b border-neutral-100 dark:border-neutral-800 shrink-0">
+        <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <ShieldCheck className="size-4.5" />
+        </div>
+        <div className="leading-tight">
+          <p className="font-bold text-neutral-900 dark:text-neutral-100">EduCreds</p>
+          <p className="text-[11px] text-neutral-500">{WORKSPACE_LABELS[workspaceId] ?? "Console"}</p>
+        </div>
+      </Link>
+
+      {tier && (
+        <Link
+          to="/institution/subscription"
+          onClick={onNavigate}
+          data-testid="sidebar-tier-badge"
+          className="mx-4 mt-4 rounded-lg border border-neutral-200 dark:border-neutral-800 px-3 py-2 hover:border-primary/40 transition-colors"
+        >
+          <p className="text-[11px] uppercase tracking-wider text-neutral-500">Deployment tier</p>
+          <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">{tier.name}</p>
         </Link>
-      </SidebarHeader>
+      )}
 
-      <SidebarContent className="px-3 gap-6">
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-3 py-4 text-[10px] font-black text-neutral-400 dark:text-neutral-500 uppercase tracking-[0.2em] group-data-[collapsible=icon]:hidden">
-            Core Infrastructure
-          </SidebarGroupLabel>
-          <SidebarMenu className="gap-1">
-            {data.navMain.map((item) => (
-              <SidebarMenuItem key={item.title}>
-                {item.items ? (
-                  <>
-                    <SidebarMenuButton
-                      tooltip={item.title}
-                      isActive={item.items.some((sub) => isActive(sub.url))}
-                      className="h-11 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all"
-                    >
-                      <item.icon className="size-4 text-neutral-400 group-data-[active=true]:text-primary" />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                    <SidebarMenuSub className="ml-4 border-l border-neutral-100 dark:border-neutral-800 pl-4 gap-1">
-                      {item.items.map((subItem) => (
-                        <SidebarMenuSubItem key={subItem.title}>
-                          <SidebarMenuSubButton asChild isActive={isActive(subItem.url)} className="h-9 rounded-lg font-bold text-[10px] uppercase tracking-widest">
-                            <Link href={subItem.url} onClick={handleNavClick}>
-                              <div className="flex items-center gap-2">
-                                <span>{subItem.title}</span>
-                              </div>
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
-                    </SidebarMenuSub>
-                  </>
-                ) : (
-                  <SidebarMenuButton asChild tooltip={item.title} isActive={isActive(item.url)} className="h-11 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all">
-                    <Link href={item.url} onClick={handleNavClick}>
-                      <item.icon className="size-4 text-neutral-400 group-data-[active=true]:text-primary" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                )}
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label="Workspace navigation">
+        {caps.primary.map((item) =>
+          item.children && item.children.length > 0
+            ? <NavGroup key={item.id} item={item} pathname={pathname} onNavigate={onNavigate} />
+            : <NavLink key={item.id} item={item} pathname={pathname} onNavigate={onNavigate} />,
+        )}
+        {caps.secondary.length > 0 && (
+          <div className="pt-4 mt-4 border-t border-neutral-100 dark:border-neutral-800 space-y-1">
+            <p className="px-3 pb-1 text-[11px] uppercase tracking-wider text-neutral-400">Administration</p>
+            {caps.secondary.map((item) => <NavLink key={item.id} item={item} pathname={pathname} onNavigate={onNavigate} />)}
+          </div>
+        )}
+      </nav>
 
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-3 py-4 text-[10px] font-black text-neutral-400 dark:text-neutral-500 uppercase tracking-[0.2em] group-data-[collapsible=icon]:hidden">
-            Resource Management
-          </SidebarGroupLabel>
-          <SidebarMenu className="gap-1">
-            {data.navSecondary.map((item) => (
-              <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton asChild tooltip={item.title} isActive={isActive(item.url)} className="h-11 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all">
-                  <Link href={item.url} onClick={handleNavClick}>
-                    <item.icon className="size-4 text-neutral-400 group-data-[active=true]:text-primary" />
-                    <span>{item.title}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
-      </SidebarContent>
-
-      <SidebarFooter className="p-4 border-t border-neutral-100 dark:border-neutral-800">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              className="h-14 rounded-2xl bg-neutral-50/50 dark:bg-neutral-800/30 hover:bg-white dark:hover:bg-neutral-800 transition-all shadow-sm border border-neutral-100 dark:border-neutral-800"
-            >
-              <Avatar className="h-9 w-9 rounded-xl border-2 border-white dark:border-neutral-900 shadow-md">
-                <AvatarFallback className="bg-primary/5 text-primary text-xs font-black uppercase">
-                  {user?.name?.charAt(0) || "I"}
-                </AvatarFallback>
-              </Avatar>
-              <div className="grid flex-1 text-left text-xs leading-tight group-data-[collapsible=icon]:hidden">
-                <span className="truncate font-black text-neutral-900 dark:text-neutral-100 uppercase tracking-wider">{user?.name}</span>
-                <span className="truncate text-[10px] text-neutral-400 font-bold">{user?.email}</span>
-              </div>
-              <MoreHorizontal className="ml-auto size-4 text-neutral-400 group-data-[collapsible=icon]:hidden" />
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="w-[--radix-dropdown-menu-trigger-width] min-w-64 rounded-2xl p-2 border-neutral-100 dark:border-neutral-800 shadow-2xl dark:bg-neutral-900"
-            side="right"
-            align="end"
-            sideOffset={12}
+      <div className="border-t border-neutral-100 dark:border-neutral-800 p-3 shrink-0">
+        <div className="flex items-center gap-3 px-2 py-1.5">
+          <div className="size-8 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold uppercase">
+            {user?.name?.charAt(0) ?? "U"}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium truncate text-neutral-900 dark:text-neutral-100">{user?.name ?? "User"}</p>
+            <p className="text-[11px] text-neutral-500 truncate">{user?.email}</p>
+          </div>
+          <button
+            type="button"
+            onClick={logout}
+            aria-label="Sign out"
+            data-testid="sidebar-sign-out"
+            className="p-2 rounded-lg text-neutral-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
           >
-            <DropdownMenuItem asChild className="rounded-xl h-11 px-4 cursor-pointer">
-              <Link href="/institution/profile" className="flex items-center font-bold text-xs uppercase tracking-widest">
-                <User className="mr-3 size-4 text-neutral-400" />
-                Profile Details
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild className="rounded-xl h-11 px-4 cursor-pointer">
-              <Link href="/student-portal" className="flex items-center font-bold text-xs uppercase tracking-widest">
-                <Globe className="mr-3 size-4 text-neutral-400" />
-                Public Interface
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-neutral-100 dark:bg-neutral-800" />
-            <DropdownMenuItem onClick={logout} className="rounded-xl h-11 px-4 text-red-600 focus:bg-red-50 dark:focus:bg-red-950/20 transition-colors cursor-pointer font-bold text-xs uppercase tracking-widest">
-              <LogOut className="mr-3 size-4" />
-              Terminate Session
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </SidebarFooter>
-      <SidebarRail />
-    </Sidebar>
-    </div>
+            <LogOut className="size-4" />
+          </button>
+        </div>
+      </div>
+    </aside>
   );
 }

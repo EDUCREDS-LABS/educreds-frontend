@@ -1,224 +1,142 @@
-# EduCreds Documentation Suite (Draft v1)
+# EduCreds — Core Documentation
 
-This document contains the **core official documents** for EduCreds, aligned with the existing credentialing foundation and the newly defined **AI‑augmented DAO governance layer**.
+## 1. Platform overview
 
----
-
-## 1. Whitepaper (Technical & Governance)
-
-### 1.1 Abstract
-
-EduCreds is a decentralized credential infrastructure that enables institutions to issue verifiable academic credentials while allowing employers, governments, and third parties to independently verify their authenticity. EduCreds introduces **Proof of Institutional Credibility (PoIC)**, a reputation‑based governance model augmented by AI to determine which institutions are trusted to issue credentials.
+EduCreds is an enterprise credential infrastructure platform that enables educational institutions to issue, govern, and verify academic credentials on-chain using W3C Verifiable Credentials, decentralised identifiers (DIDs), and blockchain-anchored proof.
 
 ---
 
-### 1.2 Problem Statement
+## 2. System architecture
 
-Current credential systems suffer from:
+EduCreds is organised into three deployment tiers, two core service planes, and a set of shared platform services.
 
-* Centralized trust and forgery risks
-* Manual verification delays
-* Inconsistent standards across borders
-* Lack of accountability for issuing institutions
+### 2.1 Deployment tiers
 
-Web2 credential platforms solve storage but not **trust**.
+| Tier | Name | Description |
+|---|---|---|
+| 1 | Enterprise On-Prem | Institution runs its own SIS / ERP / registrar database. The EduCreds Enterprise Connector is deployed inside the institution boundary and communicates with the platform via mTLS. |
+| 2 | SIS Cloud External | Institution uses a cloud-based SIS or ERP. The Cloud Connector bridges the SIS API to the EduCreds platform over a secure authorised API channel. |
+| 3 | EduCreds Workspace | Fully managed by EduCreds. Institution staff use the Workspace UI directly. No external system integration required. |
 
----
+### 2.2 Core service planes
 
-### 1.3 EduCreds Solution
+**EduCreds Backend API (`cert_backend`)**
+- Auth and MFA
+- Institutions and onboarding
+- Certificates and issuance pipeline
+- Templates and field mapping
+- Governance (PoIC, proposals, disputes, DAO)
+- Blockchain integration and W3C Credentials
+- LMS import and sync
+- Webhook and infrastructure services
+- Provider registry and event-driven orchestration
+- Queue and background processors
 
-EduCreds combines:
+**EduCreds Trust Agent (`educreds_trust_agent`)**
+- LLM-powered governance advice
+- PoIC computation and behavioral risk scoring
+- Credential and document verification
+- Domain credibility assessment
+- Governance tracing and observability
 
-* W3C Verifiable Credentials (VCs)
-* Decentralized Identifiers (DIDs)
-* On‑chain credential status
-* AI‑assisted governance
+### 2.3 Shared platform services
 
-Result: **Trustless verification with governed issuance authority.**
-
----
-
-### 1.4 System Architecture
-
-**Layers:**
-
-1. Identity Layer (DIDs)
-2. Credential Layer (W3C VC + NFT status)
-3. Governance Layer (DAO + PoIC)
-4. Intelligence Layer (Educreds Trust Agent)
-
----
-
-### 1.5 Institution Onboarding Flow
-
-1. Institution registers (off‑chain)
-2. Educreds Trust Agent evaluates legitimacy
-3. PoIC score submitted on‑chain
-4. DAO approves or vetoes
-5. Institution Identity NFT minted
-
-Only NFT holders can issue credentials.
+- PostgreSQL — primary relational store
+- Redis — queue broker and cache
+- Azure Key Vault — secrets at rest
+- Azure Application Insights + Log Analytics — observability
+- IPFS (Pinata) — encrypted metadata and W3C VC storage
+- Base / EVM smart contracts — on-chain credential proof and revocation
 
 ---
 
-### 1.6 Proof of Institutional Credibility (PoIC)
+## 3. Key concepts
 
-PoIC is a non‑token, reputation‑based consensus model.
+### Proof of Institutional Credibility (PoIC)
 
-**Inputs:**
+PoIC is a multi-dimensional reputation score (0–100) that determines an institution's trust level and issuance capacity.
 
-* Issuance accuracy (30%)
-* Revocation rate (20%)
-* Employer feedback (20%)
-* Governance behavior (15%)
-* Audit outcomes (10%)
-* AI risk score (5%)
+| Dimension | Weight | Signals |
+|---|---|---|
+| D1 — Legal and accreditation | 25% | Government registration, accreditation credibility and stability |
+| D2 — Operational authenticity | 20% | Digital footprint, faculty verifiability, registry consistency |
+| D3 — Issuance behaviour | 25% | Stability, entropy, anomaly score, revocation ratio |
+| D4 — Verification and feedback | 15% | Verification rate, diversity, reverification |
+| D5 — Governance and disputes | 15% | Base score adjusted for dispute count and severity |
 
-Voting power dynamically adjusts based on PoIC.
+| Score | Status | Issuance capacity |
+|---|---|---|
+| 80–100 | APPROVE | 10 000 / month |
+| 70–79 | APPROVE_WITH_MONITORING | 5 000 / month |
+| 50–69 | RESTRICT | 1 000 / month |
+| 0–49 | SUSPEND | 0 |
 
----
+### Institution Identity NFT (IIN)
 
-### 1.7 Governance Model
+Each approved institution receives an IIN — an ERC-721 token minted on-chain after DAO governance approval. Only IIN holders can issue credentials.
 
-* DAO‑based decision making
-* No token voting
-* Institution‑weighted credibility voting
-* AI‑assisted proposal analysis
-* Timelocked execution
+### W3C Verifiable Credentials
 
----
+All credentials are issued as W3C Verifiable Credentials signed with ES256 (ECDSA P-256). Sensitive student metadata is encrypted off-chain and only a SHA-256 hash is anchored on-chain.
 
-### 1.8 Dispute Resolution (Phase 2)
+### On-chain data policy
 
-Disputes are handled through governance proposals triggered by AI‑detected anomalies or third‑party challenges.
-
----
-
-### 1.9 Security & Trust Assumptions
-
-* AI does not execute actions
-* DAO retains final authority
-* Credentials are soulbound
-* Institutions can be revoked at any time
+Only the following data is written on-chain: credential NFT ID, institution IIN ID, recipient wallet address, IPFS URI of the W3C VC, metadata hash, PoIC score, timestamps, and revocation status. Student PII (name, email, grades) is never written on-chain.
 
 ---
 
-### 1.10 Roadmap
+## 4. Institution onboarding flow
 
-**Phase 1:** Credential + Governance Testnet
-**Phase 2:** Dispute Manager + Arbitration
-**Phase 3:** Multi‑chain expansion
-
----
-
-## 2. Litepaper (Non‑Technical)
-
-### What is EduCreds?
-
-EduCreds is a global credential verification network that allows schools to issue tamper‑proof certificates and employers to verify them instantly.
-
-### Why EduCreds?
-
-* No fake certificates
-* No centralized gatekeepers
-* Global verification
-
-### How it works (Simple)
-
-Schools apply → AI checks → DAO approves → certificates issued → employers verify.
+1. Institution registers via the EduCreds platform or API.
+2. Trust Agent evaluates legitimacy via LLM analysis.
+3. PoIC score is computed and submitted on-chain.
+4. Governance Council votes (reputation-weighted).
+5. If approved, Institution Identity NFT is minted.
+6. Institution can begin issuing credentials up to their tier capacity.
 
 ---
 
-## 3. Pitch Deck (Slide Content)
+## 5. Credential issuance flow
 
-### Slide 1 – Title
-
-EduCreds
-Decentralized Academic Credentials
-
-### Slide 2 – Problem
-
-Fake certificates
-Slow verification
-No global standard
-
-### Slide 3 – Solution
-
-W3C credentials + Blockchain + AI governance
-
-### Slide 4 – How It Works
-
-Apply → Verify → Issue → Verify
-
-### Slide 5 – Governance Advantage
-
-No token voting
-No centralized trust
-AI‑assisted fairness
-
-### Slide 6 – Market
-
-Universities
-Employers
-Governments
-EdTech platforms
-
-### Slide 7 – Traction
-
-Working platform
-Live APIs
-Institution onboarding
-
-### Slide 8 – Vision
-
-Global credential infrastructure
+1. Institution submits issuance request (via Workspace UI, Connector API, or LMS sync).
+2. Provider Registry routes the request to the correct data provider (Tier 1, 2, or 3).
+3. Issuance Orchestration Service queues a `single-from-orchestrator` job.
+4. CertificatesService creates student DID, encrypts metadata, generates W3C VC.
+5. W3C VC and encrypted metadata are stored on IPFS.
+6. Smart contract mints credential NFT with metadata hash and IPFS URI.
+7. `CredentialIssuedEvent` is emitted — WebhookService notifies the institution.
 
 ---
 
-## 4. Company Profile
+## 6. Frontend modules
 
-**Name:** EduCreds
-**Domain:** educreds.xyz
-**Industry:** Web3 / EdTech / Identity
+The `educreds-frontend` client is organised into three canonical module groups:
 
-### About
-
-EduCreds builds decentralized infrastructure for academic credentials, enabling trustless issuance and verification across borders.
-
-### Mission
-
-To make academic credentials verifiable, portable, and trustworthy worldwide.
-
-### Products
-
-* Credential Issuance Platform
-* Verification Portal
-* Governance Infrastructure
+| Module group | Path prefix | Audience |
+|---|---|---|
+| Workspace | `/institution/*` | Tier 3 workspace institutions |
+| Integration | `/connect/*` | Tier 1 and 2 connector institutions |
+| Compliance / Governance | `/compliance/*` | All institution tiers |
 
 ---
 
-## 5. One‑Pager (Investor / Partner)
+## 7. CI/CD and environments
 
-**EduCreds** is a decentralized credential network combining W3C Verifiable Credentials with AI‑assisted governance to determine who can issue trusted academic certificates.
-
----
-
-## 6. Legal & Company Docs (Templates)
-
-### Required:
-
-* Terms of Service
-* Privacy Policy
-* Institution Issuance Agreement
-* Verification Disclaimer
+| Environment | Branch | Approval |
+|---|---|---|
+| Dev | `develop` | Automatic on merge |
+| Staging | Manual dispatch | Staging environment gate |
+| Production | Manual dispatch | 2 required reviewers |
 
 ---
 
-## 7. Positioning Statement
+## 8. Key repositories
 
-> EduCreds is not a credential issuer. It is the infrastructure that decides who is allowed to issue credentials.
-
----
-
-**Status:** Draft v1
-**Next:** Design versions, diagrams, and legal review
+| Repository | Purpose |
+|---|---|
+| `cert_backend/` | NestJS backend platform |
+| `educreds_trust_agent/` | AI intelligence microservice |
+| `educreds-frontend/` | React / Vite frontend client |
+| `educreds-protocol/` | Smart contract interfaces |
+| `educreds-infrastructure/` | Azure Bicep IaC templates |
+| `documentation/` | All authoritative documentation |

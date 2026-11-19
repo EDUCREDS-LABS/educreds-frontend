@@ -1,33 +1,31 @@
 import { useAuth } from "@/hooks/useAuth";
-import { useLocation } from "wouter";
+import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { AuthType } from "@/lib/dualAuth";
+import { getInstitutionTierDestination } from "@/lib/deploymentTier";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredType?: AuthType;
+  /** Override the default /login redirect — used by WorkspaceRoute for persona-specific logins */
+  loginPath?: string;
 }
 
-export default function ProtectedRoute({ children, requiredType }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, authType } = useAuth();
-  const [, setLocation] = useLocation();
+export default function ProtectedRoute({ children, requiredType, loginPath = "/login" }: ProtectedRouteProps) {
+  const { isAuthenticated, isLoading, authType, user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!isLoading) {
       if (!isAuthenticated) {
-        setLocation("/login");
+        navigate(loginPath, { replace: true });
       } else if (requiredType && authType !== requiredType) {
         // Role mismatch - redirect to relevant dashboard or home
-        if (authType === AuthType.MARKETPLACE) {
-          setLocation("/marketplace");
-        } else {
-          setLocation("/institution/dashboard");
-        }
+        navigate(getInstitutionTierDestination(user?.deploymentTier), { replace: true });
       }
     }
-  }, [isAuthenticated, isLoading, authType, setLocation, requiredType]);
+  }, [isAuthenticated, isLoading, authType, navigate, requiredType, loginPath, user?.deploymentTier]);
 
-  // Show loading state while checking authentication
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -39,9 +37,8 @@ export default function ProtectedRoute({ children, requiredType }: ProtectedRout
     );
   }
 
-  if (!isAuthenticated) {
-    return null;
-  }
+  // Navigation runs in an effect; never render protected content while access is denied.
+  if (!isAuthenticated || (requiredType && authType !== requiredType)) return null;
 
   return <>{children}</>;
 }

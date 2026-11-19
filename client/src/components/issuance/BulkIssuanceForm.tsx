@@ -1,3 +1,6 @@
+// Compat: template selection removed in credential rendering architecture update
+type EnhancedTemplate = { id: string; name: string; category: string; placeholders?: Array<{ key: string; label: string; type: string; required: boolean }>; previewImages?: Record<string, string> };
+
 import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,7 +24,6 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { EnhancedTemplate } from '@/store/editorStore';
 import { API_CONFIG } from '@/config/api';
 import { getAuthHeaders } from '@/lib/auth';
 
@@ -113,7 +115,7 @@ export function BulkIssuanceForm({
       
       // Parse template placeholders
       if (selectedTemplate?.placeholders) {
-        selectedTemplate.placeholders.forEach(placeholder => {
+        selectedTemplate?.placeholders.forEach(placeholder => {
           const headerIndex = headers.indexOf(placeholder.key);
           if (headerIndex !== -1 && values[headerIndex]) {
             recipient.placeholders[placeholder.key] = values[headerIndex];
@@ -164,14 +166,14 @@ export function BulkIssuanceForm({
     if (!selectedTemplate) return;
     
     const headers = ['name', 'email', 'walletAddress'];
-    if (selectedTemplate.placeholders) {
-      headers.push(...selectedTemplate.placeholders.map(p => p.key));
+    if (selectedTemplate?.placeholders) {
+      headers.push(...selectedTemplate?.placeholders.map(p => p.key));
     }
     
     const csvContent = [
       headers.join(','),
       // Add example row
-      ['John Doe', 'john@example.com', '0x1234...', ...selectedTemplate.placeholders.map(() => 'Example Value')].join(',')
+      ['John Doe', 'john@example.com', '0x1234...', ...(selectedTemplate?.placeholders?.map(() => 'Example Value') || [])].join(',')
     ].join('\n');
     
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -206,7 +208,7 @@ export function BulkIssuanceForm({
       
       // Validate required placeholders
       if (selectedTemplate?.placeholders) {
-        selectedTemplate.placeholders.forEach(placeholder => {
+        selectedTemplate?.placeholders.forEach(placeholder => {
           if (!recipient.placeholders[placeholder.key]) {
             errors.push(`Row ${index + 1}: ${placeholder.label} is required`);
           }
@@ -379,7 +381,7 @@ export function BulkIssuanceForm({
                 <div>
                   <h3 className="font-medium">{selectedTemplate.name}</h3>
                   <p className="text-sm text-gray-600">
-                    {selectedTemplate.placeholders?.length || 0} required fields
+                    {selectedTemplate?.placeholders?.length || 0} required fields
                   </p>
                 </div>
               </div>
@@ -497,11 +499,11 @@ export function BulkIssuanceForm({
                     </div>
                   </div>
                   
-                  {selectedTemplate?.placeholders && selectedTemplate.placeholders.length > 0 && (
+                  {selectedTemplate?.placeholders && selectedTemplate?.placeholders.length > 0 && (
                     <div>
                       <Label className="text-sm font-medium">Template Fields</Label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-                        {selectedTemplate.placeholders.map((placeholder) => (
+                        {selectedTemplate?.placeholders.map((placeholder: any) => (
                           <div key={placeholder.key}>
                             <Label htmlFor={`${placeholder.key}-${index}`} className="text-sm">
                               {placeholder.label} *

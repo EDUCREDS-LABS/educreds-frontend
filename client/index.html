@@ -6,7 +6,11 @@
     <link rel="canonical" href="https://educreds.xyz/" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/logo.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#6366F1" />
     <title>EduCreds - Decentralized Academic Credentialing Infrastructure</title>
     <meta name="description" content="EduCreds provides enterprise-grade blockchain infrastructure for issuing, managing, and verifying tamper-proof academic credentials globally." />
     <meta name="keywords" content="blockchain, academic credentials, digital certificates, verification, education, enterprise credentialing, W3C verifiable credentials" />
@@ -25,12 +29,24 @@
     <meta property="twitter:description" content="Secure, verifiable, and permanent academic credentials on the blockchain. Enterprise-grade infrastructure for institutions." />
     <meta property="twitter:image" content="https://res.cloudinary.com/dycszahnr/image/upload/q_auto/f_auto/v1775814532/10.04.2026_15.46.38_REC_n4qsha.png" />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:wght@700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
   </head>
   <body>
     <div id="root"></div>
+    <!-- __SUBDOMAIN_INJECT__ -->
+    <script>
+      /* SWA static fallback: injected at build time for Azure Static Web Apps.
+         The Express server overrides these at runtime via server/vite.ts for
+         subdomain-aware deployments. This ensures SPA bootstraps correctly
+         when served as pure static files. */
+      if (typeof window.__SUBDOMAIN__ === 'undefined') {
+        window.__APP_ENV__ = "prod";
+        window.__SUBDOMAIN__ = "app";
+        window.__CANONICAL_URL__ = "https://app.educreds.xyz/";
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

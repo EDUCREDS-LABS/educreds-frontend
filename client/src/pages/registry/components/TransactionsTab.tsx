@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -32,6 +31,7 @@ import {
   type ContractName,
   type BlockchainTransaction,
   type TransactionFilters,
+  type IndexerStats,
 } from '@/services/indexerService';
 
 const PAGE_SIZE = 15;
@@ -144,7 +144,7 @@ export default function TransactionsTab() {
     refetchInterval: 30_000,
   });
 
-  const { data: stats } = useQuery({
+  const { data: stats } = useQuery<IndexerStats>({
     queryKey: ['indexer-stats'],
     queryFn: () => indexerService.getIndexerStats(),
     staleTime: 30_000,
@@ -229,7 +229,7 @@ export default function TransactionsTab() {
       {/* Stats strip */}
       {stats && (
         <div className="flex flex-wrap gap-3">
-          {(Object.entries(stats.eventCounts) as [EventName, number][]).map(([event, count]) => {
+          {(Object.entries(stats.eventCounts ?? {}) as [EventName, number][]).map(([event, count]) => {
             const cfg = EVENT_BADGE[event];
             if (!cfg) return null;
             return (

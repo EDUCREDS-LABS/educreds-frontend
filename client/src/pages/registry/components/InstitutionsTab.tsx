@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useMemo, useEffect } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -40,7 +39,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
 };
 
 function getStatusConfig(status: string) {
-  return STATUS_CONFIG[status] ?? { label: status, className: 'bg-blue-500/10 text-blue-600' };
+  return STATUS_CONFIG[status] ?? { label: status === 'unknown' ? 'Status unavailable' : status, className: 'bg-slate-500/10 text-slate-600' };
 }
 
 function isLikelyId(value: string) {
@@ -63,7 +62,7 @@ function InstitutionCard({
   onSelect: (inst: EnrichedInstitution) => void;
 }) {
   const isPremium = (institution.poicScore ?? 0) >= 80;
-  const status = getStatusConfig(institution.verificationStatus ?? 'verified');
+  const status = getStatusConfig(institution.verificationStatus ?? 'unknown');
 
   return (
     <motion.div
@@ -264,7 +263,7 @@ export default function InstitutionsTab() {
     }));
   }, [data]);
 
-  const totalPages = data?.totalPages ?? 1;
+  const totalPages = data?.pagination?.totalPages ?? 1;
 
   // Filter + sort (client side if needed, though we should really do it server side if API supports it)
   // But given useInstitutions(page, PAGE_SIZE), we assume server-side pagination is used.
@@ -420,7 +419,7 @@ export default function InstitutionsTab() {
 
       {/* Detail sheet */}
       <InstitutionDetailSheet
-        institution={selectedInstitution}
+        institution={selectedInstitution as (InstitutionResponse & { poicScore?: number; issuanceCount?: number; iinIndex?: number }) | null}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
       />

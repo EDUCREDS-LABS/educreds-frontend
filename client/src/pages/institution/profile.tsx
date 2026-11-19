@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +34,8 @@ import {
   ExternalLink,
   Shield,
   Clock,
+  Upload,
+  ImageIcon,
 } from "lucide-react";
 import { API_CONFIG } from "@/config/api";
 import { getAuthHeaders } from "@/lib/auth";
@@ -54,6 +55,36 @@ interface ProfileData {
   description: string;
   institutionType: string;
   registrationNumber: string;
+  logoUrl?: string;
+}
+
+interface InstitutionProfileData {
+  name?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  description?: string;
+  institutionType?: string;
+  registrationNumber?: string;
+  logoUrl?: string;
+  did?: string;
+  walletAddress?: string;
+  createdAt?: string;
+  contactInfo?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    website?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    logoUrl?: string;
+  };
 }
 
 export default function InstitutionProfile() {
@@ -61,6 +92,7 @@ export default function InstitutionProfile() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
   const [formData, setFormData] = useState<ProfileData>({
     name: '',
     email: '',
@@ -72,10 +104,11 @@ export default function InstitutionProfile() {
     country: '',
     description: '',
     institutionType: '',
-    registrationNumber: ''
+    registrationNumber: '',
+    logoUrl: '',
   });
 
-  const { data: profileData, isLoading } = useQuery({
+  const { data: profileData, isLoading } = useQuery<InstitutionProfileData>({
     queryKey: ["/api/institutions/profile"],
     queryFn: async () => {
       const response = await fetch(API_CONFIG.INSTITUTIONS.PROFILE, {
@@ -88,8 +121,11 @@ export default function InstitutionProfile() {
       return response.json();
     },
     enabled: !!user,
-    onSuccess: (data: any) => {
-      const profile = data || {};
+  });
+
+  useEffect(() => {
+    if (profileData) {
+      const profile = profileData;
       const contactInfo = profile.contactInfo || {};
       setFormData({
         name: profile.name || '',
@@ -102,10 +138,11 @@ export default function InstitutionProfile() {
         country: profile.country || contactInfo.country || '',
         description: profile.description || '',
         institutionType: profile.institutionType || '',
-        registrationNumber: profile.registrationNumber || ''
+        registrationNumber: profile.registrationNumber || '',
+        logoUrl: contactInfo.logoUrl || profile.logoUrl || '',
       });
     }
-  });
+  }, [profileData]);
 
   const updateMutation = useMutation({
     mutationFn: async (data: ProfileData) => {
@@ -133,7 +170,7 @@ export default function InstitutionProfile() {
     }
   });
 
-  const profile = profileData || {};
+  const profile: InstitutionProfileData = profileData || {};
   const contactInfo = profile.contactInfo || {};
   const { data: statsData, isLoading: isStatsLoading } = useQuery({
     queryKey: ["institution-stats", user?.id],
@@ -148,7 +185,7 @@ export default function InstitutionProfile() {
   };
 
   const handleCancel = () => {
-    const profile = profileData || {};
+    const profile: InstitutionProfileData = profileData || {};
     const contactInfo = profile.contactInfo || {};
     setFormData({
       name: profile.name || '',
@@ -161,9 +198,40 @@ export default function InstitutionProfile() {
       country: profile.country || contactInfo.country || '',
       description: profile.description || '',
       institutionType: profile.institutionType || '',
-      registrationNumber: profile.registrationNumber || ''
+      registrationNumber: profile.registrationNumber || '',
+      logoUrl: contactInfo.logoUrl || profile.logoUrl || '',
     });
     setIsEditing(false);
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const MAX = 2 * 1024 * 1024;
+    if (file.size > MAX) {
+      toast({ title: "Logo must be under 2 MB", variant: "destructive" });
+      return;
+    }
+    setLogoUploading(true);
+    try {
+      const form = new FormData();
+      form.append('logo', file);
+      const res = await fetch(API_CONFIG.INSTITUTIONS.PROFILE_LOGO, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: form,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { logoUrl } = await res.json();
+      setFormData(prev => ({ ...prev, logoUrl }));
+      queryClient.invalidateQueries({ queryKey: ["/api/institutions/profile"] });
+      toast({ title: "Logo uploaded successfully" });
+    } catch (err: any) {
+      toast({ title: "Logo upload failed", description: err?.message, variant: "destructive" });
+    } finally {
+      setLogoUploading(false);
+      e.target.value = '';
+    }
   };
 
   if (isLoading) {
@@ -371,12 +439,17 @@ export default function InstitutionProfile() {
                       </div>
                       <div className="flex items-center gap-3 text-sm text-neutral-700 font-medium">
                         <Globe className="size-4 text-primary" />
-                        {profile.website || contactInfo.website ? (
-                          <a href={(profile.website || contactInfo.website).startsWith('http') ? (profile.website || contactInfo.website) : `https://${profile.website || contactInfo.website}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline inline-flex items-center gap-1">
-                            {new URL((profile.website || contactInfo.website).startsWith('http') ? (profile.website || contactInfo.website) : `https://${profile.website || contactInfo.website}`).hostname}
-                            <ExternalLink className="size-3" />
-                          </a>
-                        ) : "No website listed"}
+                        {(() => {
+                          const websiteRaw = profile.website || contactInfo.website;
+                          if (!websiteRaw) return "No website listed";
+                          const websiteUrl = websiteRaw.startsWith('http') ? websiteRaw : `https://${websiteRaw}`;
+                          return (
+                            <a href={websiteUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline inline-flex items-center gap-1">
+                              {new URL(websiteUrl).hostname}
+                              <ExternalLink className="size-3" />
+                            </a>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -441,7 +514,66 @@ export default function InstitutionProfile() {
           </div>
         </TabsContent>
 
-        <TabsContent value="general" className="pt-8 outline-none">
+        <TabsContent value="general" className="pt-8 outline-none space-y-8">
+          {/* Logo Upload Card */}
+          <Card className="border-none shadow-xl shadow-neutral-200/40 rounded-3xl">
+            <CardHeader className="p-8 border-b border-neutral-100">
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <ImageIcon className="size-5 text-primary" />
+                Institution Logo
+              </CardTitle>
+              <CardDescription>
+                Used on credential NFT badges (Open Badge standard). PNG, JPG, SVG or WebP — max 2 MB.
+                No student PII is ever included on the badge.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-8">
+              <div className="flex items-center gap-8">
+                {/* Logo preview */}
+                <div className="flex-shrink-0 size-24 rounded-2xl border-2 border-dashed border-neutral-200 bg-neutral-50 flex items-center justify-center overflow-hidden">
+                  {formData.logoUrl ? (
+                    <img src={formData.logoUrl} alt="Institution logo" className="size-full object-contain p-2" />
+                  ) : (
+                    <Building2 className="size-10 text-neutral-300" />
+                  )}
+                </div>
+                {/* Upload button */}
+                <div className="space-y-3">
+                  <label htmlFor="logo-upload" className="cursor-pointer">
+                    <div className={cn(
+                      "inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all",
+                      logoUploading
+                        ? "bg-neutral-100 text-neutral-400 cursor-not-allowed"
+                        : "bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20"
+                    )}>
+                      <Upload className="size-4" />
+                      {logoUploading ? "Uploading…" : formData.logoUrl ? "Replace Logo" : "Upload Logo"}
+                    </div>
+                    <input
+                      id="logo-upload"
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+                      className="hidden"
+                      disabled={logoUploading}
+                      onChange={handleLogoUpload}
+                    />
+                  </label>
+                  {formData.logoUrl && (
+                    <p className="text-xs text-neutral-500 font-medium flex items-center gap-1">
+                      <CheckCircle className="size-3 text-green-500" />
+                      Logo stored on IPFS — embedded in all new credential badges
+                    </p>
+                  )}
+                  {!formData.logoUrl && (
+                    <p className="text-xs text-neutral-400">
+                      Badges will use the EduCreds shield icon until a logo is uploaded.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="border-none shadow-xl shadow-neutral-200/40 rounded-3xl">
             <CardHeader className="p-8 border-b border-neutral-100">
               <CardTitle className="text-xl font-bold">Detailed Institution Profile</CardTitle>

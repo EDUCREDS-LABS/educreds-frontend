@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { API_CONFIG } from '../../config/api';
 
 export default function RegisterVerifyOtp() {
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [email, setEmail] = useState("");
@@ -32,9 +32,9 @@ export default function RegisterVerifyOtp() {
       setPendingData(JSON.parse(stored));
     } else {
       // No pending registration, redirect back
-      setLocation('/register');
+      navigate('/register', { replace: true });
     }
-  }, [setLocation]);
+  }, [navigate]);
 
   const handleOtpVerify = async (otp: string, otpToken: string) => {
     if (!pendingData) {
@@ -66,7 +66,7 @@ export default function RegisterVerifyOtp() {
         description: "Your institution has been registered. Verification request submitted.",
       });
 
-      setLocation("/institution/dashboard");
+      navigate("/institution/dashboard", { replace: true });
     } catch (err: any) {
       setError(err.message || "Invalid OTP. Please try again.");
     } finally {
@@ -109,7 +109,7 @@ export default function RegisterVerifyOtp() {
             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
             <h2 className="text-lg font-semibold mb-2">Registration Data Not Found</h2>
             <p className="text-neutral-600 mb-4">Please start the registration process again.</p>
-            <Link href="/register">
+            <Link to="/register">
               <Button className="w-full">Back to Registration</Button>
             </Link>
           </CardContent>
@@ -121,7 +121,7 @@ export default function RegisterVerifyOtp() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <div className="absolute top-4 left-4">
-        <Link href="/register">
+        <Link to="/register">
           <Button variant="ghost" className="flex items-center space-x-2">
             <ArrowLeft className="w-4 h-4" />
             <span>Back to Registration</span>

@@ -1,4 +1,4 @@
-// @ts-nocheck
+// fix(frontend): remove @ts-nocheck; auto-load certs via EDU-ID session
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '@/lib/api';
 import { CertificateCard } from '@/components/CertificateCard';
@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Link } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { AuthType } from '@/lib/dualAuth';
 import {
   Wallet,
   Award,
@@ -21,11 +24,17 @@ import {
   Search,
   Grid,
   List,
+  Mail,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 
 export function StudentDashboard() {
+  // Cohesion fix (SYSTEM_COHESION_PLAN F-5): recognise an active EDU-ID session
+  // so a student who logged in via email OTP is not forced to re-connect a wallet.
+  const { authType, user: authUser } = useAuth();
+  const isStudentSession = authType === AuthType.STUDENT && !!(authUser as any)?.eduCredsId;
+
   const [certificates, setCertificates] = useState<any[]>([]);
   const [walletAddress, setWalletAddress] = useState('');
   const [loading, setLoading] = useState(false);
@@ -33,10 +42,37 @@ export function StudentDashboard() {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Auto-load credentials when an EDU-ID (email OTP) session is active —
+  // no MetaMask required. This is the primary flow for African students.
+  useEffect(() => {
+    if (isStudentSession && (authUser as any)?.eduCredsId) {
+      const eduCredsId = (authUser as any).eduCredsId as string;
+      setLoading(true);
+      api.getCertificatesByEduId(eduCredsId)
+        .then((result: any) => {
+          const normalized = Array.isArray(result) ? result : (result?.certificates || []);
+          setCertificates(normalized);
+          setConnected(true);
+        })
+        .catch(() => {
+          // Fallback: try by email if eduCredsId lookup fails
+          if ((authUser as any)?.email) {
+            return api.getCertificatesByEmail((authUser as any).email)
+              .then((r: any) => {
+                const normalized = Array.isArray(r) ? r : (r?.certificates || []);
+                setCertificates(normalized);
+                setConnected(true);
+              });
+          }
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [isStudentSession, (authUser as any)?.eduCredsId]);
+
   const connectWallet = async () => {
     if (typeof window.ethereum !== 'undefined') {
       try {
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const accounts = await (window.ethereum.request as (args: { method: string }) => Promise<string[]>)({ method: 'eth_requestAccounts' });
         const address = accounts[0];
         setWalletAddress(address);
         setConnected(true);
@@ -46,7 +82,8 @@ export function StudentDashboard() {
         setError(`Failed to connect wallet: ${error.message}`);
       }
     } else {
-      alert('Please install MetaMask to connect your wallet');
+      // No MetaMask — show a user-friendly message instead of an alert
+      setError('No crypto wallet detected. You can still access your credentials by logging in with your email (EDU-ID) above.');
     }
   };
 
@@ -63,6 +100,8 @@ export function StudentDashboard() {
     try {
       const result = await api.getCertificatesByWallet(address);
       const normalized = Array.isArray(result) ? result : (result?.certificates || []);
+      // The backend returns a rendered `previewImageUrl` (IPFS gateway) for each
+      // credential, so students see the actual certificate image in the wallet.
       setCertificates(normalized);
     } catch (error: any) {
       setError(`Failed to load certificates: ${error.message}`);
@@ -92,7 +131,7 @@ export function StudentDashboard() {
             Student <span className="text-primary">Interface</span>.
           </h1>
           <p className="text-neutral-500 dark:text-neutral-400 max-w-2xl text-lg font-medium">
-            Manage your cryptographic academic credentials, share verified proofs, and audit your educational achievements on the blockchain.
+            Manage your cryptographic academic credentials, share verified proofs, and track your educational achievements.
           </p>
         </div>
         {!connected && (
@@ -108,6 +147,39 @@ export function StudentDashboard() {
 
       {!connected ? (
         <div className="py-20 flex flex-col items-center justify-center text-center space-y-10">
+          {isStudentSession && (
+            <Card
+              data-testid="student-session-detected-banner"
+              className="w-full max-w-2xl border-none bg-primary/5 dark:bg-primary/10 rounded-3xl"
+            >
+              <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-left">
+                <div className="flex items-center gap-3">
+                  <div className="size-11 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+                    <Mail className="size-5" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                      EDU-ID Session Active
+                    </p>
+                    <p className="text-sm font-bold text-neutral-800 dark:text-neutral-200">
+                      {(authUser as any)?.eduCredsId} · {(authUser as any)?.email}
+                    </p>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                      You are already signed in via email identity. A wallet connection is optional.
+                    </p>
+                  </div>
+                </div>
+                <Link to={`/identity/${(authUser as any)?.eduCredsId}`}>
+                  <Button
+                    data-testid="open-identity-profile-button"
+                    className="h-10 rounded-xl font-black text-[10px] uppercase tracking-widest"
+                  >
+                    Open Identity Profile
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
           <div className="relative">
             <div className="size-32 bg-primary/10 rounded-[40px] flex items-center justify-center text-primary relative z-10">
               <ShieldCheck className="size-16" />
@@ -161,9 +233,9 @@ export function StudentDashboard() {
                       <p className="text-[9px] font-bold text-neutral-500 uppercase">Proofs Found</p>
                     </div>
                     <div className="space-y-1 text-center md:text-left">
-                      <p className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">Immutable</p>
+                      <p className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">Secured</p>
                       <p className="text-3xl font-black text-green-500 tracking-tighter">{certificates.filter(c => c.isMinted).length}</p>
-                      <p className="text-[9px] font-bold text-neutral-500 uppercase">On-chain</p>
+                      <p className="text-[9px] font-bold text-neutral-500 uppercase">Issued</p>
                     </div>
                   </div>
                 </div>
@@ -237,7 +309,7 @@ export function StudentDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               { title: "Verifiable Credentials", icon: ShieldCheck, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950/30", desc: "W3C standard compliant identity objects for interoperability." },
-              { title: "On-chain Integrity", icon: Award, color: "text-green-500", bg: "bg-green-50 dark:bg-green-950/30", desc: "Cryptographic anchoring on Base protocol ensures immutability." },
+              { title: "Tamper-Proof", icon: Award, color: "text-green-500", bg: "bg-green-50 dark:bg-green-950/30", desc: "Cryptographic signing ensures each credential stays verifiable and unaltered." },
               { title: "Universal Discovery", icon: Globe, color: "text-purple-500", bg: "bg-purple-50 dark:bg-purple-950/30", desc: "Globally accessible verification endpoints for instant audit." },
             ].map((f, i) => (
               <Card key={i} className="border-none shadow-xl shadow-neutral-200/20 dark:shadow-black/20 bg-white dark:bg-neutral-900 rounded-[32px] overflow-hidden">
